@@ -1,0 +1,75 @@
+# ------------------------------
+# Maven / Build
+# ------------------------------
+target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+dist/
+build/
+out/
+
+# ------------------------------
+# Logs / Temp
+# ------------------------------
+*.log
+*.tmp
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# ------------------------------
+# IDEs
+# ------------------------------
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+# Eclipse
+.project
+.classpath
+.settings/
+# VSCode
+.vscode/
+
+# ------------------------------
+# OS / Misc
+# ------------------------------
+.DS_Store
+ehthumbs.db
+Icon?
+._*
+*.orig
+
+# ------------------------------
+# Java
+# ------------------------------
+*.class
+hs_err_pid*
+replay_pid*
+
+# ------------------------------
+# Test / Coverage
+# ------------------------------
+surefire-reports/
+failsafe-reports/
+.jacoco/
+*.exec
+coverage/
+.coverage
+
+# ------------------------------
+# Spring / Configuración Local (No versionar credenciales)
+# ------------------------------
+application-local.yaml
+application-*-local.yaml
+*.local.properties
+.env
+*.secret.*
+
+# ------------------------------
+# Docker / Compose (si aplica)
+# ------------------------------
+docker-data/

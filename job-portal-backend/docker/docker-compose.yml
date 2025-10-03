@@ -1,0 +1,40 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jp-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${JP_DB_USER:-jp_user}
+      POSTGRES_PASSWORD: ${JP_DB_PASSWORD:-jp_pass}
+      POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${JP_DB_USER:-jp_user} -d postgres -h localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  # Opcional: pgAdmin en contenedor (si prefieres no usar el de escritorio)
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: jp-pgadmin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+
+volumes:
+  pgdata:
+  pgadmin:

@@ -1,0 +1,82 @@
+# ====================================
+# GITIGNORE RAÍZ - JOB PORTAL MONOREPO
+# ====================================
+# Este archivo contiene reglas generales.
+# Cada submódulo puede tener su propio .gitignore con reglas específicas.
+
+# ------------------------------
+# OS Files
+# ------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Linux
+*~
+.directory
+
+# ------------------------------
+# IDEs Globales
+# ------------------------------
+# IntelliJ IDEA (proyecto completo)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Eclipse
+.metadata/
+
+# ------------------------------
+# Archivos Personales de Desarrollo
+# ------------------------------
+*.bat
+ejecutar_psql.bat
+pgpass.conf
+notas.txt
+TODO.txt
+NOTES.md
+
+# ------------------------------
+# Logs Generales
+# ------------------------------
+*.log
+logs/
+
+# ------------------------------
+# Variables de Entorno Globales
+# ------------------------------
+.env
+.env.local
+.env.*.local
+
+# ------------------------------
+# Docker (datos persistentes)
+# ------------------------------
+docker-data/
+volumes/
+postgres-data/
+
+# ------------------------------
+# Temporales
+# ------------------------------
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*~

@@ -1,0 +1,49 @@
+<!-- modules/iam/pom.xml -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.zoedatalab.empleos</groupId>
+        <artifactId>job-portal-backend</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>job-portal-iam</artifactId>
+    <name>job-portal-iam</name>
+    <packaging>jar</packaging>
+
+    <dependencies>
+
+        <!-- Dependencias internas -->
+        <dependency>
+            <groupId>com.zoedatalab.empleos</groupId>
+            <artifactId>job-portal-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Utilidades -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>
