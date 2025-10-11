@@ -44,7 +44,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint((req, res, e) -> {
                             res.setStatus(HttpStatus.UNAUTHORIZED.value());
                             res.setContentType("application/json");
-                            res.getWriter().write("{\"error\":\"UNAUTHORIZED\"}");
+                            res.getWriter().write("{\"error\":\"UNAUTHENTICATED\"}");
                         })
                         .accessDeniedHandler((req, res, e) -> {
                             res.setStatus(HttpStatus.FORBIDDEN.value());
@@ -53,9 +53,10 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(reg -> reg
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()                 // CORS preflight
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()       // register/login/refresh públicos
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()     // health+info abiertos
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

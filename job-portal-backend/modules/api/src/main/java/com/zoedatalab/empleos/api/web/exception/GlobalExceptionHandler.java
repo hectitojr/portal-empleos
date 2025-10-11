@@ -46,6 +46,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("error", "VALIDATION_ERROR"));
     }
 
+    @ExceptionHandler(com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException.class)
+    public ResponseEntity<?> companyNotFound(){ return error(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND"); }
+
+    @ExceptionHandler(com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException.class)
+    public ResponseEntity<?> taxExists(){ return error(HttpStatus.CONFLICT, "COMPANY_TAX_ID_ALREADY_EXISTS"); }
+
+    @ExceptionHandler(org.springframework.security.authentication.AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<?> unauthenticated() {
+        return error(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+    }
+
+    @ExceptionHandler(com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException.class)
+    public ResponseEntity<?> districtNotFound() {
+        return error(HttpStatus.BAD_REQUEST, "DISTRICT_NOT_FOUND");
+    }
+
     private ResponseEntity<Map<String, String>> error(HttpStatus status, String code) {
         return ResponseEntity.status(status).body(Map.of("error", code));
     }

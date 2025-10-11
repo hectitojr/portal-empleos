@@ -19,7 +19,7 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://localhost:5433/job_portal_dev
+    url: jdbc:postgresql://localhost:5433/job_portal_dev?currentSchema=job_portal
     username: ${JP_DB_USER:jp_user}
     password: ${JP_DB_PASSWORD:jp_pass}
     driver-class-name: org.postgresql.Driver
@@ -27,7 +27,7 @@ spring:
       maximum-pool-size: 10
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate.default_schema: job_portal
@@ -72,12 +72,12 @@ spring:
     activate:
       on-profile: test
   datasource:
-    url: jdbc:postgresql://localhost:5433/job_portal_test
+    url: jdbc:postgresql://localhost:5433/job_portal_test?currentSchema=job_portal
     username: ${JP_DB_USER:jp_user}
     password: ${JP_DB_PASSWORD:jp_pass}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     open-in-view: false
   flyway:
     enabled: true

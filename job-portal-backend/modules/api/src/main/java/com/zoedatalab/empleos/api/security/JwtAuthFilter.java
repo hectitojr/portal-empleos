@@ -37,14 +37,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 Jws<Claims> jws = jwt.parse(token);
                 UUID userId = UUID.fromString(jws.getPayload().getSubject());
                 String role = (String) jws.getPayload().get("role");
-                userRepo.findById(userId).ifPresent(u -> {
-                    var auth = new UsernamePasswordAuthenticationToken(
-                            u.getId().toString(),
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + Role.valueOf(role).name()))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                });
+                if (role != null) {
+                    userRepo.findById(userId).ifPresent(u -> {
+                        var auth = new UsernamePasswordAuthenticationToken(
+                                u.getId().toString(),
+                                null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + Role.valueOf(role).name()))
+                        );
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    });
+                }
             } catch (Exception ignored) {
                 // token inválido => anónimo
             }

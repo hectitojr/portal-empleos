@@ -1,10 +1,10 @@
 package com.zoedatalab.empleos.persistence.jpa.entity;
 
+import com.vladmihalcea.hibernate.type.basic.PostgreSQLCITextType;
 import com.zoedatalab.empleos.iam.domain.Role;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.Type;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -20,7 +20,7 @@ public class UserEntity {
     private UUID id;
 
     @Column(nullable = false, unique = true, columnDefinition = "citext")
-    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Type(PostgreSQLCITextType.class)
     private String email;
 
     @Column(name = "password_hash", nullable = false)

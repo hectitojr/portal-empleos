@@ -1,10 +1,8 @@
-package com.zoedatalab.empleos.companies.application.dto;
+package com.zoedatalab.empleos.api.web.dto;
 
-import lombok.Builder;
 import java.util.UUID;
 
-@Builder
-public record CompanyView(
+public record CompanyMeResponse(
         UUID id, String legalName, String taxId, String contactEmail, String contactPhone,
         UUID districtId, boolean profileComplete, boolean active, boolean suspended
 ) {}
