@@ -1,5 +1,6 @@
 package com.zoedatalab.empleos.api.config;
 
+import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
@@ -19,19 +20,25 @@ public class IamBeans {
                                 PasswordEncoderPort passwordEncoder,
                                 TokenServicePort tokenService,
                                 ClockPort clock,
-                                ApplicantProvisioningPort applicantProvisioning,
                                 CompanyProvisioningPort companyProvisioning,
+                                ApplicantProvisioningPort applicantProvisioning,
                                 @Value("${security.jwt.refresh-ttl-seconds:2592000}") long refreshTtlSeconds) {
+
         return new AuthServiceImpl(
-                userRepo, refreshRepo, passwordEncoder, tokenService, clock,
-                applicantProvisioning, companyProvisioning, refreshTtlSeconds
+                userRepo,
+                refreshRepo,
+                passwordEncoder,
+                tokenService,
+                clock,
+                applicantProvisioning,
+                companyProvisioning,
+                refreshTtlSeconds
         );
     }
 
     @Bean
     @Primary
     AuthService authService(@Qualifier("authServiceCore") AuthService core) {
-        // Decorator que añade las transacciones sin acoplar el módulo IAM a Spring
         return new TransactionalAuthService(core);
     }
 }

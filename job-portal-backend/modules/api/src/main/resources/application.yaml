@@ -44,7 +44,8 @@ spring:
 
 security:
   jwt:
-    secret: ${JP_JWT_SECRET:change-me-please-change-me-please-32-bytes-min}
+    # Fallback solo para DEV
+    secret: ${JP_JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
@@ -89,7 +90,8 @@ spring:
 
 security:
   jwt:
-    secret: ${JP_JWT_SECRET:change-me-please-change-me-please-32-bytes-min}
+    # Fallback solo para TEST
+    secret: ${JP_JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
@@ -140,6 +142,7 @@ spring:
 
 security:
   jwt:
+    # Sin valor por defecto en PROD (requiere variable de entorno)
     secret: ${JP_JWT_SECRET}
     issuer: job-portal
     access-ttl-seconds: 900

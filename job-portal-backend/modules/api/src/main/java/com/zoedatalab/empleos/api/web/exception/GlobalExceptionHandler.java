@@ -1,65 +1,73 @@
 package com.zoedatalab.empleos.api.web.exception;
 
 import com.zoedatalab.empleos.iam.application.exception.*;
+import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
+import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
+import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
+import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 409 – conflicto funcional (email ya usado)
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<?> emailExists() {
         return error(HttpStatus.CONFLICT, "EMAIL_EXISTS");
     }
 
-    // 401 – credenciales inválidas
     @ExceptionHandler(AuthBadCredentialsException.class)
     public ResponseEntity<?> badCreds() {
         return error(HttpStatus.UNAUTHORIZED, "BAD_CREDENTIALS");
     }
 
-    // 401 – usuario suspendido/inactivo (alineado con respuestas de auth)
     @ExceptionHandler(UserSuspendedException.class)
     public ResponseEntity<?> suspended() {
         return error(HttpStatus.UNAUTHORIZED, "USER_SUSPENDED");
     }
 
-    // 401 – refresh/access token inválido
     @ExceptionHandler(TokenInvalidException.class)
     public ResponseEntity<?> invalidToken() {
         return error(HttpStatus.UNAUTHORIZED, "TOKEN_INVALID");
     }
 
-    // 401 – refresh/access token expirado
     @ExceptionHandler(TokenExpiredException.class)
     public ResponseEntity<?> expiredToken() {
         return error(HttpStatus.UNAUTHORIZED, "TOKEN_EXPIRED");
     }
 
-    // 400 – validación de payloads (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> validation(MethodArgumentNotValidException ex) {
         return ResponseEntity.badRequest().body(Map.of("error", "VALIDATION_ERROR"));
     }
 
-    @ExceptionHandler(com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException.class)
-    public ResponseEntity<?> companyNotFound(){ return error(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND"); }
+    @ExceptionHandler(CompanyNotFoundException.class)
+    public ResponseEntity<?> companyNotFound() {
+        return error(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND");
+    }
 
-    @ExceptionHandler(com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException.class)
-    public ResponseEntity<?> taxExists(){ return error(HttpStatus.CONFLICT, "COMPANY_TAX_ID_ALREADY_EXISTS"); }
+    @ExceptionHandler(TaxIdAlreadyExistsException.class)
+    public ResponseEntity<?> taxExists() {
+        return error(HttpStatus.CONFLICT, "COMPANY_TAX_ID_ALREADY_EXISTS");
+    }
 
-    @ExceptionHandler(org.springframework.security.authentication.AuthenticationCredentialsNotFoundException.class)
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
     public ResponseEntity<?> unauthenticated() {
         return error(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
     }
 
-    @ExceptionHandler(com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException.class)
+    @ExceptionHandler(DistrictNotFoundException.class)
     public ResponseEntity<?> districtNotFound() {
         return error(HttpStatus.BAD_REQUEST, "DISTRICT_NOT_FOUND");
+    }
+
+    @ExceptionHandler(ApplicantNotFoundException.class)
+    public ResponseEntity<?> applicantNotFound() {
+        return error(HttpStatus.NOT_FOUND, "APPLICANT_NOT_FOUND");
     }
 
     private ResponseEntity<Map<String, String>> error(HttpStatus status, String code) {

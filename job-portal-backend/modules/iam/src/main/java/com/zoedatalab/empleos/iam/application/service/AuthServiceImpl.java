@@ -1,5 +1,6 @@
 package com.zoedatalab.empleos.iam.application.service;
 
+import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.iam.application.dto.AuthTokens;
