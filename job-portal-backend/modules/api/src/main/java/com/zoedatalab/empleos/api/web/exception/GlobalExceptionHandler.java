@@ -1,14 +1,20 @@
 package com.zoedatalab.empleos.api.web.exception;
 
-import com.zoedatalab.empleos.iam.application.exception.*;
-import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
-import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
-import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
-import org.springframework.http.*;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
+import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
+import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
+import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
+import com.zoedatalab.empleos.iam.application.exception.*;
+import com.zoedatalab.empleos.jobs.domain.exception.CompanyIncompleteException;
+import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
+import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
+import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
 
@@ -63,6 +69,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DistrictNotFoundException.class)
     public ResponseEntity<?> districtNotFound() {
         return error(HttpStatus.BAD_REQUEST, "DISTRICT_NOT_FOUND");
+    }
+
+    @ExceptionHandler(JobNotFoundException.class)
+    public ResponseEntity<?> jobNotFound() {
+        return error(HttpStatus.NOT_FOUND, "JOB_NOT_FOUND");
+    }
+
+    @ExceptionHandler(JobClosedException.class)
+    public ResponseEntity<?> jobClosed() {
+        return error(HttpStatus.CONFLICT, "JOB_CLOSED");
+    }
+
+    @ExceptionHandler(ForbiddenJobAccessException.class)
+    public ResponseEntity<?> jobForbidden() {
+        return error(HttpStatus.FORBIDDEN, "FORBIDDEN");
+    }
+
+    @ExceptionHandler(CompanyIncompleteException.class)
+    public ResponseEntity<?> companyIncomplete() {
+        return error(HttpStatus.BAD_REQUEST, "COMPANY_INCOMPLETE");
     }
 
     @ExceptionHandler(ApplicantNotFoundException.class)
