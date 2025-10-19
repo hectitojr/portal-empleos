@@ -7,6 +7,7 @@ import com.zoedatalab.empleos.persistence.jpa.repository.JpaRefreshTokenReposito
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,7 +30,11 @@ public class RefreshTokenRepositoryAdapter implements RefreshTokenRepositoryPort
 
     @Override
     public void revokeAllByUserId(UUID userId) {
-        // Estrategia simple: borrar todos los refresh tokens del usuario (equivale a “revocar”)
-        repo.deleteAllByUserId(userId);
+        repo.deleteByUserId(userId);
+    }
+
+    @Override
+    public long purgeExpired(Instant now) {
+        return repo.deleteByExpiresAtBefore(now);
     }
 }

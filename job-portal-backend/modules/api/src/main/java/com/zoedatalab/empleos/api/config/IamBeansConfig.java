@@ -12,6 +12,7 @@ import org.springframework.context.annotation.*;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@org.springframework.boot.context.properties.EnableConfigurationProperties(MaintenanceProperties.class)
 public class IamBeansConfig {
 
     @Bean(name = "authServiceCore")

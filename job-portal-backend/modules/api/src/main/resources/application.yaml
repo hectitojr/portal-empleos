@@ -7,7 +7,7 @@ spring:
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   sql:
     init:
-      mode: never            # ← Evita inicialización SQL automática; usamos Flyway
+      mode: never
 
 server:
   port: 8080
@@ -49,6 +49,13 @@ security:
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
+
+# Limpieza automática de refresh tokens expirados
+maintenance:
+  refresh-tokens:
+    enabled: true               # Activa el cleaner
+    cron: "0 0 * * * *"         # Cada hora; para pruebas rápidas: "0 * * * * *"
+    zone: "America/Lima"        # Zona horaria del cron
 
 logging:
   level:
@@ -95,6 +102,13 @@ security:
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
+
+# Cleaner deshabilitado en test (no queremos interferir con datos de prueba)
+maintenance:
+  refresh-tokens:
+    enabled: false
+    cron: "0 0 * * * *"
+    zone: "America/Lima"
 
 logging:
   level:
@@ -147,6 +161,13 @@ security:
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
+
+# En producción, limpieza nocturna (cada día a las 3 AM)
+maintenance:
+  refresh-tokens:
+    enabled: true
+    cron: "0 0 3 * * *"
+    zone: "America/Lima"
 
 logging:
   level:
