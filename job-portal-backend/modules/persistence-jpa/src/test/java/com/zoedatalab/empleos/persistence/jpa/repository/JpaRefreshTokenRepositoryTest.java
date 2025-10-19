@@ -49,13 +49,9 @@ class JpaRefreshTokenRepositoryTest {
         u.setId(UUID.randomUUID());
         u.setEmail("test+" + u.getId() + "@example.com");
         u.setPasswordHash("{noop}pw"); // en tests basta un hash dummy
-        // Si tu UserEntity usa String para role:
         u.setRole(Role.APPLICANT);
-        // Si en tu mapeo fuera Enum, reemplaza por: u.setRole(Role.APPLICANT);
         u.setActive(true);
         u.setSuspended(false);
-        // created_at / updated_at tienen DEFAULT NOW() en DB según tu DDL,
-        // así que no es necesario setearlos (a menos que tu entidad los requiera).
         users.save(u);
         return u.getId();
     }

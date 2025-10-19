@@ -1,15 +1,20 @@
 package com.zoedatalab.empleos.api.security;
 
+import com.zoedatalab.empleos.api.web.exception.ApiErrorCode;
+import com.zoedatalab.empleos.api.web.exception.ApiErrorHttpHandler;
 import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
 import com.zoedatalab.empleos.iam.domain.Role;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,7 +32,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final UserRepositoryPort userRepo;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+    protected void doFilterInternal(@NonNull HttpServletRequest req,
+                                    @NonNull HttpServletResponse res,
+                                    @NonNull FilterChain chain)
             throws ServletException, IOException {
 
         String header = req.getHeader(HttpHeaders.AUTHORIZATION);
@@ -47,8 +54,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     });
                 }
-            } catch (Exception ignored) {
-                // token inválido => anónimo
+            } catch (ExpiredJwtException ex) {
+                // Token expirado -> dejamos anónimo y marcamos para que el entry point responda TOKEN_EXPIRED
+                req.setAttribute(ApiErrorHttpHandler.AUTH_ERROR_CODE_ATTR, ApiErrorCode.TOKEN_EXPIRED);
+            } catch (JwtException | IllegalArgumentException ex) {
+                // Token inválido -> dejamos anónimo y marcamos TOKEN_INVALID
+                req.setAttribute(ApiErrorHttpHandler.AUTH_ERROR_CODE_ATTR, ApiErrorCode.TOKEN_INVALID);
             }
         }
         chain.doFilter(req, res);
