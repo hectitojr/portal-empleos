@@ -1,5 +1,7 @@
--- Purpose: Seed basic catalogs for MVP search filters
--- Author: ZOEDATA_LAB | Date: 2025-09-23
+-- File: R__catalog_seed.sql
+-- Title: Seed catalogs (MVP)
+-- Purpose: Cargar datos mínimos para filtros; idempotente.
+-- Author: ZOEDATA_LAB | Date: 2025-10-19
 
 -- ÁREAS
 INSERT INTO catalog_area (id, name) VALUES
