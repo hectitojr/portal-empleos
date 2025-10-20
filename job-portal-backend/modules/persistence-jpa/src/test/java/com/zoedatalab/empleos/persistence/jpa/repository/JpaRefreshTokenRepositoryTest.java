@@ -19,20 +19,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @DataJpaTest(properties = {
-        "spring.jpa.hibernate.ddl-auto=none",
-        "spring.flyway.enabled=true"
+        "spring.jpa.hibernate.ddl-auto=validate",
+        "spring.flyway.enabled=true",
+        "spring.flyway.default-schema=job_portal",
+        "spring.flyway.schemas=job_portal"
 })
 class JpaRefreshTokenRepositoryTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @DynamicPropertySource
     static void dbProps(DynamicPropertyRegistry reg) {
-        reg.add("spring.datasource.url", postgres::getJdbcUrl);
+        reg.add("spring.datasource.url", () -> postgres.getJdbcUrl() + "&currentSchema=job_portal");
         reg.add("spring.datasource.username", postgres::getUsername);
         reg.add("spring.datasource.password", postgres::getPassword);
         reg.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+
+        reg.add("spring.jpa.properties.hibernate.default_schema", () -> "job_portal");
     }
 
     @Autowired

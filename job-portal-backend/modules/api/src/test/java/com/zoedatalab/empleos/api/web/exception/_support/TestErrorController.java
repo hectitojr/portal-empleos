@@ -37,7 +37,6 @@ public class TestErrorController {
     // ---------- JSON mal formado ----------
     @PostMapping(value = "/malformed", consumes = MediaType.APPLICATION_JSON_VALUE)
     public void malformed(@RequestBody SampleDto any) {
-        // ahora SÍ: al intentar parsear JSON a SampleDto, un JSON inválido dispara HttpMessageNotReadableException
     }
 
     // ---------- Missing param ----------

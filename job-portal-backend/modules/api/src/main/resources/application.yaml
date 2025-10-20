@@ -60,6 +60,9 @@ maintenance:
 logging:
   level:
     org.springframework.security: DEBUG   # Solo en dev
+    org.hibernate.orm.connections.pooling: WARN
+    org.hibernate.SQL: OFF
+    org.hibernate.type.descriptor.sql: OFF
 
 management:
   endpoints:
@@ -114,7 +117,10 @@ logging:
   level:
     root: WARN
     org.springframework.test: INFO
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.orm.connections.pooling: WARN
+    org.hibernate.SQL: OFF
+    org.hibernate.type.descriptor.sql: OFF
 
 management:
   endpoint:
