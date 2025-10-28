@@ -28,6 +28,11 @@ public enum ApiErrorCode {
     JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "La oferta no existe."),
     JOB_CLOSED(HttpStatus.CONFLICT, "La oferta está cerrada."),
 
+    // Applications
+    APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "La postulación no existe."),
+    DUPLICATE_APPLICATION(HttpStatus.CONFLICT, "Ya postulaste a esta oferta."),
+    APPLICANT_INCOMPLETE(HttpStatus.BAD_REQUEST, "Completa tu perfil de postulante."),
+
     // Validación / framework
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Error de validación."),
     CONSTRAINT_VIOLATION(HttpStatus.BAD_REQUEST, "Parámetros inválidos."),

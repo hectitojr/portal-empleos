@@ -3,6 +3,7 @@ package com.zoedatalab.empleos.persistence.jpa.repository;
 import com.zoedatalab.empleos.iam.domain.Role;
 import com.zoedatalab.empleos.persistence.jpa.entity.RefreshTokenEntity;
 import com.zoedatalab.empleos.persistence.jpa.entity.UserEntity;
+import com.zoedatalab.empleos.testsupport.SpringTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -24,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.flyway.default-schema=job_portal",
         "spring.flyway.schemas=job_portal"
 })
-class JpaRefreshTokenRepositoryTest {
+class JpaRefreshTokenRepositoryTest extends SpringTestBase {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");

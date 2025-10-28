@@ -9,6 +9,10 @@ import com.zoedatalab.empleos.jobs.domain.exception.CompanyIncompleteException;
 import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
+import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
+import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
+import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
+
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -62,7 +66,12 @@ public class GlobalExceptionHandler {
 
             // Jobs
             Map.entry(JobNotFoundException.class, ApiErrorCode.JOB_NOT_FOUND),
-            Map.entry(JobClosedException.class, ApiErrorCode.JOB_CLOSED)
+            Map.entry(JobClosedException.class, ApiErrorCode.JOB_CLOSED),
+
+            // Applications
+            Map.entry(DuplicateApplicationException.class, ApiErrorCode.DUPLICATE_APPLICATION),
+            Map.entry(ApplicantProfileIncompleteException.class, ApiErrorCode.APPLICANT_INCOMPLETE),
+            Map.entry(ApplicationNotFoundException.class, ApiErrorCode.APPLICATION_NOT_FOUND)
     );
 
     // ===== Excepciones de dominio / seguridad mapeadas =====
@@ -82,7 +91,10 @@ public class GlobalExceptionHandler {
             CompanyIncompleteException.class,
             ApplicantNotFoundException.class,
             JobNotFoundException.class,
-            JobClosedException.class
+            JobClosedException.class,
+            DuplicateApplicationException.class,
+            ApplicantProfileIncompleteException.class,
+            ApplicationNotFoundException.class
     })
     public ResponseEntity<ApiErrorResponse> mapped(HttpServletRequest req, Throwable ex) {
         ApiErrorCode code = EX_MAP.getOrDefault(ex.getClass(), ApiErrorCode.INTERNAL_ERROR);

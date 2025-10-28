@@ -25,6 +25,18 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.zoedatalab.empleos</groupId>
+            <artifactId>job-portal-applicants</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zoedatalab.empleos</groupId>
+            <artifactId>job-portal-jobs</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Utilidades -->
         <dependency>
             <groupId>org.mapstruct</groupId>

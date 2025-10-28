@@ -78,6 +78,34 @@
             <version>${bytebuddy.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Stack de pruebas para TODOS los módulos (JUnit 5 + Mockito + AssertJ) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <!-- Mantener solo JUnit 5 (sin Vintage/JUnit 4) -->
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.20.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- API de validación para compilar anotaciones (@Size, etc.) en todos los módulos -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+
     </dependencies>
 
     <!-- Build global -->
@@ -123,6 +151,9 @@
                         -XX:+EnableDynamicAgentLoading
                         -Xshare:off
                     </argLine>
+                    <systemPropertyVariables>
+                        <spring.profiles.active>test</spring.profiles.active>
+                    </systemPropertyVariables>
                     <!-- JUnit 5 en multi-módulo -->
                     <useModulePath>false</useModulePath>
                 </configuration>

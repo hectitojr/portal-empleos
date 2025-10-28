@@ -7,6 +7,7 @@ import com.zoedatalab.empleos.api.web.exception.GlobalExceptionHandler;
 import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
 import com.zoedatalab.empleos.iam.domain.Role;
 import com.zoedatalab.empleos.iam.domain.User;
+import com.zoedatalab.empleos.testsupport.SpringTestBase;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -47,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ApiErrorHttpHandler.class,         // handler 401/403
         GlobalExceptionHandler.class       // por simetría (no maneja 401/403)
 })
-class JwtAuthFilterIntegrationTest {
+class JwtAuthFilterIntegrationTest extends SpringTestBase {
 
     @Autowired MockMvc mvc;
     @Autowired JwtTokenServiceAdapter jwt; // adapter real

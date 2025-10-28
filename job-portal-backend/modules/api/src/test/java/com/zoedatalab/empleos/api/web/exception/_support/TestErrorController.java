@@ -1,6 +1,9 @@
 package com.zoedatalab.empleos.api.web.exception._support;
 
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
+import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
+import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
+import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
@@ -75,6 +78,16 @@ public class TestErrorController {
 
     @GetMapping("/domain/job-closed")
     public void jobClosed() { throw new JobClosedException(); }
+
+    // ---------- Applications ----------
+    @GetMapping("/domain/application-not-found")
+    public void applicationNotFound() { throw new ApplicationNotFoundException(); }
+
+    @GetMapping("/domain/duplicate-application")
+    public void duplicateApplication() { throw new DuplicateApplicationException(); }
+
+    @GetMapping("/domain/applicant-incomplete")
+    public void applicantIncomplete() { throw new ApplicantProfileIncompleteException(); }
 
     // ---------- Seguridad ----------
     @GetMapping("/protected")

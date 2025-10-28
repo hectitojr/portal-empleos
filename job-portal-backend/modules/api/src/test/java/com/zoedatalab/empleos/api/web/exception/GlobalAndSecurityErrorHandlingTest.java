@@ -2,6 +2,7 @@ package com.zoedatalab.empleos.api.web.exception;
 
 import com.zoedatalab.empleos.api.web.exception._support.SecurityTestConfig;
 import com.zoedatalab.empleos.api.web.exception._support.TestErrorController;
+import com.zoedatalab.empleos.testsupport.SpringTestBase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = TestErrorController.class)
 @Import({ GlobalExceptionHandler.class, ApiErrorHttpHandler.class, SecurityTestConfig.class })
-class GlobalAndSecurityErrorHandlingTest {
+class GlobalAndSecurityErrorHandlingTest extends SpringTestBase {
 
     @Autowired
     MockMvc mvc;
@@ -168,5 +169,27 @@ class GlobalAndSecurityErrorHandlingTest {
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.error").value("JOB_CLOSED"));
         }
+
+        @Test @DisplayName("404 APPLICATION_NOT_FOUND")
+        void applicationNotFound() throws Exception {
+            mvc.perform(get("/test/domain/application-not-found"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error").value("APPLICATION_NOT_FOUND"));
+        }
+
+        @Test @DisplayName("409 DUPLICATE_APPLICATION")
+        void duplicateApplication() throws Exception {
+            mvc.perform(get("/test/domain/duplicate-application"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error").value("DUPLICATE_APPLICATION"));
+        }
+
+        @Test @DisplayName("400 APPLICANT_INCOMPLETE")
+        void applicantIncomplete() throws Exception {
+            mvc.perform(get("/test/domain/applicant-incomplete"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("APPLICANT_INCOMPLETE"));
+        }
+
     }
 }
