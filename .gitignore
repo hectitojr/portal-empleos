@@ -80,3 +80,31 @@ postgres-data/
 *.swo
 *.bak
 *~
+
+# ====================================
+# NUEVAS REGLAS PARA MONOREPO (Backend + Frontend)
+# ====================================
+
+# --- Node / Next.js / JS / TS ---
+**/node_modules/
+**/.next/
+**/.turbo/
+**/dist/
+**/build/
+**/.cache/
+**/.vercel/
+**/coverage/
+**/.pnpm-store/
+
+# --- Java / Spring Boot ---
+**/target/
+**/.gradle/
+
+# --- Frontend tooling cache ---
+**/.vite/
+**/.eslintcache
+**/.stylelintcache
+
+# --- Test Artifacts ---
+**/jest-cache/
+**/jest-coverage/

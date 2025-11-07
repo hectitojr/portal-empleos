@@ -1,0 +1,62 @@
+{
+  "name": "job-portal-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky",
+    "format": "prettier --write ."
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.6",
+    "clsx": "2.1.1",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.460.0",
+    "next": "^15.5.6",
+    "next-safe-action": "^7.9.0",
+    "next-themes": "^0.4.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.66.0",
+    "tailwind-merge": "2.5.2",
+    "tailwindcss-animate": "1.0.7",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@tanstack/eslint-plugin-query": "^5.91.2",
+    "@tanstack/react-query-devtools": "^5.90.2",
+    "@types/estree": "^1.0.8",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^20.12.14",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.13.0",
+    "@typescript-eslint/parser": "^8.13.0",
+    "autoprefixer": "10.4.20",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "^15.1.0",
+    "husky": "9.1.6",
+    "lint-staged": "15.2.10",
+    "postcss": "8.4.47",
+    "prettier": "3.3.3",
+    "tailwindcss": "3.4.14",
+    "typescript": "^5.9.3"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx,js,jsx}": [
+      "eslint --fix"
+    ],
+    "**/*": [
+      "prettier --write --ignore-unknown"
+    ]
+  }
+}
