@@ -1,43 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from 'next/server';
+import { json } from '../../_lib/http';
+import { setAuthCookies } from '../../_lib/cookies';
 
-const BACKEND_BASE = process.env.INTERNAL_API_BASE ?? process.env.NEXT_PUBLIC_API_BASE;
+type AuthResp = { tokenType: string; accessToken: string; expiresIn: number; refreshToken: string };
+const BACKEND = process.env.BACKEND_URL!;
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json(); // { email, password, remember? }
-    const res = await fetch(`${BACKEND_BASE}/api/v1/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // NO credentials aquí; esto es server→backend
-      body: JSON.stringify(body),
-    });
+  const body = await req.json().catch(() => ({}));
+  const res = await fetch(`${BACKEND}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return NextResponse.json(
-        { code: err?.code ?? "LOGIN_FAILED", message: err?.message ?? "Credenciales inválidas" },
-        { status: res.status }
-      );
-    }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return json(data, res.status);
 
-    // Esperamos del backend: { accessToken, refreshToken, role, next? }
-    const data = await res.json();
+  const a = data as AuthResp;
+  await setAuthCookies({
+    accessToken: a.accessToken,
+    expiresIn: a.expiresIn,
+    refreshToken: a.refreshToken,
+  });
 
-    const accessMaxAge = 60 * 15; // 15 min
-    const refreshMaxAge = body?.remember ? 60 * 60 * 24 * 14 : 60 * 60 * 24 * 7; // 14d / 7d
-
-    const resp = NextResponse.json({ role: data.role, next: data.next });
-    // Cookies seguras
-    resp.headers.append(
-      "Set-Cookie",
-      `jp_at=${data.accessToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${accessMaxAge}`
-    );
-    resp.headers.append(
-      "Set-Cookie",
-      `jp_rt=${data.refreshToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${refreshMaxAge}`
-    );
-    return resp;
-  } catch (e) {
-    return NextResponse.json({ code: "SERVER_ERROR", message: "Error interno" }, { status: 500 });
-  }
+  return json({ ok: true });
 }

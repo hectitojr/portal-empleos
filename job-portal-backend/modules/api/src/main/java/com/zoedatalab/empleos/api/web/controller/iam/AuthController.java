@@ -1,16 +1,26 @@
 package com.zoedatalab.empleos.api.web.controller.iam;
 
+import com.zoedatalab.empleos.api.web.dto.common.MessageResponse;
 import com.zoedatalab.empleos.api.web.dto.iam.AuthResponse;
 import com.zoedatalab.empleos.api.web.dto.iam.LoginRequest;
 import com.zoedatalab.empleos.api.web.dto.iam.RefreshRequest;
 import com.zoedatalab.empleos.api.web.dto.iam.RegisterRequest;
+import com.zoedatalab.empleos.api.web.dto.iam.ForgotPasswordRequest;
+import com.zoedatalab.empleos.api.web.dto.iam.ResetPasswordRequest;
 import com.zoedatalab.empleos.iam.application.dto.*;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.WebRequest;
+
+import java.time.OffsetDateTime;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -18,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService auth;
+    private final MessageSource messages;
 
     @PostMapping(value = "/register", consumes = "application/json", produces = "application/json")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest r) {
@@ -43,5 +54,51 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest r) {
         var out = auth.refresh(r.refreshToken());
         return ResponseEntity.ok(new AuthResponse(out.getTokenType(), out.getAccessToken(), out.getExpiresIn(), out.getRefreshToken()));
+    }
+
+    @PostMapping(value = "/forgot-password", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<MessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest r, WebRequest req) {
+        auth.forgotPassword(ForgotPasswordCommand.builder().email(r.email()).build());
+
+        var locale = LocaleContextHolder.getLocale();
+        var body = new MessageResponse(
+                "AUTH.FORGOT.ACCEPTED",
+                messages.getMessage("auth.forgot.accepted", null, locale),
+                extractTraceId(req),
+                OffsetDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED) // 202
+                .cacheControl(CacheControl.noStore())
+                .body(body);
+    }
+
+    @PostMapping(value = "/reset-password", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest r, WebRequest req) {
+        auth.resetPassword(ResetPasswordCommand.builder()
+                .selector(r.selector())
+                .token(r.token())
+                .newPassword(r.newPassword())
+                .build());
+
+        var locale = LocaleContextHolder.getLocale();
+        var body = new MessageResponse(
+                "AUTH.RESET.OK",
+                messages.getMessage("auth.reset.ok", null, locale),
+                extractTraceId(req),
+                OffsetDateTime.now()
+        );
+
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(body);
+    }
+
+    private String extractTraceId(WebRequest req) {
+        // Método ajustable a futuro para integrar trazabilidad profesional
+        return Optional.ofNullable(req.getHeader("X-Trace-Id"))
+                .orElse("n/a");
     }
 }

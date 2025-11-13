@@ -12,6 +12,8 @@ import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
 import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
 import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
 import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
+import com.zoedatalab.empleos.iam.application.exception.ResetTokenInvalidException;
+import com.zoedatalab.empleos.iam.application.exception.ResetTokenExpiredException;
 
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,6 +50,8 @@ public class GlobalExceptionHandler {
             Map.entry(UserSuspendedException.class, ApiErrorCode.USER_SUSPENDED),
             Map.entry(TokenInvalidException.class, ApiErrorCode.TOKEN_INVALID),
             Map.entry(TokenExpiredException.class, ApiErrorCode.TOKEN_EXPIRED),
+            Map.entry(ResetTokenInvalidException.class, ApiErrorCode.RESET_TOKEN_INVALID),
+            Map.entry(ResetTokenExpiredException.class, ApiErrorCode.RESET_TOKEN_EXPIRED),
             Map.entry(AuthenticationCredentialsNotFoundException.class, ApiErrorCode.UNAUTHENTICATED),
 
             // Autorización
@@ -82,6 +86,8 @@ public class GlobalExceptionHandler {
             TokenInvalidException.class,
             TokenExpiredException.class,
             AuthenticationCredentialsNotFoundException.class,
+            ResetTokenInvalidException.class,
+            ResetTokenExpiredException.class,
             AccessDeniedException.class,
             AuthorizationDeniedException.class,
             ForbiddenJobAccessException.class,

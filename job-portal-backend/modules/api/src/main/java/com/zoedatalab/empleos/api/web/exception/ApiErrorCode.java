@@ -11,6 +11,8 @@ public enum ApiErrorCode {
     TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "Token inválido."),
     TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "El token ha expirado."),
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "No autenticado."),
+    RESET_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "El enlace de restablecimiento no es válido."),
+    RESET_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "El enlace de restablecimiento ha expirado."),
 
     // Autorización
     FORBIDDEN(HttpStatus.FORBIDDEN, "Acceso no permitido."),

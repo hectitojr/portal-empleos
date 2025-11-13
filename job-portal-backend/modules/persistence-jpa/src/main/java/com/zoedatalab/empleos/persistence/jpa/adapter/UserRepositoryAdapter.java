@@ -35,7 +35,7 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
 
         // Refuerzo: identidad y campos NOT NULL
         if (entity.getId() == null) {
-            entity.setId(user.getId());            // dominio define la identidad
+            entity.setId(user.getId());
         }
         entity.setEmail(user.getEmail());
         entity.setPasswordHash(user.getPasswordHash());

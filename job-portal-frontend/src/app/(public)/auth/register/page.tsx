@@ -7,11 +7,15 @@ import { humanize } from '@/lib/errors';
 import BackButton from '../components/BackButton';
 import AuthHeader from '../components/AuthHeader';
 
+type Role = 'APPLICANT' | 'COMPANY';
+
 export default function RegisterPage() {
   const [form, setForm] = useState<RegisterSchema>({
     email: '',
     password: '',
     role: 'APPLICANT',
+    acceptTerms: false,
+    acceptDataPolicy: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -20,16 +24,24 @@ export default function RegisterPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const v = registerSchema.pick({ email: true, password: true, role: true }).safeParse(form);
-    if (!v.success) {
-      setError('Revisa los campos.');
+    setError(null);
+    setOk(false);
+
+    const parsed = registerSchema.safeParse(form);
+    if (!parsed.success) {
+      setError('Revisa los campos (email, contraseña, tipo de cuenta) y acepta los términos y la política.');
       return;
     }
 
     setLoading(true);
-    setError(null);
 
-    const { ok, data } = await registerReq(form);
+    const payload = {
+      email: form.email,
+      password: form.password,
+      role: form.role,
+    };
+
+    const { ok, data } = await registerReq(payload);
     if (!ok) setError(humanize((data?.code as string) || undefined));
     else setOk(true);
 
@@ -85,11 +97,40 @@ export default function RegisterPage() {
               name="role"
               className="w-full rounded-xl border border-slate-300 p-3 focus-visible:ring-2 focus-visible:ring-blue-500 outline-none"
               value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value as any })}
+              onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
             >
               <option value="APPLICANT">Postulante</option>
               <option value="COMPANY">Empresa</option>
             </select>
+          </div>
+
+          {/* Legales */}
+          <div className="space-y-3 pt-2">
+            <label className="flex items-start">
+              <input
+                type="checkbox"
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus-visible:ring-blue-500 mt-1"
+                checked={form.acceptTerms}
+                onChange={(e) => setForm({ ...form, acceptTerms: e.target.checked })}
+              />
+              <span className="ml-2 text-sm text-slate-600">
+                Acepto los <a href="/terminos" className="text-blue-600 hover:text-blue-700 underline">términos y condiciones</a> y la{' '}
+                <a href="/privacidad" className="text-blue-600 hover:text-blue-700 underline">política de privacidad</a>.
+              </span>
+            </label>
+
+            <label className="flex items-start">
+              <input
+                type="checkbox"
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus-visible:ring-blue-500 mt-1"
+                checked={form.acceptDataPolicy}
+                onChange={(e) => setForm({ ...form, acceptDataPolicy: e.target.checked })}
+              />
+              <span className="ml-2 text-sm text-slate-600">
+                Autorizo el tratamiento de mis datos personales conforme a la{' '}
+                <a href="/privacidad" className="text-blue-600 hover:text-blue-700 underline">Política de Privacidad</a>.
+              </span>
+            </label>
           </div>
 
           {/* Alerts */}

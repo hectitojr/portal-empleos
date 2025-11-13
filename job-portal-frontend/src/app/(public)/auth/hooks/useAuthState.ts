@@ -2,8 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { registerSchema } from '../lib/schema';
-import { loginReq } from '../lib/authClient';
+import { registerReq, loginReq } from '../lib/authClient';
 import { humanize } from '@/lib/errors';
 
 type Mode = 'login' | 'register' | 'select-role';
@@ -16,15 +15,11 @@ export function useAuthState() {
 
   const [authMode, setAuthMode] = useState<Mode>('login');
   const [userType, setUserType] = useState<UserType>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
-    fullName: '',
-    companyName: '',
     acceptTerms: false,
     acceptDataPolicy: false,
   });
@@ -36,13 +31,13 @@ export function useAuthState() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
     if (apiError) setApiError(null);
   };
 
   const validate = () => {
-    const e: Record<string,string> = {};
+    const e: Record<string, string> = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!formData.email) e.email = 'El email es requerido';
@@ -52,11 +47,12 @@ export function useAuthState() {
     else if (formData.password.length < 8) e.password = 'Mínimo 8 caracteres';
 
     if (authMode === 'register') {
-      if (userType === 'APPLICANT' && !formData.fullName) e.fullName = 'El nombre completo es requerido';
-      if (userType === 'COMPANY' && !formData.companyName) e.companyName = 'El nombre de la empresa es requerido';
-      if (formData.password !== formData.confirmPassword) e.confirmPassword = 'Las contraseñas no coinciden';
+      if (!userType) e.userType = 'Debes seleccionar un tipo de usuario';
+      if (formData.password !== formData.confirmPassword)
+        e.confirmPassword = 'Las contraseñas no coinciden';
       if (!formData.acceptTerms) e.acceptTerms = 'Debes aceptar los términos y condiciones';
-      if (!formData.acceptDataPolicy) e.acceptDataPolicy = 'Debes autorizar el tratamiento de tus datos personales';
+      if (!formData.acceptDataPolicy)
+        e.acceptDataPolicy = 'Debes autorizar el tratamiento de tus datos personales';
     }
 
     setErrors(e);
@@ -65,44 +61,50 @@ export function useAuthState() {
 
   async function submit() {
     if (!validate()) return;
+
     setLoading(true);
     setApiError(null);
 
-    if (authMode === 'login') {
-      const { ok, data } = await loginReq(formData.email, formData.password);
-      if (!ok) {
-        setApiError(humanize((data?.code as string) || undefined));
-        setLoading(false);
+    try {
+      if (authMode === 'login') {
+        const { ok, data } = await loginReq(formData.email, formData.password);
+        if (!ok) {
+          setApiError(humanize((data?.code as string) || undefined));
+          return;
+        }
+        setSuccess(true);
+        setTimeout(() => router.push(next), 600);
         return;
       }
-      setSuccess(true);
-      setTimeout(() => router.push(next), 600);
-      return;
-    }
 
-    // fake flow de registro (lista para integrar con backend)
-    setTimeout(() => {
-      setSuccess(true);
+      // === REGISTRO REAL === (sin nombre/empresa; eso va en el onboarding)
+      const payload = {
+        email: formData.email,
+        password: formData.password,
+        role: userType!, // validado en validate()
+      };
+
+      const { ok, data } = await registerReq(payload);
+      if (!ok) {
+        setApiError(humanize((data?.code as string) || undefined));
+        return;
+      }
+
+      // Redirige al onboarding por rol
+      router.push(
+        userType === 'APPLICANT'
+          ? '/me/applicant/profile/setup'
+          : '/me/company/profile/setup'
+      );
+    } finally {
       setLoading(false);
-      setTimeout(() => {
-        setSuccess(false);
-        setAuthMode('login');
-        setUserType(null);
-        setFormData({
-          email: '', password: '', confirmPassword: '',
-          fullName: '', companyName: '',
-          acceptTerms: false, acceptDataPolicy: false,
-        });
-      }, 1000);
-    }, 600);
+    }
   }
 
   return {
     authMode, setAuthMode,
     userType, setUserType,
     formData, setFormData, handleInputChange,
-    showPassword, setShowPassword,
-    showConfirmPassword, setShowConfirmPassword,
     errors, loading, success, apiError,
     submit,
   };

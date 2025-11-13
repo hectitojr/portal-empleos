@@ -8,6 +8,10 @@ spring:
   sql:
     init:
       mode: never
+  messages:
+    basename: messages
+    fallback-to-system-locale: false
+    encoding: UTF-8
 
 server:
   port: 8080
@@ -49,6 +53,9 @@ security:
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
+  reset:
+    ttl-seconds: 1800          # 30 minutos
+    rate-limit-seconds: 300    # 5 minutos
 
 # Limpieza automática de refresh tokens expirados
 maintenance:
@@ -105,6 +112,9 @@ security:
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
+  reset:
+    ttl-seconds: 1800
+    rate-limit-seconds: 300
 
 # Cleaner deshabilitado en test (no queremos interferir con datos de prueba)
 maintenance:
@@ -167,6 +177,9 @@ security:
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
+  reset:
+    ttl-seconds: ${JP_RESET_TTL_SECONDS:1800}
+    rate-limit-seconds: ${JP_RESET_RATE_LIMIT_SECONDS:300}
 
 # En producción, limpieza nocturna (cada día a las 3 AM)
 maintenance:

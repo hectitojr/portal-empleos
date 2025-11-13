@@ -42,7 +42,6 @@ public class JobRepositoryAdapter implements JobRepositoryPort {
                                  int page,
                                  int size) {
 
-        // Construimos el Specification dinámico (sin :param IS NULL)
         var spec = notSuspended()
                 .and(areaEquals(areaId))
                 .and(sectorEquals(sectorId))
@@ -50,10 +49,8 @@ public class JobRepositoryAdapter implements JobRepositoryPort {
                 .and(disabilityEquals(disabilityFriendly))
                 .and(publishedFrom(fromDate));
 
-        // PageRequest con orden por publishedAt DESC
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishedAt"));
 
-        // Ejecutamos y mapeamos a dominio
         return repo.findAll(spec, pageable)
                 .map(mapper::toDomain)
                 .getContent();

@@ -23,7 +23,13 @@ public class IamBeansConfig {
                                 ClockPort clock,
                                 CompanyProvisioningPort companyProvisioning,
                                 ApplicantProvisioningPort applicantProvisioning,
-                                @Value("${security.jwt.refresh-ttl-seconds:2592000}") long refreshTtlSeconds) {
+                                @Value("${security.jwt.refresh-ttl-seconds:2592000}") long refreshTtlSeconds,
+    // NUEVO:
+    PasswordResetTokenRepositoryPort resetTokenRepo,
+    NotificationsOutboxPort outbox,
+    @Value("${security.reset.ttl-seconds:1800}") long resetTtlSeconds,           // 30 min
+    @Value("${security.reset.rate-limit-seconds:300}") long resetRateLimitSeconds // 5 min
+    ){
 
         return new AuthServiceImpl(
                 userRepo,
@@ -33,7 +39,11 @@ public class IamBeansConfig {
                 clock,
                 applicantProvisioning,
                 companyProvisioning,
-                refreshTtlSeconds
+                refreshTtlSeconds,
+                resetTokenRepo,
+                outbox,
+                resetTtlSeconds,
+                resetRateLimitSeconds
         );
     }
 

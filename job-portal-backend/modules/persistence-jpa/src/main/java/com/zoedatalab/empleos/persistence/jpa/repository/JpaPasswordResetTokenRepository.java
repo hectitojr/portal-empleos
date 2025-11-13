@@ -1,0 +1,12 @@
+package com.zoedatalab.empleos.persistence.jpa.repository;
+
+import com.zoedatalab.empleos.persistence.jpa.entity.PasswordResetTokenEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+public interface JpaPasswordResetTokenRepository extends JpaRepository<PasswordResetTokenEntity, UUID> {
+    Optional<PasswordResetTokenEntity> findBySelectorAndUsedFalse(String selector);
+    void deleteByUserId(UUID userId);
+}

@@ -9,7 +9,7 @@ import {
   easeIn,
   easeOut,
 } from 'framer-motion';
-import { Mail, User, Building2, AlertCircle } from 'lucide-react';
+import { Mail, AlertCircle } from 'lucide-react';
 import AuthHeader from '../components/AuthHeader';
 import RoleSelect from '../components/RoleSelect';
 import TextField from '../components/TextField';
@@ -31,7 +31,6 @@ export default function AuthSystem() {
         exit: { opacity: 0, x: -24, transition: { type: 'tween', duration: 0.18, ease: easeIn } },
       };
 
-  // Contenedor externo ESTABLE para evitar layout shift
   const containerClass = 'w-full max-w-5xl mx-auto';
 
   const title =
@@ -65,10 +64,7 @@ export default function AuthSystem() {
         {/* Alerts */}
         <div aria-live="polite">
           {s.success && (
-            <div
-              className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-sm"
-              role="status"
-            >
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-sm" role="status">
               ¡Operación exitosa!
             </div>
           )}
@@ -114,42 +110,6 @@ export default function AuthSystem() {
                   className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 min-h-[420px]"
                 >
                   <form className="space-y-5" onSubmit={onSubmit} noValidate>
-                    {s.authMode === 'register' && s.userType === 'APPLICANT' && (
-                      <TextField
-                        label="Nombre Completo"
-                        name="fullName"
-                        value={s.formData.fullName}
-                        onChange={s.handleInputChange}
-                        placeholder="Ej: Juan Pérez"
-                        icon={
-                          <User
-                            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
-                            aria-hidden="true"
-                          />
-                        }
-                        error={s.errors.fullName}
-                        autoComplete="name"
-                      />
-                    )}
-
-                    {s.authMode === 'register' && s.userType === 'COMPANY' && (
-                      <TextField
-                        label="Nombre de la Empresa"
-                        name="companyName"
-                        value={s.formData.companyName}
-                        onChange={s.handleInputChange}
-                        placeholder="Ej: Tech Solutions S.A.C."
-                        icon={
-                          <Building2
-                            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
-                            aria-hidden="true"
-                          />
-                        }
-                        error={s.errors.companyName}
-                        autoComplete="organization"
-                      />
-                    )}
-
                     <TextField
                       label="Correo Electrónico"
                       name="email"
@@ -197,10 +157,7 @@ export default function AuthSystem() {
                           />
                           <span className="ml-2 text-slate-600">Recordarme</span>
                         </label>
-                        <Link
-                          href="/auth/forgot"
-                          className="text-blue-600 hover:text-blue-700 font-medium"
-                        >
+                        <Link href="/auth/forgot" className="text-blue-600 hover:text-blue-700 font-medium">
                           ¿Olvidaste tu contraseña?
                         </Link>
                       </div>

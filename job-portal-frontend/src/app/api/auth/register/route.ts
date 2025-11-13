@@ -1,15 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { env } from '@/lib/env';
-import type { AuthResponse } from '@/lib/types';
+import { NextRequest } from 'next/server';
+import { json } from '../../_lib/http';
+import { setAuthCookies } from '../../_lib/cookies';
+
+type AuthResp = { tokenType: string; accessToken: string; expiresIn: number; refreshToken: string };
+const BACKEND = process.env.BACKEND_URL!;
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const res = await fetch(`${env.BACKEND_BASE_URL}/api/v1/auth/register`, {
+  const body = await req.json().catch(() => ({}));
+  const res = await fetch(`${BACKEND}/api/v1/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 
-  const data = (await res.json().catch(() => ({}))) as Partial<AuthResponse> & Record<string, unknown>;
-  return NextResponse.json({ ok: res.ok, data }, { status: res.status });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return json(data, res.status);
+
+  const a = data as AuthResp;
+  await setAuthCookies({
+    accessToken: a.accessToken,
+    expiresIn: a.expiresIn,
+    refreshToken: a.refreshToken,
+  });
+
+  return json({ ok: true }, 201);
 }
