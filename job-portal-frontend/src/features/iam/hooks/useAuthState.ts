@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { registerReq, loginReq } from '../lib/authClient';
+import { registerReq, loginReq } from '@/features/iam/api/authClient';
 import { humanize } from '@/lib/errors';
 
 type Mode = 'login' | 'register' | 'select-role';

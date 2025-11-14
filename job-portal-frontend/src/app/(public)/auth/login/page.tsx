@@ -10,14 +10,14 @@ import {
   easeOut,
 } from 'framer-motion';
 import { Mail, AlertCircle } from 'lucide-react';
-import AuthHeader from '../components/AuthHeader';
-import RoleSelect from '../components/RoleSelect';
-import TextField from '../components/TextField';
-import PasswordField from '../components/PasswordField';
-import TermsCheckboxes from '../components/TermsCheckboxes';
-import ToggleAuthLink from '../components/ToggleAuthLink';
-import BackButton from '../components/BackButton';
-import { useAuthState } from '../hooks/useAuthState';
+import AuthHeader from '../../../../features/iam/components/AuthHeader';
+import RoleSelect from '../../../../features/iam/components/RoleSelect';
+import TextField from '../../../../features/iam/components/TextField';
+import PasswordField from '../../../../features/iam/components/PasswordField';
+import TermsCheckboxes from '../../../../features/iam/components/TermsCheckboxes';
+import ToggleAuthLink from '../../../../features/iam/components/ToggleAuthLink';
+import BackButton from '../../../../features/iam/components/BackButton';
+import { useAuthState } from '../../../../features/iam/hooks/useAuthState';
 
 export default function AuthSystem() {
   const s = useAuthState();
@@ -56,7 +56,7 @@ export default function AuthSystem() {
     <section
       role="region"
       aria-label="Autenticación"
-      className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8"
+      className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8"
     >
       <div className={containerClass}>
         <AuthHeader title={title} subtitle={subtitle} />
@@ -64,7 +64,10 @@ export default function AuthSystem() {
         {/* Alerts */}
         <div aria-live="polite">
           {s.success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-sm" role="status">
+            <div
+              className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-sm"
+              role="status"
+            >
               ¡Operación exitosa!
             </div>
           )}
@@ -157,7 +160,10 @@ export default function AuthSystem() {
                           />
                           <span className="ml-2 text-slate-600">Recordarme</span>
                         </label>
-                        <Link href="/auth/forgot" className="text-blue-600 hover:text-blue-700 font-medium">
+                        <Link
+                          href="/auth/forgot-password"
+                          className="text-blue-600 hover:text-blue-700 font-medium"
+                        >
                           ¿Olvidaste tu contraseña?
                         </Link>
                       </div>

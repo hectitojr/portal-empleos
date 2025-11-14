@@ -1,4 +1,3 @@
-// src/app/api/_lib/http.ts
 import { NextResponse } from 'next/server';
 import { readTokens, setAuthCookies, clearAuthCookies } from './cookies';
 

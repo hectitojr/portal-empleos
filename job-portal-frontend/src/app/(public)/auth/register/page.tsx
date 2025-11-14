@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { registerSchema, type RegisterSchema } from '../lib/schema';
-import { registerReq } from '../lib/authClient';
+import { registerSchema, type RegisterSchema } from '@/features/iam/schemas/auth.schema';
+import { registerReq } from '@/features/iam/api/authClient';
 import { humanize } from '@/lib/errors';
-import BackButton from '../components/BackButton';
-import AuthHeader from '../components/AuthHeader';
+import BackButton from '@/features/iam/components/BackButton';
+import AuthHeader from '@/features/iam/components/AuthHeader';
 
 type Role = 'APPLICANT' | 'COMPANY';
 

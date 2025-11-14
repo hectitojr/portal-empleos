@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import AuthHeader from '../components/AuthHeader';
-import BackButton from '../components/BackButton';
-import PasswordField from '../components/PasswordField';
+import AuthHeader from '../../../../features/iam/components/AuthHeader';
+import BackButton from '../../../../features/iam/components/BackButton';
+import PasswordField from '../../../../features/iam/components/PasswordField';
 
 export default function ResetPasswordPage() {
   const params = useSearchParams();

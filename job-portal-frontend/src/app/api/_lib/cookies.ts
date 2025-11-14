@@ -1,4 +1,3 @@
-// src/app/api/_lib/cookies.ts
 import { cookies } from 'next/headers';
 
 export const ACCESS_COOKIE = 'jp_at';

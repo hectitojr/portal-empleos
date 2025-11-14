@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Briefcase } from 'lucide-react';
+import { routes } from '@/lib/routes';
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -28,12 +29,9 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
   const empresasActive = activeHash === '#empresas';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Header fijo */}
-      <header
-        className="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm"
-        role="banner"
-      >
+      <header className="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm" role="banner">
         <div className="flex items-stretch justify-between h-16 px-6 md:px-8">
           <div className="flex items-stretch space-x-6">
             <button
@@ -43,11 +41,14 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
             >
               <Briefcase className="w-6 h-6" style={{ color: '#2557a7' }} aria-hidden="true" />
               <span className="text-2xl font-bold" style={{ color: '#2557a7' }}>
-                empleospro
+                EmpleosPeru
               </span>
             </button>
 
-            <nav className="hidden md:flex items-stretch space-x-6" aria-label="Navegación principal">
+            <nav
+              className="hidden md:flex items-stretch space-x-6"
+              aria-label="Navegación principal"
+            >
               <Link
                 href="/"
                 aria-current={inicioActive ? 'page' : undefined}
@@ -94,27 +95,57 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       </header>
 
       {/* Contenido: deja espacio del header (h-16) y ocupa el resto */}
-      <main className="pt-16 flex-1" role="main">
+      <main className="pt-16 flex-1 flex flex-col" role="main">
         {children}
       </main>
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-300" role="contentinfo">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <nav aria-label="Footer menu">
-            <ul className="flex flex-wrap justify-center gap-6 text-sm text-slate-300">
-              <li><Link href="/ayuda" className="hover:text-white transition-colors">Centro de Ayuda</Link></li>
-              <li><Link href="/contacto" className="hover:text-white transition-colors">Contacto</Link></li>
-              <li><Link href="/acerca" className="hover:text-white transition-colors">Acerca de</Link></li>
-              <li><Link href="/accesibilidad" className="hover:text-white transition-colors">Accesibilidad en EmpleosPro</Link></li>
-              <li><Link href="/terminos" className="hover:text-white transition-colors">Condiciones</Link></li>
-            </ul>
-          </nav>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col justify-between h-full">
+          {/* Enlaces centrados verticalmente en la parte superior */}
+          <div className="flex items-center justify-center">
+            <nav aria-label="Footer menu">
+              <ul className="flex flex-wrap justify-center gap-6 text-sm text-slate-300">
+                <li>
+                  <Link href={routes.public.help} className="hover:text-white transition-colors">
+                    Centro de Ayuda
+                  </Link>
+                </li>
+                <li>
+                  <Link href={routes.public.contact} className="hover:text-white transition-colors">
+                    Contacto
+                  </Link>
+                </li>
+                <li>
+                  <Link href={routes.public.about} className="hover:text-white transition-colors">
+                    Acerca de
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href={routes.public.accessibility}
+                    className="hover:text-white transition-colors"
+                  >
+                    Accesibilidad en EmpleosPeru
+                  </Link>
+                </li>
+                <li>
+                  <Link href={routes.public.terms} className="hover:text-white transition-colors">
+                    Condiciones
+                  </Link>
+                </li>
+              </ul>
+            </nav>
+          </div>
 
-          <div className="mt-8 border-t border-slate-800/70" />
+          {/* Línea divisora perfectamente centrada */}
+          <div className="my-4 border-t border-slate-800/70" />
 
-          <div className="py-4 text-center text-xs sm:text-sm text-slate-400">
-            © 2025 EmpleosPro. Todos los derechos reservados.
+          {/* Copyright centrado verticalmente en la parte inferior */}
+          <div className="flex items-center justify-center py-2">
+            <p className="text-center text-xs sm:text-sm text-slate-400">
+              © 2025 EmpleosPeru. Todos los derechos reservados.
+            </p>
           </div>
         </div>
       </footer>

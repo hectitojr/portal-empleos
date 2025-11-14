@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import AuthHeader from '../components/AuthHeader';
-import BackButton from '../components/BackButton';
+import AuthHeader from '../../../../features/iam/components/AuthHeader';
+import BackButton from '../../../../features/iam/components/BackButton';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

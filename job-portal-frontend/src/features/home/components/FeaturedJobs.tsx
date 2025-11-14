@@ -1,7 +1,7 @@
 'use client';
 
-import JobCard from './JobCard';
-import type { Job } from '../lib/types';
+import JobCard from './HomeJobCard';
+import type { Job } from '../../../features/home/lib/types';
 
 export default function FeaturedJobs({ jobs }: { jobs: Job[] }) {
   return (
