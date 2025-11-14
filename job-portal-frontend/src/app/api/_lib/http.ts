@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readTokens, setAuthCookies, clearAuthCookies } from './cookies';
+import { env } from '@/lib/env';
 
 type BackendAuthResponse = {
   tokenType: string;
@@ -8,10 +9,11 @@ type BackendAuthResponse = {
   refreshToken?: string;
 };
 
-const BACKEND = process.env.BASE_URL ?? process.env.BACKEND_URL!;
+const BACKEND = env.BACKEND_BASE_URL;
 
 async function backendFetchRaw(path: string, init?: RequestInit) {
   const url = path.startsWith('http') ? path : `${BACKEND}${path}`;
+
   return fetch(url, {
     ...init,
     headers: {
@@ -48,6 +50,7 @@ export async function backendFetch(
       });
     }
   }
+
   return res;
 }
 
@@ -67,15 +70,24 @@ export async function tryRefresh(): Promise<boolean> {
   }
 
   const data = (await res.json()) as BackendAuthResponse;
+
   await setAuthCookies({
     accessToken: data.accessToken,
     expiresIn: data.expiresIn,
     refreshToken: data.refreshToken,
   });
+
   return true;
 }
 
 export function json(data: unknown, init?: number | ResponseInit) {
-  const status = typeof init === 'number' ? init : (init as ResponseInit)?.status ?? 200;
-  return NextResponse.json(data, { status, ...(typeof init === 'object' ? init : {}) });
+  const status =
+    typeof init === 'number'
+      ? init
+      : (init as ResponseInit)?.status ?? 200;
+
+  return NextResponse.json(data, {
+    status,
+    ...(typeof init === 'object' ? init : {}),
+  });
 }

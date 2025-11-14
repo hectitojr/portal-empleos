@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import SearchBar from '../../features/home/components/SearchBar';
-import AuthHeader from '../../features/iam/components/AuthHeader';
-import { useLandingState } from '../home/hooks/useLandingState';
-import { featuredJobs } from '../../features/home/lib/data';
+import SearchBar from '@/features/home/components/SearchBar';
+import AuthHeader from '@/features/iam/components/AuthHeader';
+import { useLandingState } from '@/app/home/hooks/useLandingState';
+import { featuredJobs } from '@/features/home/lib/data';
 
 export default function LandingPage() {
   const s = useLandingState();
@@ -14,9 +14,8 @@ export default function LandingPage() {
     jobs.length ? jobs[0].id : null
   );
 
-  // Paginador “de mentira” por ahora (solo UI)
-  const currentPage: number = 2; // página actual (ejemplo)
-  const totalPages: number = 3;  // total de páginas (ejemplo)
+  const currentPage: number = 2;  // ej. dummy
+  const totalPages: number = 3;   // ej. dummy
 
   const selectedJob = jobs.find((job) => job.id === selectedJobId) ?? jobs[0];
 
@@ -26,7 +25,7 @@ export default function LandingPage() {
       aria-label="Inicio"
       className="flex flex-col flex-1 min-h-0"
     >
-      {/* Hero de búsqueda (no scroll, altura fija arriba) */}
+      {/* Hero con buscador */}
       <section className="py-8 shrink-0">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="mb-4">
@@ -46,16 +45,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Listado + detalle tipo LinkedIn/Indeed (ocupa el resto y aquí vive el scroll interno) */}
+      {/* Listado + detalle tipo LinkedIn */}
       <section
         id="empleos"
         className="flex-1 bg-slate-50 py-8 flex flex-col min-h-0"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 min-h-0">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,2.2fr)] h-full min-h-0">
-            {/* Columna izquierda: header + listado + paginador */}
+            {/* Columna izquierda: listado + paginador */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-              {/* Header estilo LinkedIn */}
               <header className="px-6 py-4 border-b border-slate-100">
                 <h2 className="text-base sm:text-lg font-semibold text-slate-900">
                   Empleos que te recomendamos
@@ -68,7 +66,6 @@ export default function LandingPage() {
                 </p>
               </header>
 
-              {/* Listado scrollable (solo esta parte scroll) */}
               <div className="flex-1 overflow-y-auto">
                 <ul className="divide-y divide-slate-100">
                   {jobs.map((job) => {
@@ -132,13 +129,11 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              {/* Footer/paginador al estilo LinkedIn */}
               <footer className="border-t border-slate-100 px-6 py-4">
                 <nav
                   aria-label="Paginación de ofertas"
                   className="flex items-center justify-between text-xs sm:text-sm text-slate-600"
                 >
-                  {/* Anterior */}
                   <button
                     type="button"
                     disabled={currentPage === 1}
@@ -154,7 +149,6 @@ export default function LandingPage() {
                     <span>Anterior</span>
                   </button>
 
-                  {/* Números de página */}
                   <div className="flex items-center gap-2">
                     {[1, 2, 3].map((page) => {
                       const isActive = page === currentPage;
@@ -175,7 +169,6 @@ export default function LandingPage() {
                     })}
                   </div>
 
-                  {/* Siguiente */}
                   <button
                     type="button"
                     disabled={currentPage === totalPages}
@@ -194,7 +187,7 @@ export default function LandingPage() {
               </footer>
             </div>
 
-            {/* Columna derecha: detalle (scroll propio y alineado) */}
+            {/* Columna derecha: detalle */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
                 {selectedJob ? (
@@ -243,8 +236,7 @@ export default function LandingPage() {
                       <p>
                         Aquí podrás añadir la descripción completa del puesto:
                         responsabilidades, requisitos, beneficios y cualquier
-                        información relevante para el proceso de selección. Este
-                        texto es solo de ejemplo para visualizar la estructura.
+                        información relevante para el proceso de selección.
                       </p>
                     </div>
 
