@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readTokens, setAuthCookies, clearAuthCookies } from './cookies';
+import { readTokens, setAuthCookies, clearAuthCookies } from '@/app/api/_lib/cookies';
 import { env } from '@/lib/env';
 
 type BackendAuthResponse = {
@@ -25,7 +25,7 @@ async function backendFetchRaw(path: string, init?: RequestInit) {
 
 export async function backendFetch(
   path: string,
-  init?: RequestInit & { retryOn401?: boolean }
+  init?: RequestInit & { retryOn401?: boolean },
 ): Promise<Response> {
   const { access } = await readTokens();
 

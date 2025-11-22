@@ -5,8 +5,11 @@ import lombok.*;
 import java.time.Instant;
 import java.util.UUID;
 
-@Getter @Builder @ToString
-@AllArgsConstructor @NoArgsConstructor
+@Getter
+@Builder
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
 public class User {
     private UUID id;
     private String email;
@@ -18,4 +21,6 @@ public class User {
     private Instant updatedAt;
     private UUID createdBy;
     private UUID updatedBy;
+    private Instant termsAcceptedAt;
+    private Instant privacyAcceptedAt;
 }

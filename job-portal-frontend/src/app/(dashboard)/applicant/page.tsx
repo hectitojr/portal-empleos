@@ -6,14 +6,14 @@ import { useLandingState } from '@/features/home/hooks/useLandingState';
 import { featuredJobs } from '@/features/home/lib/data';
 import JobsMasterDetail from '@/features/jobs/components/JobsMasterDetail';
 
-export default function LandingPage() {
+export default function ApplicantHomePage() {
   const s = useLandingState();
   const jobs = featuredJobs;
 
   return (
     <section
       role="region"
-      aria-label="Inicio"
+      aria-label="Inicio candidato"
       className="flex flex-col flex-1 min-h-0"
     >
       {/* Hero con buscador */}
@@ -21,8 +21,8 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="mb-4">
             <AuthHeader
-              title="Encuentra tu próximo trabajo"
-              subtitle="Busca por título, palabra clave o ubicación"
+              title="Encuentra mejores oportunidades"
+              subtitle="Explora empleos recomendados para ti"
             />
           </div>
 
@@ -36,14 +36,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ✅ MISMO DISEÑO QUE APPLICANT, PERO SIN ESTADOS PRIVADOS */}
+      {/* ✅ LISTADO + DETALLE COMPARTIDO */}
       <JobsMasterDetail
         jobs={jobs}
-        variant="public"
-        listTitle="Empleos que te recomendamos"
-        listSubtitle="Explora las oportunidades más recientes y relevantes."
-        currentPage={2}
-        totalPages={3}
+        variant="applicant"
+        listTitle="Empleos recomendados"
+        listSubtitle="Basados en tus intereses y búsquedas recientes."
       />
     </section>
   );

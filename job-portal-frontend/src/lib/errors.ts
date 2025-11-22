@@ -5,6 +5,8 @@ export type ApiErrorCode =
   | 'TOKEN_INVALID'
   | 'TOKEN_EXPIRED'
   | 'UNAUTHENTICATED'
+  | 'RESET_TOKEN_INVALID'
+  | 'RESET_TOKEN_EXPIRED'
   | 'FORBIDDEN'
   | 'COMPANY_NOT_FOUND'
   | 'COMPANY_TAX_ID_ALREADY_EXISTS'
@@ -30,13 +32,17 @@ export function humanize(code?: ApiErrorCode | string): string {
     case 'BAD_CREDENTIALS':
       return 'Credenciales inválidas.';
     case 'EMAIL_EXISTS':
-      return 'El correo ya está registrado.';
+      return 'Ya existe una cuenta asociada a este correo. Inicia sesión o recupera tu contraseña para continuar.';
     case 'TOKEN_EXPIRED':
       return 'La sesión expiró. Vuelve a iniciar sesión.';
     case 'TOKEN_INVALID':
       return 'Token inválido. Vuelve a iniciar sesión.';
     case 'USER_SUSPENDED':
       return 'La cuenta está suspendida.';
+    case 'RESET_TOKEN_INVALID':
+      return 'El enlace de restablecimiento no es válido o ya fue usado.';
+    case 'RESET_TOKEN_EXPIRED':
+      return 'El enlace de restablecimiento ha expirado. Solicita uno nuevo.';
     case 'FORBIDDEN':
       return 'Acceso no permitido.';
     case 'VALIDATION_ERROR':

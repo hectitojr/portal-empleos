@@ -1,12 +1,20 @@
-import { NextRequest } from 'next/server';
-import { json } from '../../_lib/http';
-import { setAuthCookies } from '../../_lib/cookies';
+import type { NextRequest } from 'next/server';
+import { json } from '@/app/api/_lib/http';
+import { setAuthCookies } from '@/app/api/_lib/cookies';
+import { env } from '@/lib/env';
 
-type AuthResp = { tokenType: string; accessToken: string; expiresIn: number; refreshToken: string };
-const BACKEND = process.env.BACKEND_URL!;
+type AuthResp = {
+  tokenType: string;
+  accessToken: string;
+  expiresIn: number;
+  refreshToken: string;
+};
+
+const BACKEND = env.BACKEND_BASE_URL;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
+
   const res = await fetch(`${BACKEND}/api/v1/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

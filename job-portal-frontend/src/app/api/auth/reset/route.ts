@@ -7,7 +7,6 @@ const BACKEND = env.BACKEND_BASE_URL;
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
-  // Esperamos body con: { selector, token, newPassword }
   const res = await fetch(`${BACKEND}/api/v1/auth/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

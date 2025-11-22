@@ -10,7 +10,6 @@ export default async function JobsPage() {
 
   const res = await fetch(`${base}/api/jobs`, { cache: 'no-store' });
 
-  // Si el BFF responde error, evita res.json() y muestra mensaje claro
   if (!res.ok) {
     const status = res.status;
     return (

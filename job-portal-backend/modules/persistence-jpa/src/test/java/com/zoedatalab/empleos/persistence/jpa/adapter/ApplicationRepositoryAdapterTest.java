@@ -119,16 +119,14 @@ class ApplicationRepositoryAdapterTest extends SpringTestBase {
         adapter.save(newerForApplicant1);
         
         var midForJob1_applicant2 = Application.builder()
-                .jobId(job1)           // mismo job1
-                .applicantId(applicant2) // applicant distinto
+                .jobId(job1)
+                .applicantId(applicant2)
                 .status(Application.Status.APPLIED)
                 .appliedAt(Instant.now().plusSeconds(10))
                 .updatedAt(Instant.now().plusSeconds(10))
                 .build();
 
         adapter.save(midForJob1_applicant2);
-
-        // --- Assertions ---
 
         // byApplicant: debe devolver 2 y el más reciente primero
         List<Application> byApplicant = adapter.findByApplicant(applicant1, 0, 10);

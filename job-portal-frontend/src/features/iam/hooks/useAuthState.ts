@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { registerReq, loginReq } from '@/features/iam/api/authClient';
 import { humanize } from '@/lib/errors';
+import type { ApiErrorCode } from '@/lib/errors';
+import { routes } from '@/lib/routes';
 
 type Mode = 'login' | 'register' | 'select-role';
 type UserType = 'APPLICANT' | 'COMPANY' | null;
@@ -11,9 +13,15 @@ type UserType = 'APPLICANT' | 'COMPANY' | null;
 export function useAuthState() {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get('next') || '/me';
 
-  const [authMode, setAuthMode] = useState<Mode>('login');
+  const modeParam = search.get('mode');
+  const nextParam = search.get('next');
+
+  const next: string | null = nextParam && nextParam.startsWith('/') ? nextParam : null;
+
+  const [authMode, setAuthMode] = useState<Mode>(
+    modeParam === 'register' ? 'select-role' : 'login'
+  );
   const [userType, setUserType] = useState<UserType>(null);
 
   const [formData, setFormData] = useState({
@@ -31,7 +39,10 @@ export function useAuthState() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
     if (apiError) setApiError(null);
   };
@@ -50,13 +61,34 @@ export function useAuthState() {
       if (!userType) e.userType = 'Debes seleccionar un tipo de usuario';
       if (formData.password !== formData.confirmPassword)
         e.confirmPassword = 'Las contraseñas no coinciden';
-      if (!formData.acceptTerms) e.acceptTerms = 'Debes aceptar los términos y condiciones';
-      if (!formData.acceptDataPolicy)
-        e.acceptDataPolicy = 'Debes autorizar el tratamiento de tus datos personales';
+
+      if (!formData.acceptTerms) {
+        e.acceptTerms = 'Debes aceptar los Términos y Condiciones y la Política de Privacidad.';
+      }
+
+      if (!formData.acceptDataPolicy) {
+        e.acceptDataPolicy = 'Debes autorizar el tratamiento de tus datos personales.';
+      }
     }
 
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const applyBackendFieldErrors = (data: any) => {
+    const fe = data?.fieldErrors;
+    if (!Array.isArray(fe)) return;
+
+    const mapped: Record<string, string> = {};
+    for (const item of fe) {
+      const field = item?.field as string | undefined;
+      const message = item?.message as string | undefined;
+      if (field && message) mapped[field] = message;
+    }
+
+    if (Object.keys(mapped).length > 0) {
+      setErrors((prev) => ({ ...prev, ...mapped }));
+    }
   };
 
   async function submit() {
@@ -68,44 +100,94 @@ export function useAuthState() {
     try {
       if (authMode === 'login') {
         const { ok, data } = await loginReq(formData.email, formData.password);
+
         if (!ok) {
-          setApiError(humanize((data?.code as string) || undefined));
+          const apiCode = (data?.error as string) || undefined;
+          setApiError(humanize(apiCode));
+
+          applyBackendFieldErrors(data);
+
+          if (apiCode === 'BAD_CREDENTIALS') {
+            setErrors((prev) => ({
+              ...prev,
+              email: prev.email || 'Revisa tu correo y contraseña.',
+              password: prev.password || 'Revisa tu correo y contraseña.',
+            }));
+          }
+
           return;
         }
+
         setSuccess(true);
-        setTimeout(() => router.push(next), 600);
+
+        setTimeout(() => {
+          const isPublicNext =
+            !next ||
+            next === routes.public.home ||
+            next.startsWith('/auth') ||
+            next.startsWith('/jobs') ||
+            next.startsWith('/ayuda') ||
+            next.startsWith('/contacto') ||
+            next.startsWith('/acerca') ||
+            next.startsWith('/accesibilidad') ||
+            next.startsWith('/terminos');
+
+          if (!isPublicNext) {
+            router.push(next as any);
+          } else {
+            router.push(routes.dashboard.me);
+          }
+        }, 600);
+
         return;
       }
 
-      // === REGISTRO REAL === (sin nombre/empresa; eso va en el onboarding)
+      // REGISTER
       const payload = {
         email: formData.email,
         password: formData.password,
-        role: userType!, // validado en validate()
+        role: userType!,
+        acceptTerms: formData.acceptTerms,
+        acceptDataPolicy: formData.acceptDataPolicy,
       };
 
       const { ok, data } = await registerReq(payload);
       if (!ok) {
-        setApiError(humanize((data?.code as string) || undefined));
+        const apiCode = data?.error as ApiErrorCode | undefined;
+        setApiError(humanize(apiCode));
+
+        if (apiCode === 'EMAIL_EXISTS') {
+          setErrors((prev) => ({
+            ...prev,
+            email: prev.email || 'Este correo ya está registrado.',
+          }));
+        }
+
+        applyBackendFieldErrors(data);
         return;
       }
 
-      // Redirige al onboarding por rol
-      router.push(
-        userType === 'APPLICANT'
-          ? '/me/applicant/profile/setup'
-          : '/me/company/profile/setup'
-      );
+      const target =
+        userType === 'APPLICANT' ? routes.dashboard.applicant.home : routes.dashboard.company.home;
+
+      router.push(target);
     } finally {
       setLoading(false);
     }
   }
 
   return {
-    authMode, setAuthMode,
-    userType, setUserType,
-    formData, setFormData, handleInputChange,
-    errors, loading, success, apiError,
+    authMode,
+    setAuthMode,
+    userType,
+    setUserType,
+    formData,
+    setFormData,
+    handleInputChange,
+    errors,
+    loading,
+    success,
+    apiError,
     submit,
   };
 }

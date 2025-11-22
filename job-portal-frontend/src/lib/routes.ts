@@ -20,7 +20,15 @@ export const routes = {
   dashboard: {
     me: '/me' as Route,
     applications: '/applications' as Route,
+
+    applicant: {
+      home: '/applicant' as Route,
+      profileSetup: '/me/applicant/profile/setup' as Route,
+    },
+
     company: {
+      home: '/company' as Route,
+      profileSetup: '/me/company/profile/setup' as Route,
       jobs: '/company/jobs' as Route,
       jobApplications: (id: string) =>
         `/company/jobs/${id}/applications` as Route,

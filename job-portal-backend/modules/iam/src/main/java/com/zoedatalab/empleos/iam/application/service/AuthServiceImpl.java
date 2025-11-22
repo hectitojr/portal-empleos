@@ -52,6 +52,8 @@ public class AuthServiceImpl implements AuthService {
         userRepo.findByEmail(cmd.getEmail().trim().toLowerCase())
                 .ifPresent(u -> { throw new EmailAlreadyExistsException(); });
 
+        Instant now = clock.now();
+
         User newUser = User.builder()
                 .id(UUID.randomUUID())
                 .email(cmd.getEmail().trim().toLowerCase())
@@ -59,13 +61,14 @@ public class AuthServiceImpl implements AuthService {
                 .role(cmd.getRole())
                 .active(true)
                 .suspended(false)
-                .createdAt(clock.now())
-                .updatedAt(clock.now())
+                .createdAt(now)
+                .updatedAt(now)
+                .termsAcceptedAt(Boolean.TRUE.equals(cmd.getAcceptTerms()) ? now : null)
+                .privacyAcceptedAt(Boolean.TRUE.equals(cmd.getAcceptDataPolicy()) ? now : null)
                 .build();
 
         User saved = userRepo.save(newUser);
 
-        // provisión inicial
         if (saved.getRole() == Role.APPLICANT) applicantProvisioning.provision(saved.getId());
         if (saved.getRole() == Role.COMPANY)   companyProvisioning.provision(saved.getId());
 

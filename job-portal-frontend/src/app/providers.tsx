@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 export default function Providers({ children }: { children: ReactNode }) {
-  // Evita que el QueryClient se recree en cada render
   const [queryClient] = useState(
     () =>
       new QueryClient({

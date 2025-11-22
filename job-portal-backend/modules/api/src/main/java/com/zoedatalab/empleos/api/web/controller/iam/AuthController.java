@@ -36,6 +36,8 @@ public class AuthController {
                 .email(r.email())
                 .password(r.password())
                 .role(r.role())
+                .acceptTerms(r.acceptTerms())
+                .acceptDataPolicy(r.acceptDataPolicy())
                 .build());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new AuthResponse(out.getTokenType(), out.getAccessToken(), out.getExpiresIn(), out.getRefreshToken()));

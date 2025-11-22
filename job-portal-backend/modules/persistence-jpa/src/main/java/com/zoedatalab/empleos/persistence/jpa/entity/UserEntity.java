@@ -11,8 +11,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Getter @Setter @Builder
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserEntity {
 
     @Id
@@ -47,4 +50,10 @@ public class UserEntity {
 
     @Column(name = "updated_by")
     private UUID updatedBy;
+
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
+    @Column(name = "privacy_accepted_at")
+    private Instant privacyAcceptedAt;
 }

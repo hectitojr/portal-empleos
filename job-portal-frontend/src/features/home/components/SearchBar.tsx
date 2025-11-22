@@ -23,7 +23,6 @@ export default function SearchBar({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 1) Caja de búsqueda por título/keywords (h:50px) */}
       <div
         className="w-full bg-white flex items-center px-4 h-[50px] border border-slate-300 rounded-lg transition-shadow focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"
       >
@@ -39,7 +38,6 @@ export default function SearchBar({
         />
       </div>
 
-      {/* 2) Ubicación (70%) + Botón (30%) (h:50px) */}
       <div className="w-full flex h-[50px]">
         <div
           className="flex-1 bg-white flex items-center px-4 border border-slate-300 rounded-l-lg border-r-0 transition-shadow focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"

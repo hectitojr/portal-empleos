@@ -10,14 +10,14 @@ import {
   easeOut,
 } from 'framer-motion';
 import { Mail, AlertCircle } from 'lucide-react';
-import AuthHeader from '../../../../features/iam/components/AuthHeader';
-import RoleSelect from '../../../../features/iam/components/RoleSelect';
-import TextField from '../../../../features/iam/components/TextField';
-import PasswordField from '../../../../features/iam/components/PasswordField';
-import TermsCheckboxes from '../../../../features/iam/components/TermsCheckboxes';
-import ToggleAuthLink from '../../../../features/iam/components/ToggleAuthLink';
-import BackButton from '../../../../features/iam/components/BackButton';
-import { useAuthState } from '../../../../features/iam/hooks/useAuthState';
+import AuthHeader from '@/features/iam/components/AuthHeader';
+import RoleSelect from '@/features/iam/components/RoleSelect';
+import TextField from '@/features/iam/components/TextField';
+import PasswordField from '@/features/iam/components/PasswordField';
+import TermsCheckboxes from '@/features/iam/components/TermsCheckboxes';
+import ToggleAuthLink from '@/features/iam/components/ToggleAuthLink';
+import BackButton from '@/features/iam/components/BackButton';
+import { useAuthState } from '@/features/iam/hooks/useAuthState';
 
 export default function AuthSystem() {
   const s = useAuthState();

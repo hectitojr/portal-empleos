@@ -3,8 +3,12 @@ export type Job = {
   title: string;
   company: string;
   location: string;
-  type: string;
   salary: string;
-  posted: string;
-  tags: string[];
+  employmentType: string;
+  workMode: string;
+  viewed: boolean;
+  quickApply: string;
+  isActive: boolean;
+  isApplied: boolean;
+  postedAt: string; 
 };
