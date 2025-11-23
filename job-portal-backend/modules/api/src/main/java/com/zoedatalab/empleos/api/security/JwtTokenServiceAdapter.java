@@ -26,7 +26,6 @@ public class JwtTokenServiceAdapter implements TokenServicePort {
             @Value("${security.jwt.access-ttl-seconds:900}") long accessTtlSeconds,
             @Value("${security.jwt.issuer:job-portal}") String issuer
     ) {
-        // Se espera un secreto en Base64 (>= 256 bits)
         byte[] secret = Decoders.BASE64.decode(secretBase64);
         if (secret.length < 32) {
             throw new IllegalArgumentException("JWT secret must be >= 256 bits (32 bytes) after Base64 decoding");
@@ -56,6 +55,12 @@ public class JwtTokenServiceAdapter implements TokenServicePort {
     }
 
     public Jws<Claims> parse(String jwt) {
-        return Jwts.parser().verifyWith(key).build().parseSignedClaims(jwt);
+        return Jwts.parser()
+                .verifyWith(key)
+                .requireIssuer(issuer)
+                .clockSkewSeconds(30)
+                .build()
+                .parseSignedClaims(jwt);
     }
+
 }

@@ -1,6 +1,9 @@
 package com.zoedatalab.empleos.api.web.exception;
 
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
+import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
+import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
+import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
@@ -9,13 +12,7 @@ import com.zoedatalab.empleos.jobs.domain.exception.CompanyIncompleteException;
 import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
-import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
-import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
-import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
-import com.zoedatalab.empleos.iam.application.exception.ResetTokenInvalidException;
-import com.zoedatalab.empleos.iam.application.exception.ResetTokenExpiredException;
 
-import org.springframework.security.authorization.AuthorizationDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -26,6 +23,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -34,6 +33,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,40 +43,45 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    private static final Map<Class<? extends Throwable>, ApiErrorCode> EX_MAP = Map.ofEntries(
-            // IAM
-            Map.entry(EmailAlreadyExistsException.class, ApiErrorCode.EMAIL_EXISTS),
-            Map.entry(AuthBadCredentialsException.class, ApiErrorCode.BAD_CREDENTIALS),
-            Map.entry(UserSuspendedException.class, ApiErrorCode.USER_SUSPENDED),
-            Map.entry(TokenInvalidException.class, ApiErrorCode.TOKEN_INVALID),
-            Map.entry(TokenExpiredException.class, ApiErrorCode.TOKEN_EXPIRED),
-            Map.entry(ResetTokenInvalidException.class, ApiErrorCode.RESET_TOKEN_INVALID),
-            Map.entry(ResetTokenExpiredException.class, ApiErrorCode.RESET_TOKEN_EXPIRED),
-            Map.entry(AuthenticationCredentialsNotFoundException.class, ApiErrorCode.UNAUTHENTICATED),
+    private static final Map<Class<? extends Throwable>, ApiErrorCode> EX_MAP = new LinkedHashMap<>();
 
-            // Autorización
-            Map.entry(AccessDeniedException.class, ApiErrorCode.FORBIDDEN),
-            Map.entry(AuthorizationDeniedException.class, ApiErrorCode.FORBIDDEN),
-            Map.entry(ForbiddenJobAccessException.class, ApiErrorCode.FORBIDDEN),
+    static {
+        // IAM
+        EX_MAP.put(EmailAlreadyExistsException.class, ApiErrorCode.EMAIL_EXISTS);
+        EX_MAP.put(AuthBadCredentialsException.class, ApiErrorCode.BAD_CREDENTIALS);
+        EX_MAP.put(UserSuspendedException.class, ApiErrorCode.USER_SUSPENDED);
+        EX_MAP.put(TokenInvalidException.class, ApiErrorCode.TOKEN_INVALID);
+        EX_MAP.put(TokenExpiredException.class, ApiErrorCode.TOKEN_EXPIRED);
+        EX_MAP.put(ResetTokenInvalidException.class, ApiErrorCode.RESET_TOKEN_INVALID);
+        EX_MAP.put(ResetTokenExpiredException.class, ApiErrorCode.RESET_TOKEN_EXPIRED);
+        EX_MAP.put(AuthenticationCredentialsNotFoundException.class, ApiErrorCode.UNAUTHENTICATED);
 
-            // Companies
-            Map.entry(CompanyNotFoundException.class, ApiErrorCode.COMPANY_NOT_FOUND),
-            Map.entry(TaxIdAlreadyExistsException.class, ApiErrorCode.COMPANY_TAX_ID_ALREADY_EXISTS),
-            Map.entry(DistrictNotFoundException.class, ApiErrorCode.DISTRICT_NOT_FOUND),
-            Map.entry(CompanyIncompleteException.class, ApiErrorCode.COMPANY_INCOMPLETE),
+        // Tipo base de auth (cubre subclases no listadas)
+        EX_MAP.put(AuthenticationException.class, ApiErrorCode.UNAUTHENTICATED);
 
-            // Applicants
-            Map.entry(ApplicantNotFoundException.class, ApiErrorCode.APPLICANT_NOT_FOUND),
+        // Autorización
+        EX_MAP.put(AccessDeniedException.class, ApiErrorCode.FORBIDDEN);
+        EX_MAP.put(AuthorizationDeniedException.class, ApiErrorCode.FORBIDDEN);
+        EX_MAP.put(ForbiddenJobAccessException.class, ApiErrorCode.FORBIDDEN);
 
-            // Jobs
-            Map.entry(JobNotFoundException.class, ApiErrorCode.JOB_NOT_FOUND),
-            Map.entry(JobClosedException.class, ApiErrorCode.JOB_CLOSED),
+        // Companies
+        EX_MAP.put(CompanyNotFoundException.class, ApiErrorCode.COMPANY_NOT_FOUND);
+        EX_MAP.put(TaxIdAlreadyExistsException.class, ApiErrorCode.COMPANY_TAX_ID_ALREADY_EXISTS);
+        EX_MAP.put(DistrictNotFoundException.class, ApiErrorCode.DISTRICT_NOT_FOUND);
+        EX_MAP.put(CompanyIncompleteException.class, ApiErrorCode.COMPANY_INCOMPLETE);
 
-            // Applications
-            Map.entry(DuplicateApplicationException.class, ApiErrorCode.DUPLICATE_APPLICATION),
-            Map.entry(ApplicantProfileIncompleteException.class, ApiErrorCode.APPLICANT_INCOMPLETE),
-            Map.entry(ApplicationNotFoundException.class, ApiErrorCode.APPLICATION_NOT_FOUND)
-    );
+        // Applicants
+        EX_MAP.put(ApplicantNotFoundException.class, ApiErrorCode.APPLICANT_NOT_FOUND);
+
+        // Jobs
+        EX_MAP.put(JobNotFoundException.class, ApiErrorCode.JOB_NOT_FOUND);
+        EX_MAP.put(JobClosedException.class, ApiErrorCode.JOB_CLOSED);
+
+        // Applications
+        EX_MAP.put(DuplicateApplicationException.class, ApiErrorCode.DUPLICATE_APPLICATION);
+        EX_MAP.put(ApplicantProfileIncompleteException.class, ApiErrorCode.APPLICANT_INCOMPLETE);
+        EX_MAP.put(ApplicationNotFoundException.class, ApiErrorCode.APPLICATION_NOT_FOUND);
+    }
 
     // ===== Excepciones de dominio / seguridad mapeadas =====
     @ExceptionHandler({
@@ -100,12 +105,14 @@ public class GlobalExceptionHandler {
             JobClosedException.class,
             DuplicateApplicationException.class,
             ApplicantProfileIncompleteException.class,
-            ApplicationNotFoundException.class
+            ApplicationNotFoundException.class,
+            AuthenticationException.class
     })
     public ResponseEntity<ApiErrorResponse> mapped(HttpServletRequest req, Throwable ex) {
-        ApiErrorCode code = EX_MAP.getOrDefault(ex.getClass(), ApiErrorCode.INTERNAL_ERROR);
+        ApiErrorCode code = resolveCode(ex);
         logByStatus(code, ex);
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, null));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, null));
     }
 
     // ===== Validación: @Valid (body) =====
@@ -119,7 +126,8 @@ public class GlobalExceptionHandler {
                 .toList();
         var code = ApiErrorCode.VALIDATION_ERROR;
         log.warn("Validation body error: {} fields invalid", fields.size());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, fields, null));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, fields, null));
     }
 
     // ===== Validación: @Validated (params) =====
@@ -130,7 +138,8 @@ public class GlobalExceptionHandler {
                 .toList();
         var code = ApiErrorCode.CONSTRAINT_VIOLATION;
         log.warn("Constraint violations: {}", violations.size());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, violations));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, violations));
     }
 
     // ===== BindException (p.ej. @ModelAttribute) =====
@@ -144,7 +153,8 @@ public class GlobalExceptionHandler {
                 .toList();
         var code = ApiErrorCode.VALIDATION_ERROR;
         log.warn("BindException: {} fields invalid", fields.size());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, fields, null));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, fields, null));
     }
 
     // ===== Errores de request/infra =====
@@ -152,37 +162,50 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> malformedJson(HttpServletRequest req, HttpMessageNotReadableException ex) {
         var code = ApiErrorCode.MALFORMED_JSON;
         log.warn("Malformed JSON: {}", ex.getMostSpecificCause().getMessage());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, null));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, null));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiErrorResponse> missingParam(HttpServletRequest req, MissingServletRequestParameterException ex) {
         var code = ApiErrorCode.MISSING_PARAMETER;
-        var v = List.of(new ViolationErrorItem(ex.getParameterName(), "MissingParameter", "El parámetro es obligatorio."));
+        var v = List.of(new ViolationErrorItem(
+                ex.getParameterName(),
+                "MissingParameter",
+                "El parámetro es obligatorio."
+        ));
         log.warn("Missing parameter: {}", ex.getParameterName());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, v));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, v));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiErrorResponse> typeMismatch(HttpServletRequest req, MethodArgumentTypeMismatchException ex) {
         var code = ApiErrorCode.TYPE_MISMATCH;
-        var v = List.of(new ViolationErrorItem(ex.getName(), "TypeMismatch", "Tipo de dato inválido."));
+        var v = List.of(new ViolationErrorItem(
+                ex.getName(),
+                "TypeMismatch",
+                "Tipo de dato inválido."
+        ));
         log.warn("Type mismatch: {} -> {}", ex.getName(), ex.getValue());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, v));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, v));
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiErrorResponse> unsupportedMedia(HttpServletRequest req, HttpMediaTypeNotSupportedException ex) {
         var code = ApiErrorCode.UNSUPPORTED_MEDIA_TYPE;
         log.warn("Unsupported media type: {}", ex.getContentType());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, null));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, null));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> dataIntegrity(HttpServletRequest req, DataIntegrityViolationException ex) {
         var code = ApiErrorCode.DATA_INTEGRITY_VIOLATION;
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, null));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, null));
     }
 
     // ===== Fallback =====
@@ -190,12 +213,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> any(HttpServletRequest req, Exception ex) {
         var code = ApiErrorCode.INTERNAL_ERROR;
         log.error("Unhandled exception", ex);
-        return ResponseEntity.status(code.status).body(ApiErrorFactory.build(req, code, null, null));
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, null));
+    }
+
+    // =========================================================
+    // HELPERS
+    // =========================================================
+
+    private ApiErrorCode resolveCode(Throwable ex) {
+        return EX_MAP.entrySet().stream()
+                .filter(e -> e.getKey().isInstance(ex))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(ApiErrorCode.INTERNAL_ERROR);
     }
 
     private ViolationErrorItem toViolation(ConstraintViolation<?> v) {
         String param = (v.getPropertyPath() != null) ? v.getPropertyPath().toString() : null;
-        String code = (v.getConstraintDescriptor() != null && v.getConstraintDescriptor().getAnnotation() != null)
+        String code = (v.getConstraintDescriptor() != null
+                && v.getConstraintDescriptor().getAnnotation() != null)
                 ? v.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName()
                 : "ConstraintViolation";
         String message = Optional.ofNullable(v.getMessage()).orElse("Parámetro inválido");

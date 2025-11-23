@@ -5,12 +5,20 @@ import Link from 'next/link';
 import { Briefcase } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Route } from 'next';
+import { useQueryClient } from '@tanstack/react-query';
+
 import AccountMenu from '@/features/iam/components/AccountMenu';
+import { logoutReq } from '@/features/iam/api/authClient';
+import { useMe } from '@/features/iam/hooks/useMe';
 import { routes } from '@/lib/routes';
 
 export default function DashboardHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const qc = useQueryClient();
+  const { data: me, error } = useMe();
+
+  const userEmail = me?.email ?? '';
 
   const isApplicant =
     pathname.startsWith('/dashboard/applicant') || pathname === '/applicant';
@@ -18,10 +26,17 @@ export default function DashboardHeader() {
     pathname.startsWith('/dashboard/company') || pathname === '/company';
   const isAdmin = pathname.startsWith('/dashboard/admin');
 
-  // ✅ estado para tabs con hash (#empresas) solo en applicant
   const [activeHash, setActiveHash] = useState<string>(
     typeof window !== 'undefined' ? window.location.hash : ''
   );
+
+  useEffect(() => {
+    const status = (error as any)?.status;
+    if (status === 401 || status === 403) {
+      router.push(routes.public.login);
+      router.refresh();
+    }
+  }, [error, router]);
 
   useEffect(() => {
     if (!isApplicant) return;
@@ -45,10 +60,6 @@ export default function DashboardHeader() {
 
   const empresasActive = activeHash === '#empresas';
 
-  // TODO: luego lo sacas de tu estado global auth
-  const userEmail = 'ozzychzel@gmail.com';
-
-  /** ✅ ActiveKey para iconos derecho */
   const applicantActiveKey = useMemo(() => {
     if (pathname.startsWith('/applicant/messages') || activeHash === '#mensajes')
       return 'messages';
@@ -61,13 +72,16 @@ export default function DashboardHeader() {
     return 'jobs';
   }, [pathname, activeHash]);
 
+  async function handleLogout() {
+    await logoutReq();
+    qc.clear();
+    router.push(routes.public.login);
+    router.refresh();
+  }
+
   return (
-    <header
-      role="banner"
-      className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50"
-    >
+    <header role="banner" className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
       <div className="flex items-stretch justify-between h-16 px-6 md:px-8">
-        {/* LEFT: logo siempre compartido */}
         <div className="flex items-stretch space-x-6">
           <button
             onClick={() => router.push(routes.dashboard.me)}
@@ -75,23 +89,15 @@ export default function DashboardHeader() {
             aria-label="Ir al inicio"
           >
             <Briefcase className="w-6 h-6 text-blue-600" aria-hidden="true" />
-            <span className="text-2xl font-bold text-blue-600">
-              EmpleosPeru
-            </span>
+            <span className="text-2xl font-bold text-blue-600">EmpleosPeru</span>
           </button>
 
-          {/* CENTER: navegación por rol */}
           {isApplicant && (
-            <nav
-              className="hidden md:flex items-stretch space-x-6"
-              aria-label="Navegación Applicant"
-            >
+            <nav className="hidden md:flex items-stretch space-x-6" aria-label="Navegación Applicant">
               <Link
                 href={routes.dashboard.applicant.home as Route}
                 aria-current={inicioActive ? 'page' : undefined}
-                className={`${itemBase} ${
-                  inicioActive ? itemActive : itemIdle
-                }`}
+                className={`${itemBase} ${inicioActive ? itemActive : itemIdle}`}
               >
                 Inicio
               </Link>
@@ -99,9 +105,7 @@ export default function DashboardHeader() {
               <a
                 href="#empresas"
                 onClick={() => setActiveHash('#empresas')}
-                className={`${itemBase} ${
-                  empresasActive ? itemActive : itemIdle
-                }`}
+                className={`${itemBase} ${empresasActive ? itemActive : itemIdle}`}
               >
                 Empresas
               </a>
@@ -109,16 +113,11 @@ export default function DashboardHeader() {
           )}
 
           {isCompany && (
-            <nav
-              className="hidden md:flex items-stretch space-x-6"
-              aria-label="Navegación Company"
-            >
+            <nav className="hidden md:flex items-stretch space-x-6" aria-label="Navegación Company">
               <Link
                 href={routes.dashboard.company.home as Route}
                 className={`${itemBase} ${
-                  pathname === routes.dashboard.company.home
-                    ? itemActive
-                    : itemIdle
+                  pathname === routes.dashboard.company.home ? itemActive : itemIdle
                 }`}
               >
                 Panel empresa
@@ -126,9 +125,7 @@ export default function DashboardHeader() {
               <Link
                 href={routes.dashboard.company.jobs as Route}
                 className={`${itemBase} ${
-                  pathname.startsWith(routes.dashboard.company.jobs)
-                    ? itemActive
-                    : itemIdle
+                  pathname.startsWith(routes.dashboard.company.jobs) ? itemActive : itemIdle
                 }`}
               >
                 Mis empleos
@@ -137,38 +134,31 @@ export default function DashboardHeader() {
           )}
 
           {isAdmin && (
-            <nav
-              className="hidden md:flex items-stretch space-x-6"
-              aria-label="Navegación Admin"
-            >
-              <Link
-                href={'/dashboard/admin' as Route}
-                className={`${itemBase} ${itemActive}`}
-              >
+            <nav className="hidden md:flex items-stretch space-x-6" aria-label="Navegación Admin">
+              <Link href={'/dashboard/admin' as Route} className={`${itemBase} ${itemActive}`}>
                 Admin
               </Link>
             </nav>
           )}
         </div>
 
-        {/* RIGHT: AccountMenu solo para applicant */}
         {isApplicant ? (
           <AccountMenu
             email={userEmail}
             variant="APPLICANT"
             activeKey={applicantActiveKey}
             jobsHref={routes.dashboard.applicant.home}
-            // placeholders (cuando crees páginas reales solo cambias esto)
             messagesHref={'/applicant/messages' as Route}
             notificationsHref={'/applicant/notifications' as Route}
             accountHref={routes.dashboard.applicant.profileSetup}
             showPublishCta
+            onLogout={handleLogout}
           />
         ) : (
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <span className="hidden sm:inline">{userEmail}</span>
             <button
-              onClick={() => console.log('logout')}
+              onClick={handleLogout}
               className="text-blue-700 hover:text-blue-800 font-medium"
             >
               Cerrar sesión

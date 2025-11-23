@@ -1,6 +1,8 @@
 package com.zoedatalab.empleos.api.web.controller.iam;
 
+import com.zoedatalab.empleos.api.security.CurrentUser;
 import com.zoedatalab.empleos.api.web.dto.common.MessageResponse;
+import com.zoedatalab.empleos.api.web.dto.iam.AuthMeResponse;
 import com.zoedatalab.empleos.api.web.dto.iam.AuthResponse;
 import com.zoedatalab.empleos.api.web.dto.iam.LoginRequest;
 import com.zoedatalab.empleos.api.web.dto.iam.RefreshRequest;
@@ -21,6 +23,7 @@ import org.springframework.web.context.request.WebRequest;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -56,6 +59,23 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshRequest r) {
         var out = auth.refresh(r.refreshToken());
         return ResponseEntity.ok(new AuthResponse(out.getTokenType(), out.getAccessToken(), out.getExpiresIn(), out.getRefreshToken()));
+    }
+
+    // =========================================================
+    // ME (usuario autenticado)
+    // =========================================================
+    @GetMapping(value = "/me", produces = "application/json")
+    public ResponseEntity<AuthMeResponse> me() {
+        UUID userId = CurrentUser.idOrThrow();
+        var view = auth.me(userId);
+
+        return ResponseEntity.ok(
+                new AuthMeResponse(
+                        view.id().toString(),
+                        view.email(),
+                        view.role().name()
+                )
+        );
     }
 
     @PostMapping(value = "/forgot-password", consumes = "application/json", produces = "application/json")

@@ -44,40 +44,39 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = SecurePingController.class)
 @Import({
-        RealJwtSecurityTestConfig.class,   // cadena de seguridad para test + adapter real
-        ApiErrorHttpHandler.class,         // handler 401/403
-        GlobalExceptionHandler.class       // por simetría (no maneja 401/403)
+        RealJwtSecurityTestConfig.class,
+        ApiErrorHttpHandler.class,
+        GlobalExceptionHandler.class
 })
 class JwtAuthFilterIntegrationTest extends SpringTestBase {
 
     @Autowired MockMvc mvc;
-    @Autowired JwtTokenServiceAdapter jwt; // adapter real
+    @Autowired JwtTokenServiceAdapter jwt;
 
-    // MEJOR: usar @MockitoBean (Spring 6.1+) o registrar manualmente
     @MockitoBean
-    UserRepositoryPort userRepo; // usado por el filtro
+    UserRepositoryPort userRepo;
 
     private UUID userId;
-    private SecretKey testKey; // misma key que usa el adapter real
+    private SecretKey testKey;
     private String issuer;
 
     @BeforeEach
     void setup() {
         userId = UUID.randomUUID();
-        // Reconstruimos la misma clave con el mismo secreto base64 generado en RealJwtSecurityTestConfig
+
         String raw = "0123456789abcdef0123456789abcdef";
         String b64 = Base64.getEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
         byte[] secret = Decoders.BASE64.decode(b64);
         testKey = Keys.hmacShaKeyFor(secret);
         issuer = "test-issuer";
 
-        // Mock del repo: el filtro solo necesita getId(); el resto no importa
         User domainUser = mock(User.class, Answers.RETURNS_DEEP_STUBS);
         when(domainUser.getId()).thenReturn(userId);
+        when(domainUser.isActive()).thenReturn(true);
+        when(domainUser.isSuspended()).thenReturn(false);
+
         when(userRepo.findById(userId)).thenReturn(Optional.of(domainUser));
     }
-
-    // --------- helpers para tokens firmados con la misma key ---------
 
     private String signToken(UUID subject, Role role, Instant issuedAt, Instant expiresAt) {
         return Jwts.builder()
@@ -95,8 +94,6 @@ class JwtAuthFilterIntegrationTest extends SpringTestBase {
         return "Bearer " + jwt;
     }
 
-    // ------------------------------- TESTS -------------------------------
-
     @Test
     @DisplayName("200 OK con token válido → filtro autentica y pasa")
     void validToken_allowsAccess() throws Exception {
@@ -108,6 +105,17 @@ class JwtAuthFilterIntegrationTest extends SpringTestBase {
                         .accept(MediaType.TEXT_PLAIN))
                 .andExpect(status().isOk())
                 .andExpect(content().string(equalTo("ok")));
+    }
+
+    @Test
+    @DisplayName("200 OK en /secure/admin cuando el rol es ADMIN")
+    void adminToken_allowsAdminEndpoint() throws Exception {
+        Instant now = Instant.now();
+        String token = signToken(userId, Role.ADMIN, now.minusSeconds(1), now.plusSeconds(60));
+
+        mvc.perform(get("/secure/admin")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -127,8 +135,9 @@ class JwtAuthFilterIntegrationTest extends SpringTestBase {
     @Test
     @DisplayName("401 TOKEN_INVALID cuando la firma no coincide")
     void invalidSignature_unauthorized() throws Exception {
-        // firma con otra key distinta
-        String otherB64 = Base64.getEncoder().encodeToString("other-secret-other-secret-other-32!!".getBytes(StandardCharsets.UTF_8));
+        String otherB64 = Base64.getEncoder().encodeToString(
+                "other-secret-other-secret-other-32!!".getBytes(StandardCharsets.UTF_8)
+        );
         SecretKey otherKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(otherB64));
 
         Instant now = Instant.now();
@@ -138,7 +147,7 @@ class JwtAuthFilterIntegrationTest extends SpringTestBase {
                 .claim("role", Role.COMPANY.name())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(60)))
-                .signWith(otherKey) // firma con clave distinta
+                .signWith(otherKey)
                 .compact();
 
         mvc.perform(get("/secure/ping")

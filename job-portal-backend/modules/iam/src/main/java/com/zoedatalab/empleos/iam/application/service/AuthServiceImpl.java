@@ -3,6 +3,7 @@ package com.zoedatalab.empleos.iam.application.service;
 import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
+import com.zoedatalab.empleos.iam.application.dto.AuthMeView;
 import com.zoedatalab.empleos.iam.application.dto.AuthTokens;
 import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
 import com.zoedatalab.empleos.iam.application.dto.LoginCommand;
@@ -95,12 +96,20 @@ public class AuthServiceImpl implements AuthService {
     // =========================================================
     @Override
     public AuthTokens refresh(String refreshToken) {
-        RefreshToken rt = refreshRepo.findByToken(refreshToken).orElseThrow(TokenInvalidException::new);
+        RefreshToken rt = refreshRepo.findByToken(refreshToken)
+                .orElseThrow(TokenInvalidException::new);
+
         if (rt.isRevoked()) throw new TokenInvalidException();
         if (rt.getExpiresAt().isBefore(clock.now())) throw new TokenExpiredException();
 
-        User user = userRepo.findById(rt.getUserId()).orElseThrow(TokenInvalidException::new);
-        // rotación: revocar tokens anteriores del usuario
+        User user = userRepo.findById(rt.getUserId())
+                .orElseThrow(TokenInvalidException::new);
+
+        // no permitir refresh a usuarios inactivos/suspendidos
+        if (!user.isActive() || user.isSuspended()) {
+            throw new UserSuspendedException();
+        }
+
         refreshRepo.revokeAllByUserId(user.getId());
         return issueTokensFor(user);
     }
@@ -201,6 +210,23 @@ public class AuthServiceImpl implements AuthService {
                 "userId", user.getId().toString(),
                 "email", user.getEmail()
         ));
+    }
+
+    // =========================================================
+    // ME (usuario autenticado)
+    // =========================================================
+    @Override
+    public AuthMeView me(UUID userId) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(TokenInvalidException::new);
+
+        return new AuthMeView(
+                user.getId(),
+                user.getEmail(),
+                user.getRole(),
+                user.isActive(),
+                user.isSuspended()
+        );
     }
 
     // =========================================================

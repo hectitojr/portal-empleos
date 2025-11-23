@@ -1,171 +1,156 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-//
-// CONFIGURACIÓN
-//
-const PUBLIC_PATHS = [
-  "/",
-  "/home",
-  "/auth/login",
-  "/auth/register",
-  "/auth/forgot-password",
-  "/auth/reset-password",
-  "/acerca",
-  "/accesibilidad",
-  "/terminos",
-  "/ayuda",
-  "/contacto",
+const PUBLIC_EXACT = new Set([
+  '/',
+  '/home',
+  '/acerca',
+  '/accesibilidad',
+  '/terminos',
+  '/ayuda',
+  '/contacto',
+]);
+
+const PUBLIC_PREFIXES = [
+  '/auth',      
+  '/jobs',   
+  '/api/auth', 
 ];
 
-const DASHBOARD_ROOT = "/dashboard"; // futuro admin
-const APPLICANT_ROOT = "/applicant";
-const COMPANY_ROOT = "/company";
+const APPLICANT_ROOT = '/applicant';
+const COMPANY_ROOT = '/company';
+const DASHBOARD_ROOT = '/dashboard'; // futuro admin
 
-//
-// UTILS
-//
+function isPublic(path: string) {
+  if (PUBLIC_EXACT.has(path)) return true;
+  return PUBLIC_PREFIXES.some((p) => path.startsWith(p));
+}
 
-// Decodificar JWT sin librerías
+// Edge safe jwt decode
 function decodeJwt(token: string): any | null {
   try {
-    const payload = token.split(".")[1];
-    const decoded = JSON.parse(Buffer.from(payload, "base64").toString());
-    return decoded;
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
+    const json = atob(padded);
+    return JSON.parse(json);
   } catch {
     return null;
   }
 }
 
-// Verificar si exp expira antes de ahora
-function isExpired(exp: number | undefined): boolean {
+function isExpired(exp?: number): boolean {
   if (!exp) return true;
   const now = Math.floor(Date.now() / 1000);
   return exp <= now;
 }
 
-//
-// MIDDLEWARE
-//
-export async function middleware(req: NextRequest) {
-  const url = req.nextUrl;
-  const path = url.pathname;
+function redirectToLogin(req: NextRequest) {
+  const loginUrl = req.nextUrl.clone();
+  loginUrl.pathname = '/auth/login';
+  loginUrl.searchParams.set('next', req.nextUrl.pathname);
+  return NextResponse.redirect(loginUrl);
+}
 
-  // 1. Permitir rutas públicas
-  if (PUBLIC_PATHS.some((p) => path.startsWith(p))) {
+function forceLogout(req: NextRequest) {
+  const res = redirectToLogin(req);
+
+  // limpiar cookies del lado cliente
+  res.cookies.set('jp_at', '', { path: '/', maxAge: 0 });
+  res.cookies.set('jp_rt', '', { path: '/', maxAge: 0 });
+  res.cookies.set('jp_at_exp', '', { path: '/', maxAge: 0 });
+  res.cookies.set('jp_role', '', { path: '/', maxAge: 0 });
+
+  return res;
+}
+
+function redirectByRole(req: NextRequest, role?: string | null) {
+  const url = req.nextUrl.clone();
+
+  switch (role) {
+    case 'APPLICANT':
+      url.pathname = '/applicant';
+      return NextResponse.redirect(url);
+    case 'COMPANY':
+      url.pathname = '/company';
+      return NextResponse.redirect(url);
+    case 'ADMIN':
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    default:
+      return forceLogout(req);
+  }
+}
+
+function normalizeRole(r?: string | null): string | null {
+  if (!r) return null;
+  let up = r.trim().toUpperCase();
+  if (up.startsWith('ROLE_')) up = up.substring(5);
+  return up || null;
+}
+
+export function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+
+  // 1) rutas públicas
+  if (isPublic(path)) {
     return NextResponse.next();
   }
 
-  // 2. Leer cookies seguras
-  const access = req.cookies.get("jp_at")?.value ?? null;
-  const refresh = req.cookies.get("jp_rt")?.value ?? null;
+  // 2) leer cookies
+  const access = req.cookies.get('jp_at')?.value ?? null;
+  const refresh = req.cookies.get('jp_rt')?.value ?? null;
 
-  // 3. Si no hay sesión, requerir login
+  // 3) sin sesión => login
   if (!access || !refresh) {
     return redirectToLogin(req);
   }
 
-  // 4. Decodificar JWT
+  // 4) validar access
   const payload = decodeJwt(access);
-  const role = payload?.role;
-  const exp = payload?.exp;
+  const exp = payload?.exp as number | undefined;
 
-  // 5. Si acc expiró → intentar refresh
-  if (isExpired(exp)) {
-    const refreshed = await tryRefreshToken(req);
-
-    if (!refreshed.ok) {
-      return forceLogout();
-    }
-
-    // Si se refrescó, dejar continuar con request actual
-    return refreshed.response;
+  if (!payload || isExpired(exp)) {
+    // access inválido/expirado => cortar sesión
+    return forceLogout(req);
   }
 
-  // 6. Validar acceso por rol
+  // 5) rol (prioriza cookie ya normalizada)
+  const roleCookie = req.cookies.get('jp_role')?.value;
 
-  if (path.startsWith(APPLICANT_ROOT)) {
-    if (role !== "APPLICANT") return redirectByRole(role);
+  const role =
+    normalizeRole(roleCookie) ||
+    normalizeRole(payload.role) ||
+    normalizeRole(payload.roles?.[0]) ||
+    normalizeRole(payload.authorities?.[0]);
+
+  // 6) control por rol
+  if (path.startsWith(APPLICANT_ROOT) && role !== 'APPLICANT') {
+    return redirectByRole(req, role);
   }
 
-  if (path.startsWith(COMPANY_ROOT)) {
-    if (role !== "COMPANY") return redirectByRole(role);
+  if (path.startsWith(COMPANY_ROOT) && role !== 'COMPANY') {
+    return redirectByRole(req, role);
   }
 
-  // 7. Si intenta acceder a /dashboard (futuro admin)
-  if (path.startsWith(DASHBOARD_ROOT)) {
-    if (role !== "ADMIN") return redirectByRole(role);
+  if (path.startsWith(DASHBOARD_ROOT) && role !== 'ADMIN') {
+    return redirectByRole(req, role);
   }
 
-  // 8. Si va a /me → lo redirigimos automáticamente
-  if (path === "/me") {
-    return redirectByRole(role);
+  // 7) /me => al home por rol
+  if (path === '/me') {
+    return redirectByRole(req, role);
   }
 
   return NextResponse.next();
 }
 
-//
-// FUNCIONES DE APOYO
-//
-
-function redirectToLogin(req: NextRequest) {
-  const loginUrl = new URL("/auth/login", req.url);
-  loginUrl.searchParams.set("next", req.nextUrl.pathname);
-  return NextResponse.redirect(loginUrl);
-}
-
-function forceLogout() {
-  const res = NextResponse.redirect(new URL("/auth/login", "http://localhost"));
-  res.cookies.set("jp_at", "", { path: "/", maxAge: 0 });
-  res.cookies.set("jp_rt", "", { path: "/", maxAge: 0 });
-  return res;
-}
-
-function redirectByRole(role: string | undefined) {
-  switch (role) {
-    case "APPLICANT":
-      return NextResponse.redirect(new URL("/applicant", "http://localhost"));
-    case "COMPANY":
-      return NextResponse.redirect(new URL("/company", "http://localhost"));
-    case "ADMIN":
-      return NextResponse.redirect(new URL("/dashboard", "http://localhost"));
-    default:
-      return forceLogout();
-  }
-}
-
-//
-// Intento de refresh
-//
-async function tryRefreshToken(req: NextRequest) {
-  try {
-    const refresh = req.cookies.get("jp_rt")?.value;
-    if (!refresh) return { ok: false };
-
-    const refreshUrl = new URL("/api/auth/refresh", req.url);
-
-    const resp = await fetch(refreshUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: refresh }),
-    });
-
-    if (!resp.ok) return { ok: false };
-
-    // Debe devolver nuevas cookies desde el BFF
-    const response = NextResponse.next();
-    return { ok: true, response };
-  } catch (err) {
-    return { ok: false };
-  }
-}
-
 export const config = {
   matcher: [
-    "/applicant/:path*",
-    "/company/:path*",
-    "/dashboard/:path*",
-    "/me",
+    '/applicant/:path*',
+    '/company/:path*',
+    '/dashboard/:path*',
+    '/me',
   ],
 };

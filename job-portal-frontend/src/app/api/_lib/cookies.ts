@@ -4,15 +4,13 @@ import { env } from '@/lib/env';
 export const ACCESS_COOKIE = 'jp_at';
 export const REFRESH_COOKIE = 'jp_rt';
 export const ACCESS_EXP_COOKIE = 'jp_at_exp';
+export const ROLE_COOKIE = 'jp_role';
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Dominio y flag secure controlados por env
 const cookieDomain = env.AUTH_COOKIE_DOMAIN || undefined;
-
 const cookieSecure = isProd && env.AUTH_COOKIE_SECURE;
-
-const refreshTtl = Number(process.env.REFRESH_TTL_SECONDS ?? 2592000); // 30d
+const refreshTtl = Number(process.env.REFRESH_TTL_SECONDS ?? 2592000);
 
 type BaseCookieOptions = {
   httpOnly: boolean;
@@ -31,12 +29,11 @@ function buildCookieOptions(base: BaseCookieOptions) {
 
 export async function setAuthCookies(params: {
   accessToken: string;
-  expiresIn: number; // segundos
+  expiresIn: number;
   refreshToken?: string;
 }) {
   const jar = await cookies();
 
-  // Access token
   jar.set(
     ACCESS_COOKIE,
     params.accessToken,
@@ -46,7 +43,6 @@ export async function setAuthCookies(params: {
     }),
   );
 
-  // Exp aproximada (para hints de UX en el cliente)
   const expEpoch = Math.floor(Date.now() / 1000) + params.expiresIn - 5;
   jar.set(
     ACCESS_EXP_COOKIE,
@@ -81,7 +77,7 @@ export async function clearAuthCookies() {
     ...(cookieDomain ? { domain: cookieDomain } : {}),
   };
 
-  [ACCESS_COOKIE, ACCESS_EXP_COOKIE, REFRESH_COOKIE].forEach((name) => {
+  [ACCESS_COOKIE, ACCESS_EXP_COOKIE, REFRESH_COOKIE, ROLE_COOKIE].forEach((name) => {
     jar.set(name, '', base);
   });
 }
@@ -92,5 +88,6 @@ export async function readTokens() {
     access: jar.get(ACCESS_COOKIE)?.value || null,
     refresh: jar.get(REFRESH_COOKIE)?.value || null,
     accessExp: Number(jar.get(ACCESS_EXP_COOKIE)?.value || 0),
+    role: jar.get(ROLE_COOKIE)?.value || null,
   };
 }

@@ -33,7 +33,6 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     public User save(User user) {
         var entity = mapper.toEntity(user);
 
-        // Refuerzo: identidad y campos NOT NULL
         if (entity.getId() == null) {
             entity.setId(user.getId());
         }

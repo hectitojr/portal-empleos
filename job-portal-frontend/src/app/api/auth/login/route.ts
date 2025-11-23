@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { setAuthCookies } from '@/app/api/_lib/cookies';
+import { setAuthCookies, ROLE_COOKIE } from '@/app/api/_lib/cookies';
 import { env } from '@/lib/env';
 
 type AuthResp = {
@@ -8,7 +8,7 @@ type AuthResp = {
   accessToken: string;
   expiresIn: number;
   refreshToken: string;
-  role?: string; 
+  role?: string;
 };
 
 const BACKEND = env.BACKEND_BASE_URL;
@@ -45,8 +45,8 @@ function extractRoleFromJwt(accessToken: string): string | null {
     decoded.role,
     decoded.roles?.[0],
     decoded.authorities?.[0],
-    decoded.scope, 
-    decoded.realm_access?.roles?.[0], 
+    decoded.scope,
+    decoded.realm_access?.roles?.[0],
   ];
 
   for (const c of candidates) {
@@ -89,12 +89,13 @@ export async function POST(req: NextRequest) {
     refreshToken: a.refreshToken,
   });
 
-  const role = normalizeRole(a.role ?? null) ?? extractRoleFromJwt(a.accessToken);
+  const role =
+    normalizeRole(a.role ?? null) ?? extractRoleFromJwt(a.accessToken);
 
   const response = NextResponse.json({ ok: true, role });
 
   if (role) {
-    response.cookies.set('jp_role', role, {
+    response.cookies.set(ROLE_COOKIE, role, {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',

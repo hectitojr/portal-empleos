@@ -4,6 +4,8 @@ import com.zoedatalab.empleos.iam.application.dto.*;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 public class TransactionalAuthService implements AuthService {
 
     private final AuthService delegate;
@@ -38,5 +40,11 @@ public class TransactionalAuthService implements AuthService {
     @Override @org.springframework.transaction.annotation.Transactional
     public void resetPassword(ResetPasswordCommand cmd) {
         delegate.resetPassword(cmd);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AuthMeView me(UUID userId) {
+        return delegate.me(userId);
     }
 }

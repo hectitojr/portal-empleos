@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
+import { useRouter } from 'next/navigation';
 import {
   Bookmark,
   MessageSquare,
@@ -14,6 +15,8 @@ import {
   LogOut,
   Settings,
 } from 'lucide-react';
+import { logoutReq } from '@/features/iam/api/authClient';
+import { routes } from '@/lib/routes';
 
 type RoleVariant = 'APPLICANT' | 'COMPANY' | 'ADMIN';
 type MenuKey = 'jobs' | 'messages' | 'notifications' | 'account';
@@ -21,16 +24,16 @@ type MenuKey = 'jobs' | 'messages' | 'notifications' | 'account';
 type Props = {
   email: string;
   variant?: RoleVariant;
-
   activeKey?: MenuKey;
-
   jobsHref?: Route;
   messagesHref?: Route;
   notificationsHref?: Route;
   accountHref?: Route;
-
   showPublishCta?: boolean;
   publishHref?: Route;
+
+  // ✅ NUEVO
+  onLogout?: () => void | Promise<void>;
 };
 
 function HeaderIconButton({
@@ -48,69 +51,25 @@ function HeaderIconButton({
     <div
       aria-label={label}
       className={`
-        group
-        relative
-        h-16
-        px-2
-        flex items-center justify-center
-        transition-colors
-        text-slate-700 hover:text-[#2d2d2d]
-        hover:bg-slate-50
+        group relative h-16 px-2 flex items-center justify-center
+        transition-colors text-slate-700 hover:text-[#2d2d2d] hover:bg-slate-50
         ${active ? 'text-blue-700' : ''}
-
-        /* underline al ras del borde inferior del header */
-        after:content-['']
-        after:absolute after:left-0 after:bottom-0
-        after:w-full after:h-[2px]
-        after:bg-blue-700 after:rounded-full
+        after:content-[''] after:absolute after:left-0 after:bottom-0
+        after:w-full after:h-[2px] after:bg-blue-700 after:rounded-full
         after:scale-x-0 after:transition-transform after:duration-200
-        hover:after:scale-x-100
-        ${active ? 'after:scale-x-100' : ''}
+        hover:after:scale-x-100 ${active ? 'after:scale-x-100' : ''}
       `}
     >
-      {/* Icono centrado */}
       <div className="w-10 h-10 flex items-center justify-center rounded-full">{children}</div>
 
       {showTooltip && (
         <div
           role="tooltip"
-          className={`
-      pointer-events-none
-      absolute
-      top-full
-      left-1/2 -translate-x-1/2
-      mt-3
-      z-[80]
-    `}
+          className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-3 z-[80]"
         >
-          <div
-            className={`
-    will-change-[opacity,transform]
-    opacity-0 translate-y-1
-
-    group-hover:opacity-100 group-hover:translate-y-0
-    group-hover:delay-150
-
-    transition-[opacity,transform] duration-350 ease-[cubic-bezier(0.22,0.61,0.36,1)]
-  `}
-          >
-            {/* Flecha */}
+          <div className="will-change-[opacity,transform] opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:delay-150 transition-[opacity,transform] duration-350 ease-smooth">
             <div className="mx-auto w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-slate-900/95 drop-shadow-sm" />
-
-            {/* Nube */}
-            <div
-              className="
-          mt-1
-          px-4 py-2
-          rounded-2xl
-          bg-slate-900/95
-          text-white
-          text-xs sm:text-sm
-          font-semibold
-          shadow-xl
-          whitespace-nowrap
-        "
-            >
+            <div className="mt-1 px-4 py-2 rounded-2xl bg-slate-900/95 text-white text-xs sm:text-sm font-semibold shadow-xl whitespace-nowrap">
               {label}
             </div>
           </div>
@@ -123,18 +82,28 @@ function HeaderIconButton({
 export default function AccountMenu({
   email,
   variant = 'APPLICANT',
-
   activeKey,
-
   jobsHref = '/applicant' as Route,
   messagesHref = '/applicant#mensajes' as Route,
   notificationsHref = '/applicant#notificaciones' as Route,
   accountHref = '/me/applicant/profile/setup' as Route,
-
   showPublishCta = true,
   publishHref = '/dashboard/company/jobs/new' as Route,
+
+  onLogout,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  async function handleLogout() {
+    try {
+      await logoutReq();
+    } finally {
+      setOpen(false);
+      router.replace(routes.public.login);
+      router.refresh();
+    }
+  }
 
   const itemBase = 'inline-flex h-16 items-center border-b-2 transition-colors px-1';
   const itemIdle = 'border-transparent text-[#595959] hover:text-[#2d2d2d] hover:border-[#2557a7]';
@@ -244,7 +213,14 @@ export default function AccountMenu({
                   <button
                     type="button"
                     className="w-full px-4 py-3 flex items-center justify-center gap-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-                    onClick={() => console.log('logout')}
+                    onClick={async () => {
+                      setOpen(false);
+                      if (onLogout) {
+                        await onLogout();
+                      } else {
+                        await handleLogout();
+                      }
+                    }}
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Cerrar sesión</span>
@@ -256,7 +232,6 @@ export default function AccountMenu({
         </div>
       </div>
 
-      {/* CTA Publicar empleos */}
       {showPublishCta && (
         <>
           <span className="hidden md:inline-flex items-center h-16 text-slate-300">|</span>

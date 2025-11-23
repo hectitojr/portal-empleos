@@ -27,24 +27,27 @@ export async function backendFetch(
   path: string,
   init?: RequestInit & { retryOn401?: boolean },
 ): Promise<Response> {
+
+  const { retryOn401, ...fetchInit } = init ?? {};
+
   const { access } = await readTokens();
 
   const res = await backendFetchRaw(path, {
-    ...init,
+    ...fetchInit,
     headers: {
-      ...(init?.headers || {}),
+      ...(fetchInit.headers || {}),
       ...(access ? { Authorization: `Bearer ${access}` } : {}),
     },
   });
 
-  if (res.status === 401 && init?.retryOn401 !== false) {
+  if (res.status === 401 && retryOn401 !== false) {
     const refreshed = await tryRefresh();
     if (refreshed) {
       const { access: newAccess } = await readTokens();
       return backendFetchRaw(path, {
-        ...init,
+        ...fetchInit,
         headers: {
-          ...(init?.headers || {}),
+          ...(fetchInit.headers || {}),
           ...(newAccess ? { Authorization: `Bearer ${newAccess}` } : {}),
         },
       });
