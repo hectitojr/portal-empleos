@@ -1,12 +1,19 @@
 package com.zoedatalab.empleos.api.config;
 
-import com.zoedatalab.empleos.iam.application.dto.*;
+import com.zoedatalab.empleos.iam.application.dto.AuthTokens;
+import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
+import com.zoedatalab.empleos.iam.application.dto.LoginCommand;
+import com.zoedatalab.empleos.iam.application.dto.RegisterCommand;
+import com.zoedatalab.empleos.iam.application.dto.ResetPasswordCommand;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 class TransactionalAuthServiceTest {
 

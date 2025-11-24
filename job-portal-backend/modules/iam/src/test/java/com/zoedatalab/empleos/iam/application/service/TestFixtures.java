@@ -1,8 +1,8 @@
 package com.zoedatalab.empleos.iam.application.service;
 
+import com.zoedatalab.empleos.iam.domain.PasswordResetToken;
 import com.zoedatalab.empleos.iam.domain.Role;
 import com.zoedatalab.empleos.iam.domain.User;
-import com.zoedatalab.empleos.iam.domain.PasswordResetToken;
 
 import java.time.Instant;
 import java.util.UUID;

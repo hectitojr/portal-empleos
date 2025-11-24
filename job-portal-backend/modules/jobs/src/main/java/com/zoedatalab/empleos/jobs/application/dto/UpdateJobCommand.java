@@ -1,6 +1,7 @@
 package com.zoedatalab.empleos.jobs.application.dto;
 
 import lombok.Builder;
+
 import java.util.UUID;
 
 @Builder

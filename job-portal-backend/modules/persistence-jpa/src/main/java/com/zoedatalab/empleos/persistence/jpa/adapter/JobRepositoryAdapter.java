@@ -14,7 +14,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static com.zoedatalab.empleos.persistence.jpa.spec.JobOfferSpecs.*;
+import static com.zoedatalab.empleos.persistence.jpa.spec.JobOfferSpecs.areaEquals;
+import static com.zoedatalab.empleos.persistence.jpa.spec.JobOfferSpecs.disabilityEquals;
+import static com.zoedatalab.empleos.persistence.jpa.spec.JobOfferSpecs.districtEquals;
+import static com.zoedatalab.empleos.persistence.jpa.spec.JobOfferSpecs.notSuspended;
+import static com.zoedatalab.empleos.persistence.jpa.spec.JobOfferSpecs.publishedFrom;
+import static com.zoedatalab.empleos.persistence.jpa.spec.JobOfferSpecs.sectorEquals;
 
 @Component
 @RequiredArgsConstructor

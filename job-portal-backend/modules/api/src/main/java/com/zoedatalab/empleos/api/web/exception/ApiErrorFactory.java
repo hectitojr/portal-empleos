@@ -1,8 +1,8 @@
 package com.zoedatalab.empleos.api.web.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.MDC;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
 

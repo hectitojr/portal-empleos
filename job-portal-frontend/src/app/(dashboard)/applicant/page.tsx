@@ -11,12 +11,7 @@ export default function ApplicantHomePage() {
   const jobs = featuredJobs;
 
   return (
-    <section
-      role="region"
-      aria-label="Inicio candidato"
-      className="flex flex-col flex-1 min-h-0"
-    >
-      {/* Hero con buscador */}
+    <section role="region" aria-label="Inicio candidato" className="flex flex-col flex-1 min-h-0">
       <section className="py-8 shrink-0">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="mb-4">
@@ -36,7 +31,6 @@ export default function ApplicantHomePage() {
         </div>
       </section>
 
-      {/* ✅ LISTADO + DETALLE COMPARTIDO */}
       <JobsMasterDetail
         jobs={jobs}
         variant="applicant"

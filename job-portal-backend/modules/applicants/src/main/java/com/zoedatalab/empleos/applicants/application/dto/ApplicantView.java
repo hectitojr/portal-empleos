@@ -1,10 +1,11 @@
 package com.zoedatalab.empleos.applicants.application.dto;
 
 import lombok.Builder;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.time.LocalDate;
 
 @Builder
 public record ApplicantView(

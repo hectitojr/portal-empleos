@@ -1,8 +1,8 @@
 package com.zoedatalab.empleos.api.config;
 
+import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantRepositoryPort;
 import com.zoedatalab.empleos.applications.application.ports.out.ApplicationRepositoryPort;
 import com.zoedatalab.empleos.applications.application.service.ApplicationServiceImpl;
-import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantRepositoryPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobRepositoryPort;
 import org.springframework.context.annotation.Bean;

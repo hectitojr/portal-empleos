@@ -4,12 +4,18 @@ import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
-import com.zoedatalab.empleos.iam.application.ports.out.*;
+import com.zoedatalab.empleos.iam.application.ports.out.NotificationsOutboxPort;
+import com.zoedatalab.empleos.iam.application.ports.out.PasswordEncoderPort;
+import com.zoedatalab.empleos.iam.application.ports.out.PasswordResetTokenRepositoryPort;
+import com.zoedatalab.empleos.iam.application.ports.out.RefreshTokenRepositoryPort;
+import com.zoedatalab.empleos.iam.application.ports.out.TokenServicePort;
+import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
 import com.zoedatalab.empleos.iam.application.service.AuthServiceImpl;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 @org.springframework.boot.context.properties.EnableConfigurationProperties(MaintenanceProperties.class)

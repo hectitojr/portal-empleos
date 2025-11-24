@@ -3,8 +3,8 @@ package com.zoedatalab.empleos.applications.application.service;
 import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantRepositoryPort;
 import com.zoedatalab.empleos.applicants.domain.Applicant;
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
-import com.zoedatalab.empleos.applications.application.dto.ApplyToJobCommand;
 import com.zoedatalab.empleos.applications.application.dto.ApplicationView;
+import com.zoedatalab.empleos.applications.application.dto.ApplyToJobCommand;
 import com.zoedatalab.empleos.applications.application.dto.UpdateApplicationStatusCommand;
 import com.zoedatalab.empleos.applications.application.ports.out.ApplicationRepositoryPort;
 import com.zoedatalab.empleos.applications.domain.Application;
@@ -27,8 +27,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Service tests con Mockito, alineados al estilo de los módulos existentes.

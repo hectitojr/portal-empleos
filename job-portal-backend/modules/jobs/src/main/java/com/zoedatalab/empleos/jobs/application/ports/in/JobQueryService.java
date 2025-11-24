@@ -2,6 +2,7 @@ package com.zoedatalab.empleos.jobs.application.ports.in;
 
 import com.zoedatalab.empleos.jobs.application.dto.JobDetailView;
 import com.zoedatalab.empleos.jobs.application.dto.JobSummaryView;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

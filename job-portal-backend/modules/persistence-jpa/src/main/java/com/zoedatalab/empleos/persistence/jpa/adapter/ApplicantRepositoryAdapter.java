@@ -1,10 +1,9 @@
 package com.zoedatalab.empleos.persistence.jpa.adapter;
 
-import com.zoedatalab.empleos.applicants.domain.Applicant;
 import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantRepositoryPort;
+import com.zoedatalab.empleos.applicants.domain.Applicant;
 import com.zoedatalab.empleos.persistence.jpa.mapper.ApplicantJpaMapper;
 import com.zoedatalab.empleos.persistence.jpa.repository.JpaApplicantRepository;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

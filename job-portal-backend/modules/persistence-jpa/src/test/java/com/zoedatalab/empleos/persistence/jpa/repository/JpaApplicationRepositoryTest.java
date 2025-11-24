@@ -7,6 +7,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -19,9 +22,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 
 @Testcontainers
 @DataJpaTest(properties = {
@@ -34,6 +34,11 @@ class JpaApplicationRepositoryTest extends SpringTestBase {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    @Autowired
+    private JpaApplicationRepository repo;
+    @Autowired
+    private JdbcTemplate jdbc;
+    private TestDataSeeder seeder;
 
     @DynamicPropertySource
     static void dbProps(DynamicPropertyRegistry reg) {
@@ -44,14 +49,6 @@ class JpaApplicationRepositoryTest extends SpringTestBase {
 
         reg.add("spring.jpa.properties.hibernate.default_schema", () -> "job_portal");
     }
-
-    @Autowired
-    private JpaApplicationRepository repo;
-
-    @Autowired
-    private JdbcTemplate jdbc;
-
-    private TestDataSeeder seeder;
 
     @BeforeEach
     void init() {

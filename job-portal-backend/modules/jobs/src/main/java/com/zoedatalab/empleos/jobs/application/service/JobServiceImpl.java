@@ -1,11 +1,19 @@
 package com.zoedatalab.empleos.jobs.application.service;
 
-import com.zoedatalab.empleos.jobs.application.dto.*;
-import com.zoedatalab.empleos.jobs.application.ports.in.*;
-import com.zoedatalab.empleos.jobs.application.ports.out.*;
+import com.zoedatalab.empleos.jobs.application.dto.CreateJobCommand;
+import com.zoedatalab.empleos.jobs.application.dto.JobDetailView;
+import com.zoedatalab.empleos.jobs.application.dto.JobSummaryView;
+import com.zoedatalab.empleos.jobs.application.dto.UpdateJobCommand;
+import com.zoedatalab.empleos.jobs.application.ports.in.JobCommandService;
+import com.zoedatalab.empleos.jobs.application.ports.in.JobQueryService;
+import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
+import com.zoedatalab.empleos.jobs.application.ports.out.JobRepositoryPort;
 import com.zoedatalab.empleos.jobs.domain.JobOffer;
 import com.zoedatalab.empleos.jobs.domain.JobOffer.Status;
-import com.zoedatalab.empleos.jobs.domain.exception.*;
+import com.zoedatalab.empleos.jobs.domain.exception.CompanyIncompleteException;
+import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
+import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
+import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;

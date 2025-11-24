@@ -1,15 +1,21 @@
 package com.zoedatalab.empleos.iam.application.service;
 
-import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
+import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
-import com.zoedatalab.empleos.iam.application.ports.out.*;
+import com.zoedatalab.empleos.iam.application.ports.out.NotificationsOutboxPort;
+import com.zoedatalab.empleos.iam.application.ports.out.PasswordEncoderPort;
+import com.zoedatalab.empleos.iam.application.ports.out.PasswordResetTokenRepositoryPort;
+import com.zoedatalab.empleos.iam.application.ports.out.RefreshTokenRepositoryPort;
+import com.zoedatalab.empleos.iam.application.ports.out.TokenServicePort;
+import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
 import com.zoedatalab.empleos.iam.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
@@ -19,7 +25,14 @@ import java.util.UUID;
 
 import static com.zoedatalab.empleos.iam.application.service.TestFixtures.activeUser;
 import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplForgotPasswordTest {

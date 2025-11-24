@@ -32,7 +32,6 @@ type Props = {
   showPublishCta?: boolean;
   publishHref?: Route;
 
-  // ✅ NUEVO
   onLogout?: () => void | Promise<void>;
 };
 
@@ -110,7 +109,7 @@ export default function AccountMenu({
 
   return (
     <div className="flex items-center gap-4">
-      {/* Grupo de iconos */}
+
       <div className="flex items-stretch gap-1">
         <Link href={jobsHref} className="inline-flex items-stretch">
           <HeaderIconButton label="Mis empleos" active={activeKey === 'jobs'}>
@@ -130,7 +129,6 @@ export default function AccountMenu({
           </HeaderIconButton>
         </Link>
 
-        {/* Cuenta + dropdown */}
         <div className="relative flex items-stretch">
           <button
             type="button"

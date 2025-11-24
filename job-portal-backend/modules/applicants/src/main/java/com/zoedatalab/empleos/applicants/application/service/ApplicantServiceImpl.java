@@ -1,15 +1,22 @@
 package com.zoedatalab.empleos.applicants.application.service;
 
-import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
-import com.zoedatalab.empleos.common.time.ClockPort;
-import com.zoedatalab.empleos.applicants.application.dto.*;
+import com.zoedatalab.empleos.applicants.application.dto.ApplicantView;
+import com.zoedatalab.empleos.applicants.application.dto.UpsertMyApplicantCommand;
 import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantCommandService;
 import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantQueryService;
 import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantRepositoryPort;
-import com.zoedatalab.empleos.applicants.domain.*;
+import com.zoedatalab.empleos.applicants.domain.Applicant;
+import com.zoedatalab.empleos.applicants.domain.Education;
+import com.zoedatalab.empleos.applicants.domain.Experience;
+import com.zoedatalab.empleos.applicants.domain.Skill;
+import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
+import com.zoedatalab.empleos.common.time.ClockPort;
 import lombok.RequiredArgsConstructor;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQueryService {

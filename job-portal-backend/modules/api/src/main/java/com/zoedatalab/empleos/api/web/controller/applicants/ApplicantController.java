@@ -1,7 +1,11 @@
 package com.zoedatalab.empleos.api.web.controller.applicants;
 
 import com.zoedatalab.empleos.api.security.CurrentUser;
-import com.zoedatalab.empleos.api.web.dto.applicants.*;
+import com.zoedatalab.empleos.api.web.dto.applicants.ApplicantMeResponse;
+import com.zoedatalab.empleos.api.web.dto.applicants.ApplicantUpsertRequest;
+import com.zoedatalab.empleos.api.web.dto.applicants.EducationDto;
+import com.zoedatalab.empleos.api.web.dto.applicants.ExperienceDto;
+import com.zoedatalab.empleos.api.web.dto.applicants.SkillDto;
 import com.zoedatalab.empleos.applicants.application.dto.ApplicantView;
 import com.zoedatalab.empleos.applicants.application.dto.UpsertMyApplicantCommand;
 import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantCommandService;
@@ -9,7 +13,11 @@ import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantQueryServ
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Set;

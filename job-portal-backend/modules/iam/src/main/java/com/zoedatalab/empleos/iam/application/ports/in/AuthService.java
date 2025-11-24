@@ -1,6 +1,11 @@
 package com.zoedatalab.empleos.iam.application.ports.in;
 
-import com.zoedatalab.empleos.iam.application.dto.*;
+import com.zoedatalab.empleos.iam.application.dto.AuthMeView;
+import com.zoedatalab.empleos.iam.application.dto.AuthTokens;
+import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
+import com.zoedatalab.empleos.iam.application.dto.LoginCommand;
+import com.zoedatalab.empleos.iam.application.dto.RegisterCommand;
+import com.zoedatalab.empleos.iam.application.dto.ResetPasswordCommand;
 
 import java.util.UUID;
 

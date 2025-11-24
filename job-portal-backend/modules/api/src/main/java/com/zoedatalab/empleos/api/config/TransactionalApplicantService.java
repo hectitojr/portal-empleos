@@ -1,10 +1,11 @@
 package com.zoedatalab.empleos.api.config;
 
-import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantCommandService;
-import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantQueryService;
 import com.zoedatalab.empleos.applicants.application.dto.ApplicantView;
 import com.zoedatalab.empleos.applicants.application.dto.UpsertMyApplicantCommand;
+import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantCommandService;
+import com.zoedatalab.empleos.applicants.application.ports.in.ApplicantQueryService;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.UUID;
 
 public class TransactionalApplicantService implements ApplicantCommandService, ApplicantQueryService {

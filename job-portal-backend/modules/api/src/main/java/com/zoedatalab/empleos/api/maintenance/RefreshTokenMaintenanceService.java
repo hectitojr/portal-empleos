@@ -2,6 +2,7 @@ package com.zoedatalab.empleos.api.maintenance;
 
 import com.zoedatalab.empleos.api.config.MaintenanceProperties;
 import com.zoedatalab.empleos.iam.application.ports.out.RefreshTokenRepositoryPort;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,7 +12,6 @@ import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.TimeZone;
 

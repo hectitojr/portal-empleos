@@ -1,6 +1,11 @@
 package com.zoedatalab.empleos.companies.domain;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
 import java.time.Instant;
 import java.util.UUID;
 

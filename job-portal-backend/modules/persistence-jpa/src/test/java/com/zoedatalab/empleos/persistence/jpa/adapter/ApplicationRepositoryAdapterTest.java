@@ -22,7 +22,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers
 @DataJpaTest(properties = {
@@ -39,6 +42,16 @@ class ApplicationRepositoryAdapterTest extends SpringTestBase {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    @Autowired
+    private ApplicationRepositoryAdapter adapter;
+    @Autowired
+    private JpaApplicationRepository jpaRepo;
+    @Autowired
+    private JdbcTemplate jdbc;
+    private UUID applicant1;
+    private UUID applicant2;
+    private UUID job1;
+    private UUID job2;
 
     @DynamicPropertySource
     static void dbProps(DynamicPropertyRegistry reg) {
@@ -49,16 +62,6 @@ class ApplicationRepositoryAdapterTest extends SpringTestBase {
 
         reg.add("spring.jpa.properties.hibernate.default_schema", () -> "job_portal");
     }
-
-
-    @Autowired private ApplicationRepositoryAdapter adapter;
-    @Autowired private JpaApplicationRepository jpaRepo;
-    @Autowired private JdbcTemplate jdbc;
-
-    private UUID applicant1;
-    private UUID applicant2;
-    private UUID job1;
-    private UUID job2;
 
     @BeforeEach
     void setup() {
@@ -117,7 +120,7 @@ class ApplicationRepositoryAdapterTest extends SpringTestBase {
 
         adapter.save(olderForApplicant1);
         adapter.save(newerForApplicant1);
-        
+
         var midForJob1_applicant2 = Application.builder()
                 .jobId(job1)
                 .applicantId(applicant2)

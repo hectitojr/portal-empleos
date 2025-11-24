@@ -3,16 +3,21 @@ package com.zoedatalab.empleos.iam.application.service;
 import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
+import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
 import com.zoedatalab.empleos.iam.application.dto.LoginCommand;
 import com.zoedatalab.empleos.iam.application.dto.RegisterCommand;
-import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
 import com.zoedatalab.empleos.iam.application.dto.ResetPasswordCommand;
 import com.zoedatalab.empleos.iam.application.exception.AuthBadCredentialsException;
 import com.zoedatalab.empleos.iam.application.exception.EmailAlreadyExistsException;
 import com.zoedatalab.empleos.iam.application.exception.ResetTokenExpiredException;
 import com.zoedatalab.empleos.iam.application.exception.ResetTokenInvalidException;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
-import com.zoedatalab.empleos.iam.application.ports.out.*;
+import com.zoedatalab.empleos.iam.application.ports.out.NotificationsOutboxPort;
+import com.zoedatalab.empleos.iam.application.ports.out.PasswordEncoderPort;
+import com.zoedatalab.empleos.iam.application.ports.out.PasswordResetTokenRepositoryPort;
+import com.zoedatalab.empleos.iam.application.ports.out.RefreshTokenRepositoryPort;
+import com.zoedatalab.empleos.iam.application.ports.out.TokenServicePort;
+import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
 import com.zoedatalab.empleos.iam.domain.PasswordResetToken;
 import com.zoedatalab.empleos.iam.domain.Role;
 import com.zoedatalab.empleos.iam.domain.User;
@@ -25,9 +30,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class AuthServiceImplTest {
 

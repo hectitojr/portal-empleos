@@ -4,7 +4,11 @@ import com.zoedatalab.empleos.api.config.MaintenanceProperties;
 import com.zoedatalab.empleos.iam.application.ports.out.RefreshTokenRepositoryPort;
 import org.junit.jupiter.api.Test;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class RefreshTokenMaintenanceServiceTest {
 

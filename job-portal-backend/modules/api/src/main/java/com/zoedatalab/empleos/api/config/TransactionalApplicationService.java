@@ -1,6 +1,8 @@
 package com.zoedatalab.empleos.api.config;
 
-import com.zoedatalab.empleos.applications.application.dto.*;
+import com.zoedatalab.empleos.applications.application.dto.ApplicationView;
+import com.zoedatalab.empleos.applications.application.dto.ApplyToJobCommand;
+import com.zoedatalab.empleos.applications.application.dto.UpdateApplicationStatusCommand;
 import com.zoedatalab.empleos.applications.application.ports.in.ApplicationCommandService;
 import com.zoedatalab.empleos.applications.application.ports.in.ApplicationQueryService;
 import org.springframework.transaction.annotation.Transactional;

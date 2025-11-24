@@ -16,20 +16,6 @@ export const featuredJobs: Job[] = [
     postedAt: '2025-01-20T10:00:00Z', // Hace 1 día
   },
   {
-    id: 2,
-    title: 'Diseñador UX/UI Senior',
-    company: 'Creative Agency',
-    location: 'Lima, San Isidro',
-    salary: 'S/. 4,500 - 6,500',
-    employmentType: 'Permanente',
-    workMode: 'Remoto',
-    viewed: false,
-    quickApply: 'Postúlate a la oferta rápidamente',
-    isActive: true,
-    isApplied: false,
-    postedAt: '2025-01-19T15:30:00Z', // Hace 2 días
-  },
-  {
     id: 3,
     title: 'Analista de Datos',
     company: 'DataCorp',
@@ -44,48 +30,6 @@ export const featuredJobs: Job[] = [
     postedAt: '2025-01-18T09:00:00Z', // Hace 3 días
   },
   {
-    id: 4,
-    title: 'Contador Senior',
-    company: 'Estudio Contable Andino',
-    location: 'Lima, Jesús María',
-    salary: 'S/. 3,500 - 5,000',
-    employmentType: 'Tiempo completo',
-    workMode: 'Presencial',
-    viewed: false,
-    quickApply: 'Postúlate a la oferta rápidamente',
-    isActive: true,
-    isApplied: false,
-    postedAt: '2025-01-15T08:00:00Z', // Hace 6 días
-  },
-  {
-    id: 5,
-    title: 'Ingeniero de Ventas',
-    company: 'Maquinarias del Perú S.A.',
-    location: 'Lima, Ate',
-    salary: 'S/. 2,500 - 4,000 + comisiones',
-    employmentType: 'Permanente',
-    workMode: 'Presencial',
-    viewed: false,
-    quickApply: 'Postúlate a la oferta rápidamente',
-    isActive: true,
-    isApplied: false,
-    postedAt: '2025-01-14T12:00:00Z', // Hace 1 semana
-  },
-  {
-    id: 6,
-    title: 'Chef de Cocina',
-    company: 'Restaurante Fusión',
-    location: 'Lima, Barranco',
-    salary: 'S/. 2,800 - 4,200',
-    employmentType: 'Tiempo completo',
-    workMode: 'Presencial',
-    viewed: false,
-    quickApply: 'Postúlate a la oferta rápidamente',
-    isActive: true,
-    isApplied: false,
-    postedAt: '2025-01-20T16:00:00Z', // Hace 1 día
-  },
-  {
     id: 7,
     title: 'Enfermera Especialista',
     company: 'Clínica Internacional',
@@ -98,34 +42,6 @@ export const featuredJobs: Job[] = [
     isActive: true,
     isApplied: false,
     postedAt: '2025-01-21T07:00:00Z', // Hace 8 horas
-  },
-  {
-    id: 8,
-    title: 'Arquitecto de Proyectos',
-    company: 'Constructora Inmobiliaria SAC',
-    location: 'Lima, La Molina',
-    salary: 'S/. 4,500 - 6,800',
-    employmentType: 'Permanente',
-    workMode: 'Híbrido',
-    viewed: false,
-    quickApply: 'Postúlate a la oferta rápidamente',
-    isActive: true,
-    isApplied: false,
-    postedAt: '2025-01-17T11:00:00Z', // Hace 4 días
-  },
-  {
-    id: 9,
-    title: 'Supervisor de Logística',
-    company: 'Distribuidora Nacional',
-    location: 'Callao, Ventanilla',
-    salary: 'S/. 3,000 - 4,500',
-    employmentType: 'Tiempo completo',
-    workMode: 'Presencial',
-    viewed: false,
-    quickApply: 'Postúlate a la oferta rápidamente',
-    isActive: true,
-    isApplied: false,
-    postedAt: '2025-01-16T14:00:00Z', // Hace 5 días
   },
   {
     id: 10,

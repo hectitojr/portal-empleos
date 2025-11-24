@@ -3,7 +3,9 @@ package com.zoedatalab.empleos.api.config;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobRepositoryPort;
 import com.zoedatalab.empleos.jobs.application.service.JobServiceImpl;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 public class JobsBeansConfig {

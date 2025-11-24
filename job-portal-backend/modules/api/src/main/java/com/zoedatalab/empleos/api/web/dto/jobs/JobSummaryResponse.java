@@ -7,4 +7,5 @@ public record JobSummaryResponse(
         UUID id, String title, String companyName,
         UUID sectorId, UUID districtId, boolean disabilityFriendly,
         String status, Instant publishedAt
-) {}
+) {
+}

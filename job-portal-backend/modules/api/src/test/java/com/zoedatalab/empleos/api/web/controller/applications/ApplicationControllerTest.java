@@ -5,7 +5,7 @@ import com.zoedatalab.empleos.api.security.CurrentUser;
 import com.zoedatalab.empleos.api.web.dto.applications.ApplyRequest;
 import com.zoedatalab.empleos.api.web.dto.applications.UpdateStatusRequest;
 import com.zoedatalab.empleos.api.web.exception.GlobalExceptionHandler;
-import com.zoedatalab.empleos.applications.application.dto.*;
+import com.zoedatalab.empleos.applications.application.dto.ApplicationView;
 import com.zoedatalab.empleos.applications.application.ports.in.ApplicationCommandService;
 import com.zoedatalab.empleos.applications.application.ports.in.ApplicationQueryService;
 import com.zoedatalab.empleos.applications.domain.Application;
@@ -26,11 +26,16 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Slice WebMvcTest: controller + GlobalExceptionHandler.

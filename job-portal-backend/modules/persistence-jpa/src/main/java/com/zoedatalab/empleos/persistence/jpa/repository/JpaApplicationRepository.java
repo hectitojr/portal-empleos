@@ -5,7 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.*;
+import java.util.UUID;
 
 public interface JpaApplicationRepository extends JpaRepository<ApplicationEntity, UUID> {
     boolean existsByJobIdAndApplicantId(UUID jobId, UUID applicantId);

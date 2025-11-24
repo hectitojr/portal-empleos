@@ -7,12 +7,17 @@ import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplication
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
-import com.zoedatalab.empleos.iam.application.exception.*;
+import com.zoedatalab.empleos.iam.application.exception.AuthBadCredentialsException;
+import com.zoedatalab.empleos.iam.application.exception.EmailAlreadyExistsException;
+import com.zoedatalab.empleos.iam.application.exception.ResetTokenExpiredException;
+import com.zoedatalab.empleos.iam.application.exception.ResetTokenInvalidException;
+import com.zoedatalab.empleos.iam.application.exception.TokenExpiredException;
+import com.zoedatalab.empleos.iam.application.exception.TokenInvalidException;
+import com.zoedatalab.empleos.iam.application.exception.UserSuspendedException;
 import com.zoedatalab.empleos.jobs.domain.exception.CompanyIncompleteException;
 import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;

@@ -1,10 +1,10 @@
 package com.zoedatalab.empleos.applicants.application.dto;
 
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.time.LocalDate;
 
 public record UpsertMyApplicantCommand(
         String fullName,

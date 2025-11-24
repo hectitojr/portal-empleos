@@ -1,8 +1,8 @@
 package com.zoedatalab.empleos.api.config;
 
+import com.zoedatalab.empleos.jobs.application.dto.CreateJobCommand;
 import com.zoedatalab.empleos.jobs.application.dto.JobDetailView;
 import com.zoedatalab.empleos.jobs.application.dto.JobSummaryView;
-import com.zoedatalab.empleos.jobs.application.dto.CreateJobCommand;
 import com.zoedatalab.empleos.jobs.application.dto.UpdateJobCommand;
 import com.zoedatalab.empleos.jobs.application.ports.in.JobCommandService;
 import com.zoedatalab.empleos.jobs.application.ports.in.JobQueryService;

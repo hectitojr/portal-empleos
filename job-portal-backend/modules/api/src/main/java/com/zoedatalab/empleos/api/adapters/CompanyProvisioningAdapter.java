@@ -1,8 +1,8 @@
 package com.zoedatalab.empleos.api.adapters;
 
+import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.companies.application.dto.UpsertMyCompanyCommand;
 import com.zoedatalab.empleos.companies.application.ports.in.CompanyCommandService;
-import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort; // <— nuevo import
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

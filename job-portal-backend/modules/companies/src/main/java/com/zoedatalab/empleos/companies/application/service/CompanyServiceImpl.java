@@ -9,8 +9,8 @@ import com.zoedatalab.empleos.companies.application.ports.out.CompanyRepositoryP
 import com.zoedatalab.empleos.companies.application.ports.out.DistrictLookupPort;
 import com.zoedatalab.empleos.companies.domain.Company;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
-import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
 import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
+import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
 import lombok.RequiredArgsConstructor;
 
 import java.util.UUID;
@@ -22,6 +22,32 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
     private final ClockPort clock;
     private final DistrictLookupPort districts;
 
+    private static boolean isFilled(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    private static String trimOr(String base, String cand) {
+        return cand == null ? base : cand.trim();
+    }
+
+    private static String trimLowerOr(String base, String cand) {
+        return cand == null ? base : cand.trim().toLowerCase();
+    }
+
+    private static CompanyView toView(Company c) {
+        return CompanyView.builder()
+                .id(c.getId())
+                .legalName(c.getLegalName())
+                .taxId(c.getTaxId())
+                .contactEmail(c.getContactEmail())
+                .contactPhone(c.getContactPhone())
+                .districtId(c.getDistrictId())
+                .profileComplete(c.isProfileComplete())
+                .active(c.isActive())
+                .suspended(c.isSuspended())
+                .build();
+    }
+
     @Override
     public CompanyView getMyCompany(UUID currentUserId) {
         var c = repo.findByUserId(currentUserId).orElseThrow(CompanyNotFoundException::new);
@@ -32,15 +58,13 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
     public CompanyView upsertMyCompany(UUID userId, UpsertMyCompanyCommand cmd) {
         var existing = repo.findByUserId(userId).orElse(null);
 
-        // Normalizaciones (trim/lower)
-        var legalName     = trimOr(existing != null ? existing.getLegalName() : null, cmd.legalName());
-        var taxId         = trimOr(existing != null ? existing.getTaxId()     : null, cmd.taxId());
-        var contactEmail  = trimLowerOr(existing != null ? existing.getContactEmail() : null, cmd.contactEmail());
-        var contactPhone  = trimOr(existing != null ? existing.getContactPhone() : null, cmd.contactPhone());
-        var districtId    = (cmd.districtId() != null ? cmd.districtId()
+        var legalName = trimOr(existing != null ? existing.getLegalName() : null, cmd.legalName());
+        var taxId = trimOr(existing != null ? existing.getTaxId() : null, cmd.taxId());
+        var contactEmail = trimLowerOr(existing != null ? existing.getContactEmail() : null, cmd.contactEmail());
+        var contactPhone = trimOr(existing != null ? existing.getContactPhone() : null, cmd.contactPhone());
+        var districtId = (cmd.districtId() != null ? cmd.districtId()
                 : (existing != null ? existing.getDistrictId() : null));
 
-        // VALIDACIÓN: si viene districtId y cambió, debe existir
         if (districtId != null) {
             boolean changed = (existing == null) || !districtId.equals(existing.getDistrictId());
             if (changed && !districts.existsById(districtId)) {
@@ -48,7 +72,6 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
             }
         }
 
-        // Unicidad de TAX ID entre usuarios distintos (permite que el mismo usuario conserve/corrija su RUC)
         if (taxId != null && !taxId.isBlank()) {
             boolean usedByOther = repo.existsByTaxIdIgnoreCaseAndUserIdNot(taxId, userId);
             if (usedByOther) {
@@ -56,7 +79,6 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
             }
         }
 
-        // Regla de "perfil completo"
         var profileComplete = isFilled(legalName) && isFilled(contactEmail);
 
         var now = clock.now();
@@ -95,24 +117,5 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
 
         var saved = repo.save(toSave);
         return toView(saved);
-    }
-
-    // helpers
-    private static boolean isFilled(String s){ return s != null && !s.trim().isEmpty(); }
-    private static String trimOr(String base, String cand){ return cand==null? base : cand.trim(); }
-    private static String trimLowerOr(String base, String cand){ return cand==null? base : cand.trim().toLowerCase(); }
-
-    private static CompanyView toView(Company c){
-        return CompanyView.builder()
-                .id(c.getId())
-                .legalName(c.getLegalName())
-                .taxId(c.getTaxId())
-                .contactEmail(c.getContactEmail())
-                .contactPhone(c.getContactPhone())
-                .districtId(c.getDistrictId())
-                .profileComplete(c.isProfileComplete())
-                .active(c.isActive())
-                .suspended(c.isSuspended())
-                .build();
     }
 }
