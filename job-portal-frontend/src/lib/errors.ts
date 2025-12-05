@@ -45,6 +45,14 @@ export function humanize(code?: ApiErrorCode | string): string {
       return 'El enlace de restablecimiento ha expirado. Solicita uno nuevo.';
     case 'FORBIDDEN':
       return 'Acceso no permitido.';
+    case 'JOB_NOT_FOUND':
+      return 'La oferta de trabajo no existe o ya no está disponible.';
+    case 'JOB_CLOSED':
+      return 'Esta oferta ya no acepta postulaciones.';
+    case 'DUPLICATE_APPLICATION':
+      return 'Ya te postulaste a esta oferta.';
+    case 'APPLICANT_INCOMPLETE':
+      return 'Completa tu perfil de postulante y CV para poder postular.';
     case 'VALIDATION_ERROR':
     case 'CONSTRAINT_VIOLATION':
       return 'Revisa los campos del formulario.';

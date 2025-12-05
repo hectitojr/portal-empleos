@@ -1,8 +1,10 @@
 package com.zoedatalab.empleos.persistence.jpa.repository;
 
 import com.zoedatalab.empleos.iam.domain.Role;
-import com.zoedatalab.empleos.persistence.jpa.entity.RefreshTokenEntity;
-import com.zoedatalab.empleos.persistence.jpa.entity.UserEntity;
+import com.zoedatalab.empleos.persistence.jpa.iam.entity.RefreshTokenEntity;
+import com.zoedatalab.empleos.persistence.jpa.iam.entity.UserEntity;
+import com.zoedatalab.empleos.persistence.jpa.iam.repository.JpaRefreshTokenRepository;
+import com.zoedatalab.empleos.persistence.jpa.iam.repository.JpaUserRepository;
 import com.zoedatalab.empleos.testsupport.SpringTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +31,10 @@ class JpaRefreshTokenRepositoryTest extends SpringTestBase {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    @Autowired
+    private JpaRefreshTokenRepository repo;
+    @Autowired
+    private JpaUserRepository users;
 
     @DynamicPropertySource
     static void dbProps(DynamicPropertyRegistry reg) {
@@ -40,26 +46,7 @@ class JpaRefreshTokenRepositoryTest extends SpringTestBase {
         reg.add("spring.jpa.properties.hibernate.default_schema", () -> "job_portal");
     }
 
-    @Autowired
-    private JpaRefreshTokenRepository repo;
-
-    @Autowired
-    private JpaUserRepository users;
-
     // ---------- helpers ----------
-
-    /** Inserta un usuario válido vía JPA para satisfacer la FK de refresh_tokens.user_id */
-    private UUID seedUser() {
-        var u = new UserEntity();
-        u.setId(UUID.randomUUID());
-        u.setEmail("test+" + u.getId() + "@example.com");
-        u.setPasswordHash("{noop}pw"); // en tests basta un hash dummy
-        u.setRole(Role.APPLICANT);
-        u.setActive(true);
-        u.setSuspended(false);
-        users.save(u);
-        return u.getId();
-    }
 
     private static RefreshTokenEntity token(UUID userId, String token, Instant expiresAt, boolean revoked) {
         var e = new RefreshTokenEntity();
@@ -70,6 +57,21 @@ class JpaRefreshTokenRepositoryTest extends SpringTestBase {
         e.setRevoked(revoked);
         e.setCreatedAt(Instant.now());
         return e;
+    }
+
+    /**
+     * Inserta un usuario válido vía JPA para satisfacer la FK de refresh_tokens.user_id
+     */
+    private UUID seedUser() {
+        var u = new UserEntity();
+        u.setId(UUID.randomUUID());
+        u.setEmail("test+" + u.getId() + "@example.com");
+        u.setPasswordHash("{noop}pw"); // en tests basta un hash dummy
+        u.setRole(Role.APPLICANT);
+        u.setActive(true);
+        u.setSuspended(false);
+        users.save(u);
+        return u.getId();
     }
 
     // ---------- tests ----------

@@ -1,6 +1,6 @@
 package com.zoedatalab.empleos.api.maintenance;
 
-import com.zoedatalab.empleos.api.config.MaintenanceProperties;
+import com.zoedatalab.empleos.api.config.maintenance.MaintenanceProperties;
 import com.zoedatalab.empleos.iam.application.ports.out.RefreshTokenRepositoryPort;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;

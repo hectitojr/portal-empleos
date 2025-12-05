@@ -1,9 +1,10 @@
 package com.zoedatalab.empleos.persistence.jpa.adapter;
 
 import com.zoedatalab.empleos.iam.domain.RefreshToken;
-import com.zoedatalab.empleos.persistence.jpa.entity.RefreshTokenEntity;
-import com.zoedatalab.empleos.persistence.jpa.mapper.RefreshTokenJpaMapper;
-import com.zoedatalab.empleos.persistence.jpa.repository.JpaRefreshTokenRepository;
+import com.zoedatalab.empleos.persistence.jpa.iam.adapter.RefreshTokenRepositoryAdapter;
+import com.zoedatalab.empleos.persistence.jpa.iam.entity.RefreshTokenEntity;
+import com.zoedatalab.empleos.persistence.jpa.iam.mapper.RefreshTokenJpaMapper;
+import com.zoedatalab.empleos.persistence.jpa.iam.repository.JpaRefreshTokenRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

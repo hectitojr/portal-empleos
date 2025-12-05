@@ -45,7 +45,10 @@ public class ApplicationServiceImpl implements ApplicationCommandService, Applic
         }
 
         JobOffer job = jobRepo.findById(jobId).orElseThrow(JobNotFoundException::new);
-        if (job.getStatus() == JobOffer.Status.CLOSED) {
+
+        // solo se puede postular si la oferta está "activa"
+        // activa = OPEN && !suspended
+        if (!isJobActive(job)) {
             throw new JobClosedException();
         }
 
@@ -119,6 +122,10 @@ public class ApplicationServiceImpl implements ApplicationCommandService, Applic
         return toView(app);
     }
 
+    // -------------------------
+    // Helpers internos
+    // -------------------------
+
     private Application getApplicationOrThrow(UUID applicationId) {
         return repo.findById(applicationId)
                 .orElseThrow(ApplicationNotFoundException::new);
@@ -147,5 +154,9 @@ public class ApplicationServiceImpl implements ApplicationCommandService, Applic
                 a.getNotes(),
                 a.getAppliedAt()
         );
+    }
+
+    private boolean isJobActive(JobOffer job) {
+        return job.getStatus() == JobOffer.Status.OPEN && !job.isSuspended();
     }
 }

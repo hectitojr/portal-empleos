@@ -2,8 +2,9 @@ package com.zoedatalab.empleos.api.web.controller.applications;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zoedatalab.empleos.api.security.CurrentUser;
-import com.zoedatalab.empleos.api.web.dto.applications.ApplyRequest;
-import com.zoedatalab.empleos.api.web.dto.applications.UpdateStatusRequest;
+import com.zoedatalab.empleos.api.web.applications.controller.ApplicationController;
+import com.zoedatalab.empleos.api.web.applications.dto.ApplyRequest;
+import com.zoedatalab.empleos.api.web.applications.dto.UpdateStatusRequest;
 import com.zoedatalab.empleos.api.web.exception.GlobalExceptionHandler;
 import com.zoedatalab.empleos.applications.application.dto.ApplicationView;
 import com.zoedatalab.empleos.applications.application.ports.in.ApplicationCommandService;
@@ -43,19 +44,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = ApplicationController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import({ GlobalExceptionHandler.class, ApplicationControllerTest.MethodSecurityTestConfig.class })
+@Import({GlobalExceptionHandler.class, ApplicationControllerTest.MethodSecurityTestConfig.class})
 class ApplicationControllerTest {
 
-    @TestConfiguration
-    @EnableMethodSecurity
-    static class MethodSecurityTestConfig {
-    }
-
-    @Autowired MockMvc mvc;
-    @Autowired ObjectMapper om;
-
-    @MockitoBean ApplicationCommandService cmd;
-    @MockitoBean ApplicationQueryService qry;
+    @Autowired
+    MockMvc mvc;
+    @Autowired
+    ObjectMapper om;
+    @MockitoBean
+    ApplicationCommandService cmd;
+    @MockitoBean
+    ApplicationQueryService qry;
 
     @Test
     @WithMockUser(roles = "APPLICANT")
@@ -146,7 +145,8 @@ class ApplicationControllerTest {
 
     // 403: autenticado pero con rol incorrecto
     @Test
-    @WithMockUser(roles = "COMPANY") // NO APPLICANT
+    @WithMockUser(roles = "COMPANY")
+    // NO APPLICANT
     void apply_requires_role_applicant() throws Exception {
         UUID jobId = UUID.randomUUID();
         mvc.perform(post("/api/v1/jobs/{jobId}/applications", jobId))
@@ -154,7 +154,8 @@ class ApplicationControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "APPLICANT") // NO COMPANY
+    @WithMockUser(roles = "APPLICANT")
+        // NO COMPANY
     void list_requires_role_company() throws Exception {
         UUID jobId = UUID.randomUUID();
         mvc.perform(get("/api/v1/jobs/{jobId}/applications", jobId))
@@ -174,6 +175,11 @@ class ApplicationControllerTest {
         UUID jobId = UUID.randomUUID();
         mvc.perform(get("/api/v1/jobs/{jobId}/applications", jobId))
                 .andExpect(status().isUnauthorized()); // 401
+    }
+
+    @TestConfiguration
+    @EnableMethodSecurity
+    static class MethodSecurityTestConfig {
     }
 
 }

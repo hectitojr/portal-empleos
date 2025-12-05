@@ -4,9 +4,21 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record JobSummaryView(
-        UUID id, String title,
-        UUID companyId, String companyPublicName,
-        UUID sectorId, UUID districtId,
+        UUID id,
+        String title,
+        UUID companyId,
+        String companyPublicName,
+        UUID sectorId,
+        UUID districtId,
         boolean disabilityFriendly,
-        String status, Instant publishedAt
-) {}
+        UUID employmentTypeId,
+        UUID workModeId,
+        String salaryText,
+        boolean active,
+        boolean applied,
+        boolean viewed,
+        String quickApplyText,
+        String status,
+        Instant publishedAt
+) {
+}

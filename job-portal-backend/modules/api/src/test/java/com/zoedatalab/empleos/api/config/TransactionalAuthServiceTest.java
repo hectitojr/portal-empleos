@@ -1,5 +1,6 @@
 package com.zoedatalab.empleos.api.config;
 
+import com.zoedatalab.empleos.api.config.iam.TransactionalAuthService;
 import com.zoedatalab.empleos.iam.application.dto.AuthTokens;
 import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
 import com.zoedatalab.empleos.iam.application.dto.LoginCommand;

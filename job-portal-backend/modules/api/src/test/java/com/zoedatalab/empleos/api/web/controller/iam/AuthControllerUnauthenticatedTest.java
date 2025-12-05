@@ -1,6 +1,7 @@
 package com.zoedatalab.empleos.api.web.controller.iam;
 
 import com.zoedatalab.empleos.api.web.exception.GlobalExceptionHandler;
+import com.zoedatalab.empleos.api.web.iam.controller.AuthController;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

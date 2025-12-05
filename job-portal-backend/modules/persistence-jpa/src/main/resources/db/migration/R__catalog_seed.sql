@@ -30,3 +30,23 @@ INSERT INTO catalog_disability_type (id, name) VALUES
   (gen_random_uuid(), 'Auditiva'),
   (gen_random_uuid(), 'Motriz')
 ON CONFLICT DO NOTHING;
+
+--TIPOS DE EMPLEO
+INSERT INTO catalog_employment_type(id, name) VALUES
+  (gen_random_uuid(), 'Tiempo Completo'),
+  (gen_random_uuid(), 'Tiempo Parcial'),
+  (gen_random_uuid(), 'Por Contrato'),
+  (gen_random_uuid(), 'Prácticas Pre-profesionales'),
+  (gen_random_uuid(), 'Prácticas Profesionales'),
+  (gen_random_uuid(), 'Freelance'),
+  (gen_random_uuid(), 'Contrato indefinido')
+ON CONFLICT DO NOTHING;
+
+--MODALIDAD DE TRABAJO
+INSERT INTO catalog_work_mode(id, name) VALUES
+(gen_random_uuid(), 'Presencial'),
+(gen_random_uuid(), 'Remoto'),
+(gen_random_uuid(), 'Híbrido'),
+(gen_random_uuid(), 'Campo')
+ON CONFLICT DO NOTHING;
+

@@ -1,9 +1,10 @@
 package com.zoedatalab.empleos.api.web.controller.iam;
 
-import com.zoedatalab.empleos.api.web.dto.common.MessageResponse;
-import com.zoedatalab.empleos.api.web.dto.iam.ForgotPasswordRequest;
-import com.zoedatalab.empleos.api.web.dto.iam.ResetPasswordRequest;
+import com.zoedatalab.empleos.api.web.common.dto.MessageResponse;
 import com.zoedatalab.empleos.api.web.exception.GlobalExceptionHandler;
+import com.zoedatalab.empleos.api.web.iam.controller.AuthController;
+import com.zoedatalab.empleos.api.web.iam.dto.ForgotPasswordRequest;
+import com.zoedatalab.empleos.api.web.iam.dto.ResetPasswordRequest;
 import com.zoedatalab.empleos.iam.application.dto.AuthMeView;
 import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
 import com.zoedatalab.empleos.iam.application.dto.ResetPasswordCommand;

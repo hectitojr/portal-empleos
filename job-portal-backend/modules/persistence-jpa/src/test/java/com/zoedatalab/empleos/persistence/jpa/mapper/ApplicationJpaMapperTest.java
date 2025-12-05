@@ -1,7 +1,8 @@
 package com.zoedatalab.empleos.persistence.jpa.mapper;
 
 import com.zoedatalab.empleos.applications.domain.Application;
-import com.zoedatalab.empleos.persistence.jpa.entity.ApplicationEntity;
+import com.zoedatalab.empleos.persistence.jpa.applications.entity.ApplicationEntity;
+import com.zoedatalab.empleos.persistence.jpa.applications.mapper.ApplicationJpaMapper;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

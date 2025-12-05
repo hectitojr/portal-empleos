@@ -1,9 +1,10 @@
 package com.zoedatalab.empleos.persistence.jpa.adapter;
 
 import com.zoedatalab.empleos.iam.domain.User;
-import com.zoedatalab.empleos.persistence.jpa.entity.UserEntity;
-import com.zoedatalab.empleos.persistence.jpa.mapper.UserJpaMapper;
-import com.zoedatalab.empleos.persistence.jpa.repository.JpaUserRepository;
+import com.zoedatalab.empleos.persistence.jpa.iam.adapter.UserRepositoryAdapter;
+import com.zoedatalab.empleos.persistence.jpa.iam.entity.UserEntity;
+import com.zoedatalab.empleos.persistence.jpa.iam.mapper.UserJpaMapper;
+import com.zoedatalab.empleos.persistence.jpa.iam.repository.JpaUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

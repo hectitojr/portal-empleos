@@ -2,8 +2,9 @@ package com.zoedatalab.empleos.persistence.jpa.adapter;
 
 import com.zoedatalab.empleos.applications.domain.Application;
 import com.zoedatalab.empleos.persistence.jpa.TestDataSeeder;
-import com.zoedatalab.empleos.persistence.jpa.mapper.ApplicationJpaMapper;
-import com.zoedatalab.empleos.persistence.jpa.repository.JpaApplicationRepository;
+import com.zoedatalab.empleos.persistence.jpa.applications.adapter.ApplicationRepositoryAdapter;
+import com.zoedatalab.empleos.persistence.jpa.applications.mapper.ApplicationJpaMapper;
+import com.zoedatalab.empleos.persistence.jpa.applications.repository.JpaApplicationRepository;
 import com.zoedatalab.empleos.testsupport.SpringTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

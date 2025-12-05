@@ -1,7 +1,8 @@
 package com.zoedatalab.empleos.persistence.jpa.repository;
 
 import com.zoedatalab.empleos.persistence.jpa.TestDataSeeder;
-import com.zoedatalab.empleos.persistence.jpa.entity.ApplicationEntity;
+import com.zoedatalab.empleos.persistence.jpa.applications.entity.ApplicationEntity;
+import com.zoedatalab.empleos.persistence.jpa.applications.repository.JpaApplicationRepository;
 import com.zoedatalab.empleos.testsupport.SpringTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

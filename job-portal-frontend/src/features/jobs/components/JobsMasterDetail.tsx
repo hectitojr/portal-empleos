@@ -5,6 +5,12 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { getTimeAgo } from '@/lib/dateUtils';
 import type { Job } from '@/features/home/lib/types';
+import {
+  usePublicJobDetail,
+  useApplicantJobDetail,
+  useApplyToJob,
+} from '@/features/jobs/hooks/useJobs';
+import { humanize } from '@/lib/errors';
 
 type Variant = 'public' | 'applicant';
 
@@ -12,16 +18,13 @@ type Props = {
   jobs: Job[];
   variant: Variant;
 
-  // textos de cabecera del listado (para reutilizar sin duplicar UI)
   listTitle: string;
   listSubtitle: string;
 
-  // paginación dummy por ahora (luego lo conectas a API)
   currentPage?: number;
   totalPages?: number;
 
-  // opcional: si quieres forzar selección inicial
-  initialSelectedId?: number | null;
+  initialSelectedId?: string | null;
 };
 
 export default function JobsMasterDetail({
@@ -30,64 +33,63 @@ export default function JobsMasterDetail({
   listTitle,
   listSubtitle,
   currentPage = 1,
-  totalPages = 3,
+  totalPages = 1,
   initialSelectedId = null,
 }: Props) {
   const firstId = jobs[0]?.id ?? null;
-  const [selectedJobId, setSelectedJobId] = useState<number | null>(
-    initialSelectedId ?? firstId
-  );
-
-  // Solo applicant: tracking de vistos y postulaciones
-  const [viewedJobs, setViewedJobs] = useState<Set<number>>(
-    new Set(firstId ? [firstId] : [])
-  );
-  const [appliedJobs, setAppliedJobs] = useState<Set<number>>(new Set());
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(initialSelectedId ?? firstId);
 
   const selectedJob = useMemo(
     () => jobs.find((j) => j.id === selectedJobId) ?? jobs[0],
     [jobs, selectedJobId]
   );
 
-  const handleSelectJob = (jobId: number) => {
+  const { data: publicDetail, isLoading: loadingPublicDetail } = usePublicJobDetail(
+    variant === 'public' ? selectedJobId : null
+  );
+
+  const {
+    data: applicantDetail,
+    isLoading: loadingApplicantDetail,
+    error: applicantDetailError,
+  } = useApplicantJobDetail(variant === 'applicant' ? selectedJobId : null);
+
+  const detail = variant === 'public' ? publicDetail : applicantDetail;
+  const isDetailLoading = variant === 'public' ? loadingPublicDetail : loadingApplicantDetail;
+
+  const applyMutation = useApplyToJob();
+
+  const handleSelectJob = (jobId: string) => {
     setSelectedJobId(jobId);
-    if (variant === 'applicant') {
-      setViewedJobs((prev) => new Set(prev).add(jobId));
-    }
+    // Para applicant, el detalle (hook) se encargará de marcar "viewed" en backend
   };
 
-  const handleApply = (jobId: number) => {
+  const handleApply = (jobId: string) => {
     if (variant !== 'applicant') return;
-    setAppliedJobs((prev) => new Set(prev).add(jobId));
+    if (!jobId || applyMutation.isPending) return;
+    applyMutation.mutate({ jobId });
   };
+
+  const appliedErrorCode = (applyMutation.error as any)?.error?.code;
 
   return (
-    <section
-      id="empleos"
-      className="flex-1 bg-slate-50 py-8 flex flex-col min-h-0"
-    >
+    <section id="empleos" className="flex-1 bg-slate-50 py-8 flex flex-col min-h-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 min-h-0">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,2.2fr)] h-full min-h-0">
-          {/* ===================== LISTADO ===================== */}
+          {/* Lista de ofertas */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
             <header className="px-6 py-4 border-b border-slate-100">
-              <h2 className="text-base sm:text-lg font-semibold text-slate-900">
-                {listTitle}
-              </h2>
-              <p className="text-sm sm:text-base text-slate-500">
-                {listSubtitle}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                {jobs.length} resultados
-              </p>
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900">{listTitle}</h2>
+              <p className="text-sm sm:text-base text-slate-500">{listSubtitle}</p>
+              <p className="mt-1 text-xs text-slate-400">{jobs.length} resultados</p>
             </header>
 
             <div className="flex-1 overflow-y-auto">
               <ul className="divide-y divide-slate-100">
                 {jobs.map((job) => {
-                  const isActive = job.id === selectedJob?.id;
-                  const isViewed = variant === 'applicant' && viewedJobs.has(job.id);
-                  const hasApplied = variant === 'applicant' && appliedJobs.has(job.id);
+                  const isActiveRow = job.id === selectedJob?.id;
+                  const isViewed = variant === 'applicant' ? job.viewed : false;
+                  const hasApplied = variant === 'applicant' ? job.isApplied : false;
 
                   return (
                     <li key={job.id}>
@@ -95,20 +97,18 @@ export default function JobsMasterDetail({
                         type="button"
                         onClick={() => handleSelectJob(job.id)}
                         className={`w-full text-left px-6 py-5 sm:py-6 text-[15px] transition-colors ${
-                          isActive
+                          isActiveRow
                             ? 'bg-slate-50 border-l-4 border-l-blue-600'
                             : 'hover:bg-slate-50'
                         }`}
-                        aria-current={isActive ? 'true' : 'false'}
+                        aria-current={isActiveRow ? 'true' : 'false'}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
                             <h3 className="text-sm sm:text-base font-semibold text-slate-900 mb-1">
                               {job.title}
                             </h3>
-                            <p className="text-xs sm:text-sm text-slate-600">
-                              {job.company}
-                            </p>
+                            <p className="text-xs sm:text-sm text-slate-600">{job.company}</p>
 
                             {job.location && (
                               <p className="mt-1 text-xs text-slate-500 flex items-center gap-1">
@@ -131,7 +131,6 @@ export default function JobsMasterDetail({
                           )}
                         </div>
 
-                        {/* Chips Tipo / Modalidad */}
                         <div className="mt-3 flex flex-wrap gap-2">
                           {job.employmentType && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-[11px] font-medium text-blue-700">
@@ -145,7 +144,6 @@ export default function JobsMasterDetail({
                           )}
                         </div>
 
-                        {/* ====== SOLO APPLICANT: estado postulación/visto ====== */}
                         {variant === 'applicant' ? (
                           <div className="mt-3 space-y-1">
                             {job.isActive ? (
@@ -202,13 +200,10 @@ export default function JobsMasterDetail({
                             </p>
 
                             {isViewed && (
-                              <p className="text-[11px] text-slate-600 font-semibold pl-5">
-                                Visto
-                              </p>
+                              <p className="text-[11px] text-slate-600 font-semibold pl-5">Visto</p>
                             )}
                           </div>
                         ) : (
-                          // ====== PÚBLICO: solo fecha ======
                           <div className="mt-3">
                             <p className="text-[10px] text-slate-400">
                               Publicado {getTimeAgo(job.postedAt)}
@@ -222,7 +217,6 @@ export default function JobsMasterDetail({
               </ul>
             </div>
 
-            {/* Paginación dummy */}
             <footer className="border-t border-slate-100 px-6 py-4">
               <nav
                 aria-label="Paginación de ofertas"
@@ -244,25 +238,23 @@ export default function JobsMasterDetail({
                 </button>
 
                 <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => {
-                      const isActive = page === currentPage;
-                      return (
-                        <button
-                          key={page}
-                          type="button"
-                          className={`w-8 h-8 rounded-full text-sm font-medium
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    const isActive = page === currentPage;
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        className={`w-8 h-8 rounded-full text-sm font-medium
                             ${
                               isActive
                                 ? 'bg-slate-900 text-white'
                                 : 'text-slate-600 hover:bg-slate-100'
                             }`}
-                        >
-                          {page}
-                        </button>
-                      );
-                    }
-                  )}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <button
@@ -283,7 +275,7 @@ export default function JobsMasterDetail({
             </footer>
           </div>
 
-          {/* ===================== DETALLE ===================== */}
+          {/* Panel de detalle */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
               {selectedJob ? (
@@ -320,9 +312,7 @@ export default function JobsMasterDetail({
                     <div className="flex flex-wrap gap-3 mb-6">
                       {selectedJob.workMode && (
                         <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg">
-                          <span className="text-xs text-slate-500">
-                            Modalidad:
-                          </span>
+                          <span className="text-xs text-slate-500">Modalidad:</span>
                           <span className="text-sm font-semibold text-slate-900">
                             {selectedJob.workMode}
                           </span>
@@ -340,9 +330,7 @@ export default function JobsMasterDetail({
 
                       {selectedJob.salary && (
                         <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
-                          <span className="text-xs text-blue-600">
-                            Salario:
-                          </span>
+                          <span className="text-xs text-blue-600">Salario:</span>
                           <span className="text-sm font-semibold text-blue-700">
                             {selectedJob.salary}
                           </span>
@@ -352,58 +340,81 @@ export default function JobsMasterDetail({
                   </div>
 
                   <div className="mb-6 text-sm text-slate-700 space-y-3">
-                    <p>
-                      Aquí podrás añadir la descripción completa del puesto:
-                      responsabilidades, requisitos, beneficios y cualquier
-                      información relevante para el proceso de selección.
-                    </p>
+                    {isDetailLoading ? (
+                      <p>Cargando descripción de la oferta...</p>
+                    ) : detail?.description ? (
+                      <p className="whitespace-pre-line">{detail.description}</p>
+                    ) : (
+                      <p>
+                        Aquí podrás añadir la descripción completa del puesto: responsabilidades,
+                        requisitos, beneficios y cualquier información relevante para el proceso de
+                        selección.
+                      </p>
+                    )}
+
+                    {variant === 'applicant' && applicantDetailError && (
+                      <p className="text-xs text-red-600">
+                        No se pudo cargar el detalle de la oferta.
+                      </p>
+                    )}
                   </div>
 
-                  {/* ====== ACCIONES ====== */}
                   <div className="flex flex-wrap items-center gap-3">
                     {variant === 'applicant' ? (
-                      selectedJob.isActive ? (
-                        appliedJobs.has(selectedJob.id) ? (
-                          <button
-                            type="button"
-                            disabled
-                            className="inline-flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 text-sm font-semibold px-6 py-3 cursor-not-allowed"
-                          >
-                            <svg
-                              className="w-4 h-4 mr-2"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              strokeWidth={2}
+                      (() => {
+                        const active = applicantDetail?.active ?? selectedJob.isActive;
+                        const applied = applicantDetail?.applied ?? selectedJob.isApplied;
+                        const quickText = applicantDetail?.quickApplyText ?? selectedJob.quickApply;
+
+                        if (!active) {
+                          return (
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center justify-center rounded-xl bg-slate-300 text-slate-500 text-sm font-semibold px-6 py-3 cursor-not-allowed"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            Ya te postulaste a esta oferta
-                          </button>
-                        ) : (
+                              Ya no se aceptan postulaciones
+                            </button>
+                          );
+                        }
+
+                        if (applied) {
+                          return (
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 text-sm font-semibold px-6 py-3 cursor-not-allowed"
+                            >
+                              <svg
+                                className="w-4 h-4 mr-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              Ya te postulaste a esta oferta
+                            </button>
+                          );
+                        }
+
+                        return (
                           <button
                             type="button"
                             onClick={() => handleApply(selectedJob.id)}
-                            className="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition shadow-sm"
+                            disabled={applyMutation.isPending}
+                            className="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
                           >
-                            {selectedJob.quickApply}
+                            {applyMutation.isPending ? 'Postulando...' : quickText}
                           </button>
-                        )
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="inline-flex items-center justify-center rounded-xl bg-slate-300 text-slate-500 text-sm font-semibold px-6 py-3 cursor-not-allowed"
-                        >
-                          Ya no se aceptan postulaciones
-                        </button>
-                      )
+                        );
+                      })()
                     ) : (
-                      // Público: CTA a login
                       <Link
                         href={`/auth/login?next=/` as Route}
                         className="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition shadow-sm"
@@ -419,6 +430,13 @@ export default function JobsMasterDetail({
                       Guardar oferta
                     </button>
                   </div>
+
+                  {variant === 'applicant' && applyMutation.error && (
+                    <p className="mt-3 text-xs text-red-600">
+                      {humanize(appliedErrorCode) ||
+                        'No se pudo completar la postulación. Intenta nuevamente.'}
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-slate-600">
