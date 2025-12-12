@@ -1,4 +1,3 @@
-import type { Job } from '@/features/home/lib/types';
 import type { ApiErrorCode } from '@/lib/errors';
 
 type ApiErrorResponse = {
@@ -112,27 +111,6 @@ async function handleJson<T>(res: Response): Promise<ApiResult<T>> {
 }
 
 // -----------------------
-// Mapeos a tipo Job (UI)
-// -----------------------
-
-function mapSummaryToJob(summary: PublicJobSummaryResponse | ApplicantJobSummaryResponse): Job {
-  return {
-    id: summary.id,
-    title: summary.title,
-    company: summary.companyName,
-    location: undefined,
-    salary: summary.salaryText,
-    employmentType: undefined,
-    workMode: undefined,
-    viewed: summary.viewed,
-    quickApply: summary.quickApplyText,
-    isActive: summary.active,
-    isApplied: summary.applied,
-    postedAt: summary.publishedAt,
-  };
-}
-
-// -----------------------
 // API pública (anónima)
 // -----------------------
 
@@ -144,15 +122,16 @@ export async function listPublicJobs(params?: {
   districtId?: string;
   disabilityFriendly?: boolean;
   fromDate?: string;
-}): Promise<ApiResult<Job[]>> {
+}): Promise<ApiResult<PublicJobSummaryResponse[]>> {
   const search = new URLSearchParams();
   if (params?.page != null) search.set('page', String(params.page));
   if (params?.size != null) search.set('size', String(params.size));
   if (params?.areaId) search.set('areaId', params.areaId);
   if (params?.sectorId) search.set('sectorId', params.sectorId);
   if (params?.districtId) search.set('districtId', params.districtId);
-  if (params?.disabilityFriendly != null)
+  if (params?.disabilityFriendly != null) {
     search.set('disabilityFriendly', String(params.disabilityFriendly));
+  }
   if (params?.fromDate) search.set('fromDate', params.fromDate);
 
   const qs = search.toString();
@@ -161,13 +140,7 @@ export async function listPublicJobs(params?: {
     cache: 'no-store',
   });
 
-  const result = await handleJson<PublicJobSummaryResponse[]>(res);
-  if (!result.ok) return result;
-
-  return {
-    ok: true,
-    data: result.data.map(mapSummaryToJob),
-  };
+  return handleJson<PublicJobSummaryResponse[]>(res);
 }
 
 export async function getPublicJobDetail(
@@ -193,15 +166,16 @@ export async function listApplicantJobs(params?: {
   districtId?: string;
   disabilityFriendly?: boolean;
   fromDate?: string;
-}): Promise<ApiResult<Job[]>> {
+}): Promise<ApiResult<ApplicantJobSummaryResponse[]>> {
   const search = new URLSearchParams();
   if (params?.page != null) search.set('page', String(params.page));
   if (params?.size != null) search.set('size', String(params.size));
   if (params?.areaId) search.set('areaId', params.areaId);
   if (params?.sectorId) search.set('sectorId', params.sectorId);
   if (params?.districtId) search.set('districtId', params.districtId);
-  if (params?.disabilityFriendly != null)
+  if (params?.disabilityFriendly != null) {
     search.set('disabilityFriendly', String(params.disabilityFriendly));
+  }
   if (params?.fromDate) search.set('fromDate', params.fromDate);
 
   const qs = search.toString();
@@ -210,13 +184,7 @@ export async function listApplicantJobs(params?: {
     cache: 'no-store',
   });
 
-  const result = await handleJson<ApplicantJobSummaryResponse[]>(res);
-  if (!result.ok) return result;
-
-  return {
-    ok: true,
-    data: result.data.map(mapSummaryToJob),
-  };
+  return handleJson<ApplicantJobSummaryResponse[]>(res);
 }
 
 export async function getApplicantJobDetail(

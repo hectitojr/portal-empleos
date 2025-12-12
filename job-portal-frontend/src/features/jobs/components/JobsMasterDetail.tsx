@@ -61,7 +61,7 @@ export default function JobsMasterDetail({
 
   const handleSelectJob = (jobId: string) => {
     setSelectedJobId(jobId);
-    // Para applicant, el detalle (hook) se encargará de marcar "viewed" en backend
+
   };
 
   const handleApply = (jobId: string) => {
@@ -76,7 +76,7 @@ export default function JobsMasterDetail({
     <section id="empleos" className="flex-1 bg-slate-50 py-8 flex flex-col min-h-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 min-h-0">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,2.2fr)] h-full min-h-0">
-          {/* Lista de ofertas */}
+
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
             <header className="px-6 py-4 border-b border-slate-100">
               <h2 className="text-base sm:text-lg font-semibold text-slate-900">{listTitle}</h2>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Job } from '@/features/home/lib/types';
 import {
@@ -12,8 +12,11 @@ import {
   type PublicJobDetailResponse,
   type ApplicantJobDetailResponse,
   type ApplyResponse,
+  type PublicJobSummaryResponse,
+  type ApplicantJobSummaryResponse,
 } from '@/features/jobs/api/jobsClient';
 import type { ApiErrorCode } from '@/lib/errors';
+import { useJobCatalogs } from '@/features/catalogs/hooks/useCatalogs';
 
 type ApiError = {
   status: number;
@@ -23,6 +26,45 @@ type ApiError = {
     [key: string]: unknown;
   };
 };
+
+// -----------------------
+// Mapeo DTO → Job (UI)
+// -----------------------
+
+function mapSummaryToJob(
+  summary: PublicJobSummaryResponse | ApplicantJobSummaryResponse,
+  catalogs: ReturnType<typeof useJobCatalogs>,
+): Job {
+  const district = summary.districtId
+    ? catalogs.districtsById[summary.districtId]
+    : undefined;
+
+  const employmentType = summary.employmentTypeId
+    ? catalogs.employmentTypesById[summary.employmentTypeId]
+    : undefined;
+
+  const workMode = summary.workModeId
+    ? catalogs.workModesById[summary.workModeId]
+    : undefined;
+
+  return {
+    id: summary.id,
+    title: summary.title,
+    company: summary.companyName,
+
+    location: district?.name ?? '',
+    salary: summary.salaryText ?? '',
+
+    employmentType: employmentType?.name ?? '',
+    workMode: workMode?.name ?? '',
+
+    viewed: summary.viewed,
+    quickApply: summary.quickApplyText,
+    isActive: summary.active,
+    isApplied: summary.applied,
+    postedAt: summary.publishedAt,
+  };
+}
 
 // -----------------------
 // Listados
@@ -37,9 +79,11 @@ export function usePublicJobs(params?: {
   disabilityFriendly?: boolean;
   fromDate?: string;
 }) {
-  return useQuery<Job[], ApiError>({
+  const catalogs = useJobCatalogs();
+
+  const query = useQuery<PublicJobSummaryResponse[], ApiError>({
     queryKey: ['jobs', 'public', params] as const,
-    queryFn: async (): Promise<Job[]> => {
+    queryFn: async (): Promise<PublicJobSummaryResponse[]> => {
       const res = await listPublicJobs(params);
       if (!res.ok) {
         throw { status: res.status, error: res.error } satisfies ApiError;
@@ -48,6 +92,16 @@ export function usePublicJobs(params?: {
     },
     staleTime: 60_000,
   });
+
+  const jobs: Job[] = useMemo(() => {
+    if (!query.data) return [];
+    return query.data.map((summary) => mapSummaryToJob(summary, catalogs));
+  }, [query.data, catalogs]);
+
+  return {
+    ...query,
+    data: jobs,
+  };
 }
 
 export function useApplicantJobs(params?: {
@@ -59,9 +113,11 @@ export function useApplicantJobs(params?: {
   disabilityFriendly?: boolean;
   fromDate?: string;
 }) {
-  return useQuery<Job[], ApiError>({
+  const catalogs = useJobCatalogs();
+
+  const query = useQuery<ApplicantJobSummaryResponse[], ApiError>({
     queryKey: ['jobs', 'applicant', params] as const,
-    queryFn: async (): Promise<Job[]> => {
+    queryFn: async (): Promise<ApplicantJobSummaryResponse[]> => {
       const res = await listApplicantJobs(params);
       if (!res.ok) {
         throw { status: res.status, error: res.error } satisfies ApiError;
@@ -70,6 +126,16 @@ export function useApplicantJobs(params?: {
     },
     staleTime: 30_000,
   });
+
+  const jobs: Job[] = useMemo(() => {
+    if (!query.data) return [];
+    return query.data.map((summary) => mapSummaryToJob(summary, catalogs));
+  }, [query.data, catalogs]);
+
+  return {
+    ...query,
+    data: jobs,
+  };
 }
 
 // -----------------------
@@ -81,7 +147,6 @@ export function usePublicJobDetail(jobId: string | null) {
     queryKey: ['jobs', 'public', 'detail', jobId] as const,
     enabled: !!jobId,
     queryFn: async (): Promise<PublicJobDetailResponse> => {
-
       if (!jobId) {
         throw new Error('jobId is required to fetch public job detail');
       }
@@ -147,7 +212,6 @@ export function useApplyToJob() {
       return res.data;
     },
     onSuccess: (_data, variables) => {
-      // Refrescamos listado y detalle del job postulado
       queryClient.invalidateQueries({ queryKey: ['jobs', 'applicant'] });
       queryClient.invalidateQueries({
         queryKey: ['jobs', 'applicant', 'detail', variables.jobId],

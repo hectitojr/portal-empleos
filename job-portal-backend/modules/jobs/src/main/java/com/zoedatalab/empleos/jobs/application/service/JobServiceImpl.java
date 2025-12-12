@@ -19,13 +19,16 @@ import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RequiredArgsConstructor
 public class JobServiceImpl implements JobCommandService, JobQueryService {
+
 
     private final JobRepositoryPort repo;
     private final CompanyOwnershipPort ownership;
@@ -174,6 +177,7 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         var jobs = repo.search(areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size);
 
         var applicantId = applicantLookup.getApplicantIdByUserId(applicantUserId);
+        log.info("ApplicantId para user {} => {}", applicantUserId, applicantId);
 
         var ids = jobs.stream().map(JobOffer::getId).toList();
         var appliedIds = applicantState.findAppliedJobIds(applicantId, ids);
@@ -213,6 +217,7 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         var job = repo.findById(jobId).orElseThrow(JobNotFoundException::new);
 
         var applicantId = applicantLookup.getApplicantIdByUserId(applicantUserId);
+        log.info("ApplicantId para user {} => {}", applicantUserId, applicantId);
 
         applicantState.markViewed(applicantId, jobId, Instant.now());
 

@@ -80,7 +80,7 @@ public class TransactionalJobService implements JobCommandService, JobQueryServi
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public ApplicantJobDetailView getByIdForApplicant(UUID applicantUserId, UUID jobId) {
         return qry.getByIdForApplicant(applicantUserId, jobId);
     }

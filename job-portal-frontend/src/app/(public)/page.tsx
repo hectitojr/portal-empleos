@@ -20,7 +20,6 @@ export default function LandingPage() {
 
   return (
     <section role="region" aria-label="Inicio" className="flex flex-col flex-1 min-h-0">
-      {/* Hero con buscador */}
       <section className="py-8 shrink-0">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="mb-4">
@@ -40,7 +39,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Listado + detalle de empleos (datos reales) */}
       <section className="flex-1 min-h-0 flex flex-col">
         {isLoading && (
           <div className="flex-1 flex items-center justify-center text-sm text-slate-600">
