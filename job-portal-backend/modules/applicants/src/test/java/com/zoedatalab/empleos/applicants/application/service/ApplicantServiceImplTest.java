@@ -6,6 +6,8 @@ import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantReposito
 import com.zoedatalab.empleos.applicants.domain.Applicant;
 import com.zoedatalab.empleos.applicants.domain.Skill;
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.DistrictLookupPort;
+import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,11 +27,17 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicantServiceImplTest {
+
+    final Instant FIXED_NOW = Instant.parse("2025-01-02T03:04:05Z");
+    final UUID USER_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    final UUID DISTRICT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Mock
     ApplicantRepositoryPort repo;
@@ -37,23 +45,23 @@ class ApplicantServiceImplTest {
     @Mock
     ClockPort clock;
 
+    @Mock
+    DistrictLookupPort districtLookup;
+
     @Captor
     ArgumentCaptor<Applicant> applicantCaptor;
 
     ApplicantServiceImpl service;
 
-    final Instant FIXED_NOW = Instant.parse("2025-01-02T03:04:05Z");
-    final UUID USER_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-    final UUID DISTRICT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
-
     @BeforeEach
     void setup() {
-        service = new ApplicantServiceImpl(repo, clock);
+        service = new ApplicantServiceImpl(repo, clock, districtLookup);
     }
 
     @Test
     void getMyProfile_whenNotFound_shouldThrow() {
         when(repo.findByUserId(USER_ID)).thenReturn(Optional.empty());
+
         assertThatThrownBy(() -> service.getMyProfile(USER_ID))
                 .isInstanceOf(ApplicantNotFoundException.class);
     }
@@ -71,10 +79,57 @@ class ApplicantServiceImplTest {
     }
 
     @Test
+    void upsertMyProfile_whenDistrictDoesNotExist_shouldThrow_andNotSave() {
+        when(districtLookup.existsById(DISTRICT_ID)).thenReturn(false);
+
+        var cmd = new UpsertMyApplicantCommand(
+                "John Doe",
+                "john@mail.com",
+                null,
+                DISTRICT_ID,
+                null,
+                List.of(), List.of(), List.of(),
+                Set.of()
+        );
+
+        assertThatThrownBy(() -> service.upsertMyProfile(USER_ID, cmd))
+                .isInstanceOf(DistrictNotFoundException.class);
+
+        verify(districtLookup).existsById(DISTRICT_ID);
+
+        verifyNoInteractions(repo);
+        verifyNoInteractions(clock);
+    }
+
+    @Test
+    void upsertMyProfile_whenDistrictIsNull_shouldNotValidateDistrict() {
+        when(clock.now()).thenReturn(FIXED_NOW);
+        when(repo.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var cmd = new UpsertMyApplicantCommand(
+                "Jane",
+                "jane@mail.com",
+                null,
+                null, // district null
+                null,
+                List.of(), List.of(), List.of(),
+                Set.of()
+        );
+
+        service.upsertMyProfile(USER_ID, cmd);
+
+        verify(districtLookup, never()).existsById(any());
+        verify(repo).save(any());
+        verify(clock).now();
+    }
+
+    @Test
     void upsertMyProfile_whenFirstTime_createsNew_withNormalization_andProfileCompleteness() {
         when(clock.now()).thenReturn(FIXED_NOW);
         when(repo.findByUserId(USER_ID)).thenReturn(Optional.empty());
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(districtLookup.existsById(DISTRICT_ID)).thenReturn(true);
 
         var cmd = new UpsertMyApplicantCommand(
                 "  John Doe  ",       // fullName
@@ -84,12 +139,12 @@ class ApplicantServiceImplTest {
                 "  summary  ",
                 List.of(new UpsertMyApplicantCommand.ExperienceItem(
                         "  Foo Inc ", "  Dev  ",
-                        LocalDate.of(2020,1,1), LocalDate.of(2021,1,1),
+                        LocalDate.of(2020, 1, 1), LocalDate.of(2021, 1, 1),
                         "  did things  "
                 )),
                 List.of(new UpsertMyApplicantCommand.EducationItem(
                         "  Uni  ", "  BSc  ",
-                        LocalDate.of(2015,1,1), LocalDate.of(2019,1,1),
+                        LocalDate.of(2015, 1, 1), LocalDate.of(2019, 1, 1),
                         "  desc  "
                 )),
                 List.of(new UpsertMyApplicantCommand.SkillItem("  Java  ", "  Senior  ")),
@@ -142,6 +197,8 @@ class ApplicantServiceImplTest {
         assertThat(view.id()).isNotNull();
         assertThat(view.fullName()).isEqualTo("John Doe");
         assertThat(view.profileComplete()).isTrue();
+
+        verify(districtLookup).existsById(DISTRICT_ID);
     }
 
     @Test
@@ -150,7 +207,6 @@ class ApplicantServiceImplTest {
         when(repo.findByUserId(USER_ID)).thenReturn(Optional.empty());
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        // Falta experiencia/educación -> not complete
         var cmd = new UpsertMyApplicantCommand(
                 "Jane", "jane@mail.com", null, null, null,
                 List.of(), List.of(), List.of(), null
@@ -162,6 +218,8 @@ class ApplicantServiceImplTest {
         var saved = applicantCaptor.getValue();
         assertThat(saved.isProfileComplete()).isFalse();
         assertThat(view.profileComplete()).isFalse();
+
+        verify(districtLookup, never()).existsById(any());
     }
 
     @Test
@@ -170,11 +228,12 @@ class ApplicantServiceImplTest {
         var existing = minimalExisting();
         when(repo.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(districtLookup.existsById(DISTRICT_ID)).thenReturn(true);
 
         var cmd = new UpsertMyApplicantCommand(
                 "  New Name ", "  NEW@MAIL.com ", "  111 ",
                 DISTRICT_ID, "  new summary ",
-                List.of(), // si vacías, normalize -> lista vacía (reemplazo)
+                List.of(),
                 List.of(),
                 List.of(new UpsertMyApplicantCommand.SkillItem("  Kotlin ", "  Mid ")),
                 Set.of()
@@ -207,10 +266,11 @@ class ApplicantServiceImplTest {
         // View consistente
         assertThat(view.profileComplete()).isFalse();
         assertThat(view.skills()).hasSize(1);
+
+        verify(districtLookup).existsById(DISTRICT_ID);
     }
 
     // ===== helpers =====
-
     private Applicant minimalExisting() {
         return Applicant.builder()
                 .id(UUID.fromString("11111111-2222-3333-4444-555555555555"))

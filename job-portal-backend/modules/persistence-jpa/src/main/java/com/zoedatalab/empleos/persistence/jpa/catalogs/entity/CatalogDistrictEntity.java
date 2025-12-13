@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,7 +13,12 @@ import lombok.NoArgsConstructor;
 import java.util.UUID;
 
 @Entity
-@Table(name = "catalog_district")
+@Table(
+        name = "catalog_district",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_catalog_district__province_name", columnNames = {"province_id", "name"})
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,12 +26,18 @@ import java.util.UUID;
 public class CatalogDistrictEntity {
 
     @Id
-    @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "department_id", nullable = false)
+    private UUID departmentId;
+
+    @Column(name = "province_id", nullable = false)
+    private UUID provinceId;
+
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false)
     private boolean active;
 }
+

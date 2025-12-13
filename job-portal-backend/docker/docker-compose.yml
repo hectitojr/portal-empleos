@@ -3,6 +3,8 @@ services:
     image: postgres:16-alpine
     container_name: jp-postgres
     restart: unless-stopped
+    env_file:
+      - ../.env
     ports:
       - "5433:5432"
     environment:
@@ -10,22 +12,25 @@ services:
       POSTGRES_PASSWORD: ${JP_DB_PASSWORD:-jp_pass}
       POSTGRES_DB: postgres
       PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    command: [ "postgres", "-c", "password_encryption=scram-sha-256" ]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${JP_DB_USER:-jp_user} -d postgres -h localhost"]
+      test: [ "CMD-SHELL", "pg_isready -U ${JP_DB_USER:-jp_user} -d postgres -h localhost" ]
       interval: 5s
       timeout: 3s
       retries: 15
 
-  # Opcional: pgAdmin en contenedor (si prefieres no usar el de escritorio)
   pgadmin:
     image: dpage/pgadmin4:8
     container_name: jp-pgadmin
     restart: unless-stopped
     depends_on:
       - postgres
+    env_file:
+      - ../.env
     ports:
       - "5050:80"
     environment:

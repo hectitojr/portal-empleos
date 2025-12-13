@@ -4,8 +4,8 @@ import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundExcep
 import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
 import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
 import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
+import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
-import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
@@ -28,9 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class TestErrorController {
 
-    // ---------- Validación: @Valid body ----------
-    public record SampleDto(@NotBlank String name) {}
-
     @PostMapping(value = "/validation-body", consumes = MediaType.APPLICATION_JSON_VALUE)
     public void validationBody(@Valid @RequestBody SampleDto dto) {
         // vacío: solo valida
@@ -49,15 +46,18 @@ public class TestErrorController {
 
     // ---------- Missing param ----------
     @GetMapping("/missing")
-    public void missingParam(@RequestParam String requiredParam) { }
+    public void missingParam(@RequestParam String requiredParam) {
+    }
 
     // ---------- Type mismatch ----------
     @GetMapping("/type-mismatch")
-    public void typeMismatch(@RequestParam int num) { }
+    public void typeMismatch(@RequestParam int num) {
+    }
 
     // ---------- Unsupported media type ----------
     @PostMapping(value = "/media", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public void unsupportedMedia(@RequestBody SampleDto body) { }
+    public void unsupportedMedia(@RequestBody SampleDto body) {
+    }
 
     // ---------- DataIntegrity ----------
     @GetMapping("/integrity")
@@ -67,32 +67,50 @@ public class TestErrorController {
 
     // ---------- Dominio ----------
     @GetMapping("/domain/company-not-found")
-    public void companyNotFound() { throw new CompanyNotFoundException(); }
+    public void companyNotFound() {
+        throw new CompanyNotFoundException();
+    }
 
     @GetMapping("/domain/tax-exists")
-    public void taxExists() { throw new TaxIdAlreadyExistsException(); }
+    public void taxExists() {
+        throw new TaxIdAlreadyExistsException();
+    }
 
     @GetMapping("/domain/district-not-found")
-    public void districtNotFound() { throw new DistrictNotFoundException(); }
+    public void districtNotFound() {
+        throw new DistrictNotFoundException();
+    }
 
     @GetMapping("/domain/applicant-not-found")
-    public void applicantNotFound() { throw new ApplicantNotFoundException(); }
+    public void applicantNotFound() {
+        throw new ApplicantNotFoundException();
+    }
 
     @GetMapping("/domain/job-not-found")
-    public void jobNotFound() { throw new JobNotFoundException(); }
+    public void jobNotFound() {
+        throw new JobNotFoundException();
+    }
 
     @GetMapping("/domain/job-closed")
-    public void jobClosed() { throw new JobClosedException(); }
+    public void jobClosed() {
+        throw new JobClosedException();
+    }
 
     // ---------- Applications ----------
     @GetMapping("/domain/application-not-found")
-    public void applicationNotFound() { throw new ApplicationNotFoundException(); }
+    public void applicationNotFound() {
+        throw new ApplicationNotFoundException();
+    }
 
     @GetMapping("/domain/duplicate-application")
-    public void duplicateApplication() { throw new DuplicateApplicationException(); }
+    public void duplicateApplication() {
+        throw new DuplicateApplicationException();
+    }
 
     @GetMapping("/domain/applicant-incomplete")
-    public void applicantIncomplete() { throw new ApplicantProfileIncompleteException(); }
+    public void applicantIncomplete() {
+        throw new ApplicantProfileIncompleteException();
+    }
 
     // ---------- Seguridad ----------
     @GetMapping("/protected")
@@ -100,5 +118,10 @@ public class TestErrorController {
 
     @GetMapping("/admin-only")
     @PreAuthorize("hasRole('ADMIN')")
-    public void adminOnly() { }
+    public void adminOnly() {
+    }
+
+    // ---------- Validación: @Valid body ----------
+    public record SampleDto(@NotBlank String name) {
+    }
 }

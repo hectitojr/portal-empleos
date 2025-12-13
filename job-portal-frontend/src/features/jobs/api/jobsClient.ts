@@ -1,8 +1,15 @@
 import type { ApiErrorCode } from '@/lib/errors';
 
-type ApiErrorResponse = {
-  code?: ApiErrorCode | string;
+export type ApiErrorResponse = {
+  error?: ApiErrorCode | string;  
+  code?: ApiErrorCode | string;    
   message?: string;
+  status?: number;
+  path?: string;
+  timestamp?: string;
+  traceId?: string | null;
+  fieldErrors?: unknown;
+  violations?: unknown;
   [key: string]: unknown;
 };
 
@@ -16,6 +23,9 @@ export type PublicJobSummaryResponse = {
   employmentTypeId: string | null;
   workModeId: string | null;
   salaryText: string | null;
+  departmentName: string | null;
+  provinceName: string | null;
+  districtName: string | null;
   active: boolean;
   applied: boolean;
   viewed: boolean;
@@ -32,6 +42,9 @@ export type PublicJobDetailResponse = {
   areaId: string | null;
   sectorId: string | null;
   districtId: string | null;
+  departmentName: string | null;
+  provinceName: string | null;
+  districtName: string | null;
   disabilityFriendly: boolean;
   employmentTypeId: string | null;
   workModeId: string | null;
@@ -46,6 +59,9 @@ export type ApplicantJobSummaryResponse = {
   companyName: string;
   sectorId: string | null;
   districtId: string | null;
+  departmentName: string | null;
+  provinceName: string | null;
+  districtName: string | null;
   disabilityFriendly: boolean;
   employmentTypeId: string | null;
   workModeId: string | null;
@@ -66,6 +82,9 @@ export type ApplicantJobDetailResponse = {
   areaId: string | null;
   sectorId: string | null;
   districtId: string | null;
+  departmentName: string | null;
+  provinceName: string | null;
+  districtName: string | null;
   disabilityFriendly: boolean;
   employmentTypeId: string | null;
   workModeId: string | null;

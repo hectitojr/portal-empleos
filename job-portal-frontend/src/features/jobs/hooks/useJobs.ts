@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Job } from '@/features/home/lib/types';
+import type { ApiErrorResponse } from '@/features/jobs/api/jobsClient';
 import {
   listPublicJobs,
   listApplicantJobs,
@@ -15,17 +16,23 @@ import {
   type PublicJobSummaryResponse,
   type ApplicantJobSummaryResponse,
 } from '@/features/jobs/api/jobsClient';
-import type { ApiErrorCode } from '@/lib/errors';
 import { useJobCatalogs } from '@/features/catalogs/hooks/useCatalogs';
 
 type ApiError = {
   status: number;
-  error: {
-    code?: ApiErrorCode | string;
-    message?: string;
-    [key: string]: unknown;
-  };
+  error: ApiErrorResponse;
 };
+
+// -----------------------
+// Helpers ubicación
+// -----------------------
+
+function joinLocation(parts: Array<string | null | undefined>): string {
+  return parts
+    .map((p) => (p ?? '').trim())
+    .filter((p) => p.length > 0)
+    .join(', ');
+}
 
 // -----------------------
 // Mapeo DTO → Job (UI)
@@ -35,10 +42,6 @@ function mapSummaryToJob(
   summary: PublicJobSummaryResponse | ApplicantJobSummaryResponse,
   catalogs: ReturnType<typeof useJobCatalogs>,
 ): Job {
-  const district = summary.districtId
-    ? catalogs.districtsById[summary.districtId]
-    : undefined;
-
   const employmentType = summary.employmentTypeId
     ? catalogs.employmentTypesById[summary.employmentTypeId]
     : undefined;
@@ -47,12 +50,14 @@ function mapSummaryToJob(
     ? catalogs.workModesById[summary.workModeId]
     : undefined;
 
+  const location = joinLocation([summary.provinceName, summary.districtName]);
+
   return {
     id: summary.id,
     title: summary.title,
     company: summary.companyName,
 
-    location: district?.name ?? '',
+    location,
     salary: summary.salaryText ?? '',
 
     employmentType: employmentType?.name ?? '',

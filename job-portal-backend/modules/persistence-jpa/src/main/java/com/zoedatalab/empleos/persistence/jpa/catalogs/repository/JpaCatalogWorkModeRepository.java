@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface JpaCatalogWorkModeRepository extends JpaRepository<CatalogWorkModeEntity, UUID> {
 
     List<CatalogWorkModeEntity> findByActiveTrueOrderByNameAsc();
+
+    boolean existsByIdAndActiveTrue(UUID id);
 }

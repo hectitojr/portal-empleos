@@ -1,7 +1,7 @@
 -- File: V1_20__catalogs.sql
 -- Title: Controlled vocabularies (areas, sectors, location, disability types)
 -- Purpose: Tablas de catálogos para filtros de búsqueda (áreas, sectores, jerarquía geográfica y discapacidad).
--- Author: ZOEDATA_LAB | Date: 2025-10-19 (updated 2025-12-08)
+-- Author: ZOEDATA_LAB | Date: 2025-12-12
 
 -------------------------
 -- ÁREAS
@@ -24,7 +24,6 @@ CREATE TABLE catalog_sector (
 -------------------------
 -- GEOGRAFÍA: DEPARTAMENTO / PROVINCIA / DISTRITO
 -------------------------
-
 CREATE TABLE catalog_department (
   id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name   TEXT NOT NULL UNIQUE,
@@ -48,7 +47,21 @@ CREATE TABLE catalog_district (
   CONSTRAINT uq_catalog_district__province_name UNIQUE (province_id, name)
 );
 
--- Índices para jerarquía geográfica (producción)
+-------------------------
+-- GEOGRAFÍA: HARDENING
+-- Garantiza coherencia distrito ↔ provincia ↔ departamento a nivel DB.
+-------------------------
+ALTER TABLE catalog_province
+  ADD CONSTRAINT uq_catalog_province__id_department
+  UNIQUE (id, department_id);
+
+ALTER TABLE catalog_district
+  ADD CONSTRAINT fk_catalog_district__province_department
+  FOREIGN KEY (province_id, department_id)
+  REFERENCES catalog_province (id, department_id)
+  ON DELETE RESTRICT;
+
+-- Índices para jerarquía geográfica
 CREATE INDEX ix_catalog_province__department
   ON catalog_province(department_id);
 
@@ -57,6 +70,10 @@ CREATE INDEX ix_catalog_district__province
 
 CREATE INDEX ix_catalog_district__department
   ON catalog_district(department_id);
+
+-- Índice compuesto para filtros combinados (province + department)
+CREATE INDEX ix_catalog_district__province_department
+  ON catalog_district (province_id, department_id);
 
 -------------------------
 -- DISCAPACIDADES

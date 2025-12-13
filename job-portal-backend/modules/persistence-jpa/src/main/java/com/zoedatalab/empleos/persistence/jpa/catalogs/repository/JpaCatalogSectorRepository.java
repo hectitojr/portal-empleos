@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface JpaCatalogSectorRepository extends JpaRepository<CatalogSectorEntity, UUID> {
 
     List<CatalogSectorEntity> findByActiveTrueOrderByNameAsc();
+
+    boolean existsByIdAndActiveTrue(UUID id);
 }

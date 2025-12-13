@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface JpaCatalogAreaRepository extends JpaRepository<CatalogAreaEntity, UUID> {
 
     List<CatalogAreaEntity> findByActiveTrueOrderByNameAsc();
+
+    boolean existsByIdAndActiveTrue(UUID id);
 }

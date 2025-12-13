@@ -1,15 +1,15 @@
 package com.zoedatalab.empleos.companies.application.service;
 
+import com.zoedatalab.empleos.common.catalogs.DistrictLookupPort;
+import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.companies.application.dto.CompanyView;
 import com.zoedatalab.empleos.companies.application.dto.UpsertMyCompanyCommand;
 import com.zoedatalab.empleos.companies.application.ports.in.CompanyCommandService;
 import com.zoedatalab.empleos.companies.application.ports.in.CompanyQueryService;
 import com.zoedatalab.empleos.companies.application.ports.out.CompanyRepositoryPort;
-import com.zoedatalab.empleos.companies.application.ports.out.DistrictLookupPort;
 import com.zoedatalab.empleos.companies.domain.Company;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
-import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
 import lombok.RequiredArgsConstructor;
 

@@ -132,12 +132,10 @@ class ApplicationRepositoryAdapterTest extends SpringTestBase {
 
         adapter.save(midForJob1_applicant2);
 
-        // byApplicant: debe devolver 2 y el más reciente primero
         List<Application> byApplicant = adapter.findByApplicant(applicant1, 0, 10);
         assertEquals(2, byApplicant.size());
         assertEquals(newerForApplicant1.getAppliedAt(), byApplicant.getFirst().getAppliedAt());
 
-        // byJob(job1): debe devolver 2 (applicant1 + applicant2) y el más reciente primero
         List<Application> byJob = adapter.findByJob(job1, 0, 10);
         assertEquals(2, byJob.size());
         assertThat(byJob.getFirst().getAppliedAt())

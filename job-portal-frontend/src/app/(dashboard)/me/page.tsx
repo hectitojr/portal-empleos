@@ -14,6 +14,5 @@ export default async function MeRedirectPage() {
     redirect(routes.dashboard.company.home);
   }
 
-  // Si por alguna razón no hay rol, volvemos al home público
   redirect(routes.public.home);
 }

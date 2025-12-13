@@ -12,8 +12,5 @@ public record ApiErrorResponse(
         Instant timestamp,            // ISO-8601
         List<FieldErrorItem> fieldErrors,     // errores de @Valid body
         List<ViolationErrorItem> violations   // errores de @Validated params
-) { }
-
-
-
-
+) {
+}

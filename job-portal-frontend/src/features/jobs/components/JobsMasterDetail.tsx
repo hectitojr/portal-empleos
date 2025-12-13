@@ -10,7 +10,7 @@ import {
   useApplicantJobDetail,
   useApplyToJob,
 } from '@/features/jobs/hooks/useJobs';
-import { humanize } from '@/lib/errors';
+import { getErrorCode, humanize } from '@/lib/errors';
 
 type Variant = 'public' | 'applicant';
 
@@ -26,6 +26,13 @@ type Props = {
 
   initialSelectedId?: string | null;
 };
+
+function joinLocation(parts: Array<string | null | undefined>): string {
+  return parts
+    .map((p) => (p ?? '').trim())
+    .filter((p) => p.length > 0)
+    .join(', ');
+}
 
 export default function JobsMasterDetail({
   jobs,
@@ -61,7 +68,6 @@ export default function JobsMasterDetail({
 
   const handleSelectJob = (jobId: string) => {
     setSelectedJobId(jobId);
-
   };
 
   const handleApply = (jobId: string) => {
@@ -70,13 +76,16 @@ export default function JobsMasterDetail({
     applyMutation.mutate({ jobId });
   };
 
-  const appliedErrorCode = (applyMutation.error as any)?.error?.code;
+  const appliedErrorCode = getErrorCode(applyMutation.error);
+
+  const fullLocation = detail
+    ? joinLocation([detail.departmentName, detail.provinceName, detail.districtName])
+    : '';
 
   return (
     <section id="empleos" className="flex-1 bg-slate-50 py-8 flex flex-col min-h-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 min-h-0">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,2.2fr)] h-full min-h-0">
-
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
             <header className="px-6 py-4 border-b border-slate-100">
               <h2 className="text-base sm:text-lg font-semibold text-slate-900">{listTitle}</h2>
@@ -290,7 +299,7 @@ export default function JobsMasterDetail({
                           {selectedJob.company}
                         </p>
 
-                        {selectedJob.location && (
+                        {fullLocation && (
                           <p className="text-sm text-slate-500 flex items-center gap-1.5">
                             <svg
                               className="w-4 h-4 text-red-500"
@@ -299,7 +308,7 @@ export default function JobsMasterDetail({
                             >
                               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                             </svg>
-                            {selectedJob.location}
+                            {fullLocation}
                           </p>
                         )}
 

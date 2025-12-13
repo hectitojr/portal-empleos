@@ -52,11 +52,24 @@ export function humanize(code?: ApiErrorCode | string): string {
     case 'DUPLICATE_APPLICATION':
       return 'Ya te postulaste a esta oferta.';
     case 'APPLICANT_INCOMPLETE':
-      return 'Completa tu perfil de postulante y CV para poder postular.';
+      return 'Completa tu perfil de postulante para poder postular.';
     case 'VALIDATION_ERROR':
     case 'CONSTRAINT_VIOLATION':
       return 'Revisa los campos del formulario.';
     default:
       return 'Ocurrió un error. Intenta nuevamente.';
   }
+}
+
+export function getErrorCode(
+  err: unknown
+): ApiErrorCode | string | undefined {
+  const e = err as any;
+
+  return (
+    e?.error?.error ??
+    e?.error?.code ??
+    e?.code ??
+    e?.error
+  );
 }

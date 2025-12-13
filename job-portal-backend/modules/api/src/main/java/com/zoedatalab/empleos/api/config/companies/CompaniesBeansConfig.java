@@ -1,8 +1,8 @@
 package com.zoedatalab.empleos.api.config.companies;
 
+import com.zoedatalab.empleos.common.catalogs.DistrictLookupPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.companies.application.ports.out.CompanyRepositoryPort;
-import com.zoedatalab.empleos.companies.application.ports.out.DistrictLookupPort;
 import com.zoedatalab.empleos.companies.application.service.CompanyServiceImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

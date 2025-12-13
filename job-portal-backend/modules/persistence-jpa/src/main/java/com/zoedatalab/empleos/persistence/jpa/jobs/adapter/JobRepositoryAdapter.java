@@ -34,6 +34,11 @@ public class JobRepositoryAdapter implements JobRepositoryPort {
     }
 
     @Override
+    public void flush() {
+        repo.flush();
+    }
+
+    @Override
     public Optional<JobOffer> findById(UUID id) {
         return repo.findById(id).map(mapper::toDomain);
     }

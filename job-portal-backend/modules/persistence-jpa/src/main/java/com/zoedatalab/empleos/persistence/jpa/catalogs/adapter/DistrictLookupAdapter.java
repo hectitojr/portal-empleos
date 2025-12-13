@@ -1,6 +1,6 @@
 package com.zoedatalab.empleos.persistence.jpa.catalogs.adapter;
 
-import com.zoedatalab.empleos.companies.application.ports.out.DistrictLookupPort;
+import com.zoedatalab.empleos.common.catalogs.DistrictLookupPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;

@@ -10,6 +10,8 @@ public record JobSummaryView(
         String companyPublicName,
         UUID sectorId,
         UUID districtId,
+        String provinceName,
+        String districtName,
         boolean disabilityFriendly,
         UUID employmentTypeId,
         UUID workModeId,

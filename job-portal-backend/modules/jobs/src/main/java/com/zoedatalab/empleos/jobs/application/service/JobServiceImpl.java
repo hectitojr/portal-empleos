@@ -1,5 +1,10 @@
 package com.zoedatalab.empleos.jobs.application.service;
 
+import com.zoedatalab.empleos.common.catalogs.exception.AreaNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.EmploymentTypeNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.SectorNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.WorkModeNotFoundException;
 import com.zoedatalab.empleos.jobs.application.dto.ApplicantJobDetailView;
 import com.zoedatalab.empleos.jobs.application.dto.ApplicantJobSummaryView;
 import com.zoedatalab.empleos.jobs.application.dto.CreateJobCommand;
@@ -11,6 +16,8 @@ import com.zoedatalab.empleos.jobs.application.ports.in.JobQueryService;
 import com.zoedatalab.empleos.jobs.application.ports.out.ApplicantLookupPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobApplicantStatePort;
+import com.zoedatalab.empleos.jobs.application.ports.out.JobCatalogValidationPort;
+import com.zoedatalab.empleos.jobs.application.ports.out.JobLocationQueryPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobRepositoryPort;
 import com.zoedatalab.empleos.jobs.domain.JobOffer;
 import com.zoedatalab.empleos.jobs.domain.JobOffer.Status;
@@ -29,12 +36,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JobServiceImpl implements JobCommandService, JobQueryService {
 
-
     private final JobRepositoryPort repo;
     private final CompanyOwnershipPort ownership;
-
     private final ApplicantLookupPort applicantLookup;
     private final JobApplicantStatePort applicantState;
+    private final JobLocationQueryPort jobLocationQueries;
+    
+    private final JobCatalogValidationPort catalogValidation;
 
     // -------------------------
     // Commands (empresa)
@@ -46,6 +54,8 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         if (own.companyId() == null || !own.active() || !own.profileComplete()) {
             throw new CompanyIncompleteException();
         }
+
+        validateCatalogs(cmd.areaId(), cmd.sectorId(), cmd.districtId(), cmd.employmentTypeId(), cmd.workModeId());
 
         var now = Instant.now();
         var job = JobOffer.builder()
@@ -66,7 +76,9 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                 .build();
 
         job = repo.save(job);
-        return detail(job);
+        repo.flush();
+
+        return getById(job.getId());
     }
 
     @Override
@@ -81,6 +93,8 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
             throw new JobClosedException();
         }
 
+        validateCatalogs(cmd.areaId(), cmd.sectorId(), cmd.districtId(), cmd.employmentTypeId(), cmd.workModeId());
+
         job.edit(
                 cmd.title(),
                 cmd.description(),
@@ -93,8 +107,10 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                 cmd.salaryText()
         );
 
-        job = repo.save(job);
-        return detail(job);
+        repo.save(job);
+        repo.flush();
+
+        return getById(jobId);
     }
 
     @Override
@@ -107,8 +123,10 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         }
 
         job.close();
-        job = repo.save(job);
-        return detail(job);
+        repo.save(job);
+        repo.flush();
+
+        return getById(jobId);
     }
 
     // -------------------------
@@ -117,9 +135,28 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
 
     @Override
     public JobDetailView getById(UUID jobId) {
-        return repo.findById(jobId)
-                .map(this::detail)
+        var r = jobLocationQueries.findDetail(jobId)
                 .orElseThrow(JobNotFoundException::new);
+
+        return new JobDetailView(
+                r.id(),
+                r.companyId(),
+                r.title(),
+                r.description(),
+                r.areaId(),
+                r.sectorId(),
+                r.districtId(),
+                r.departmentName(),
+                r.provinceName(),
+                r.districtName(),
+                r.disabilityFriendly(),
+                r.employmentTypeId(),
+                r.workModeId(),
+                r.salaryText(),
+                r.status(),
+                r.publishedAt(),
+                r.suspended()
+        );
     }
 
     @Override
@@ -127,38 +164,38 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                                        Boolean disabilityFriendly, Instant fromDate,
                                        int page, int size) {
 
-        var jobs = repo.search(areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size);
+        var rows = jobLocationQueries.searchSummaries(
+                areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size
+        );
 
-        return jobs.stream()
-                .map(j -> {
-                    boolean active = isActive(j);
-                    boolean applied = false;
-                    boolean viewed = false;
+        return rows.stream()
+                .map(r -> {
+                    boolean active = isActive(r.status(), r.suspended());
 
                     String quickText =
-                            (j.getStatus() == Status.CLOSED || j.isSuspended())
+                            (!active)
                                     ? "Ya no se aceptan postulaciones"
                                     : "Postúlate a la oferta rápidamente";
 
                     return new JobSummaryView(
-                            j.getId(),
-                            j.getTitle(),
-                            j.getCompanyId(),
-                            ownership.publicName(j.getCompanyId()),
-                            j.getSectorId(),
-                            j.getDistrictId(),
-                            j.isDisabilityFriendly(),
-                            j.getEmploymentTypeId(),
-                            j.getWorkModeId(),
-                            j.getSalaryText(),
-
+                            r.id(),
+                            r.title(),
+                            r.companyId(),
+                            ownership.publicName(r.companyId()),
+                            r.sectorId(),
+                            r.districtId(),
+                            r.provinceName(),
+                            r.districtName(),
+                            r.disabilityFriendly(),
+                            r.employmentTypeId(),
+                            r.workModeId(),
+                            r.salaryText(),
                             active,
-                            applied,
-                            viewed,
+                            false,
+                            false,
                             quickText,
-
-                            j.getStatus().name(),
-                            j.getPublishedAt()
+                            r.status(),
+                            r.publishedAt()
                     );
                 })
                 .toList();
@@ -174,35 +211,38 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                                                             Boolean disabilityFriendly, Instant fromDate,
                                                             int page, int size) {
 
-        var jobs = repo.search(areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size);
+        var rows = jobLocationQueries.searchSummaries(
+                areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size
+        );
 
-        var applicantId = applicantLookup.getApplicantIdByUserId(applicantUserId);
-        log.info("ApplicantId para user {} => {}", applicantUserId, applicantId);
+        var applicantId = resolveApplicantId(applicantUserId);
 
-        var ids = jobs.stream().map(JobOffer::getId).toList();
+        var ids = rows.stream().map(JobLocationQueryPort.JobSummaryRow::id).toList();
         var appliedIds = applicantState.findAppliedJobIds(applicantId, ids);
         var viewedIds = applicantState.findViewedJobIds(applicantId, ids);
 
-        return jobs.stream()
-                .map(j -> {
-                    boolean applied = appliedIds.contains(j.getId());
-                    boolean viewed = viewedIds.contains(j.getId());
-                    boolean active = isActive(j);
-
-                    String quickText = quickApplyText(j, applied);
+        return rows.stream()
+                .map(r -> {
+                    boolean applied = appliedIds.contains(r.id());
+                    boolean viewed = viewedIds.contains(r.id());
+                    boolean active = isActive(r.status(), r.suspended());
+                    String quickText = quickApplyText(r.status(), r.suspended(), applied);
 
                     return new ApplicantJobSummaryView(
-                            j.getId(),
-                            j.getTitle(),
-                            ownership.publicName(j.getCompanyId()),
-                            j.getSectorId(),
-                            j.getDistrictId(),
-                            j.getEmploymentTypeId(),
-                            j.getWorkModeId(),
-                            j.getSalaryText(),
-                            j.isDisabilityFriendly(),
-                            j.getStatus().name(),
-                            j.getPublishedAt(),
+                            r.id(),
+                            r.title(),
+                            ownership.publicName(r.companyId()),
+                            r.sectorId(),
+                            r.districtId(),
+                            r.departmentName(),
+                            r.provinceName(),
+                            r.districtName(),
+                            r.employmentTypeId(),
+                            r.workModeId(),
+                            r.salaryText(),
+                            r.disabilityFriendly(),
+                            r.status(),
+                            r.publishedAt(),
                             viewed,
                             applied,
                             quickText,
@@ -214,34 +254,36 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
 
     @Override
     public ApplicantJobDetailView getByIdForApplicant(UUID applicantUserId, UUID jobId) {
-        var job = repo.findById(jobId).orElseThrow(JobNotFoundException::new);
+        var r = jobLocationQueries.findDetail(jobId)
+                .orElseThrow(JobNotFoundException::new);
 
-        var applicantId = applicantLookup.getApplicantIdByUserId(applicantUserId);
-        log.info("ApplicantId para user {} => {}", applicantUserId, applicantId);
+        var applicantId = resolveApplicantId(applicantUserId);
 
         applicantState.markViewed(applicantId, jobId, Instant.now());
 
         boolean applied = applicantState.isApplied(applicantId, jobId);
         boolean viewed = true;
-        boolean active = isActive(job);
-
-        String quickText = quickApplyText(job, applied);
+        boolean active = isActive(r.status(), r.suspended());
+        String quickText = quickApplyText(r.status(), r.suspended(), applied);
 
         return new ApplicantJobDetailView(
-                job.getId(),
-                job.getCompanyId(),
-                job.getTitle(),
-                job.getDescription(),
-                job.getAreaId(),
-                job.getSectorId(),
-                job.getDistrictId(),
-                job.getEmploymentTypeId(),
-                job.getWorkModeId(),
-                job.getSalaryText(),
-                job.isDisabilityFriendly(),
-                job.getStatus().name(),
-                job.getPublishedAt(),
-                job.isSuspended(),
+                r.id(),
+                r.companyId(),
+                r.title(),
+                r.description(),
+                r.areaId(),
+                r.sectorId(),
+                r.districtId(),
+                r.departmentName(),
+                r.provinceName(),
+                r.districtName(),
+                r.employmentTypeId(),
+                r.workModeId(),
+                r.salaryText(),
+                r.disabilityFriendly(),
+                r.status(),
+                r.publishedAt(),
+                r.suspended(),
                 viewed,
                 applied,
                 quickText,
@@ -253,12 +295,12 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
     // Helpers internos
     // -------------------------
 
-    private boolean isActive(JobOffer j) {
-        return j.getStatus() == Status.OPEN && !j.isSuspended();
+    private boolean isActive(String status, boolean suspended) {
+        return "OPEN".equals(status) && !suspended;
     }
 
-    private String quickApplyText(JobOffer j, boolean applied) {
-        if (j.getStatus() == Status.CLOSED || j.isSuspended()) {
+    private String quickApplyText(String status, boolean suspended, boolean applied) {
+        if (!"OPEN".equals(status) || suspended) {
             return "Ya no se aceptan postulaciones";
         }
         if (applied) {
@@ -267,22 +309,36 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         return "Postúlate a la oferta rápidamente";
     }
 
-    private JobDetailView detail(JobOffer j) {
-        return new JobDetailView(
-                j.getId(),
-                j.getCompanyId(),
-                j.getTitle(),
-                j.getDescription(),
-                j.getAreaId(),
-                j.getSectorId(),
-                j.getDistrictId(),
-                j.isDisabilityFriendly(),
-                j.getEmploymentTypeId(),
-                j.getWorkModeId(),
-                j.getSalaryText(),
-                j.getStatus().name(),
-                j.getPublishedAt(),
-                j.isSuspended()
-        );
+    private void logApplicantResolved(UUID applicantUserId, UUID applicantId) {
+        log.debug("Resolved applicantId for userId={} applicantId={}", applicantUserId, applicantId);
+    }
+
+    private UUID resolveApplicantId(UUID applicantUserId) {
+        UUID applicantId = applicantLookup.getApplicantIdByUserId(applicantUserId);
+        logApplicantResolved(applicantUserId, applicantId);
+        return applicantId;
+    }
+
+    private void validateCatalogs(UUID areaId,
+                                  UUID sectorId,
+                                  UUID districtId,
+                                  UUID employmentTypeId,
+                                  UUID workModeId) {
+
+        if (areaId != null && !catalogValidation.areaExists(areaId)) {
+            throw new AreaNotFoundException();
+        }
+        if (sectorId != null && !catalogValidation.sectorExists(sectorId)) {
+            throw new SectorNotFoundException();
+        }
+        if (districtId != null && !catalogValidation.districtExists(districtId)) {
+            throw new DistrictNotFoundException();
+        }
+        if (employmentTypeId != null && !catalogValidation.employmentTypeExists(employmentTypeId)) {
+            throw new EmploymentTypeNotFoundException();
+        }
+        if (workModeId != null && !catalogValidation.workModeExists(workModeId)) {
+            throw new WorkModeNotFoundException();
+        }
     }
 }

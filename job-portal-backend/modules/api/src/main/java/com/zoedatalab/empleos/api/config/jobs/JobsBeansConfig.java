@@ -3,6 +3,8 @@ package com.zoedatalab.empleos.api.config.jobs;
 import com.zoedatalab.empleos.jobs.application.ports.out.ApplicantLookupPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobApplicantStatePort;
+import com.zoedatalab.empleos.jobs.application.ports.out.JobCatalogValidationPort;
+import com.zoedatalab.empleos.jobs.application.ports.out.JobLocationQueryPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobRepositoryPort;
 import com.zoedatalab.empleos.jobs.application.service.JobServiceImpl;
 import org.springframework.context.annotation.Bean;
@@ -17,9 +19,18 @@ public class JobsBeansConfig {
             JobRepositoryPort repo,
             CompanyOwnershipPort ownership,
             ApplicantLookupPort applicantLookup,
-            JobApplicantStatePort applicantState
+            JobApplicantStatePort applicantState,
+            JobLocationQueryPort jobLocationQueries,
+            JobCatalogValidationPort catalogValidation
     ) {
-        return new JobServiceImpl(repo, ownership, applicantLookup, applicantState);
+        return new JobServiceImpl(
+                repo,
+                ownership,
+                applicantLookup,
+                applicantState,
+                jobLocationQueries,
+                catalogValidation
+        );
     }
 
     @Bean

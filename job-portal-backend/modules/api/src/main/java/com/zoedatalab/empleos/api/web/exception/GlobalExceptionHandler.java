@@ -4,8 +4,12 @@ import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundExcep
 import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
 import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
 import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
+import com.zoedatalab.empleos.common.catalogs.exception.AreaNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.EmploymentTypeNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.SectorNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.WorkModeNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
-import com.zoedatalab.empleos.companies.domain.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
 import com.zoedatalab.empleos.iam.application.exception.AuthBadCredentialsException;
 import com.zoedatalab.empleos.iam.application.exception.EmailAlreadyExistsException;
@@ -72,8 +76,14 @@ public class GlobalExceptionHandler {
         // Companies
         EX_MAP.put(CompanyNotFoundException.class, ApiErrorCode.COMPANY_NOT_FOUND);
         EX_MAP.put(TaxIdAlreadyExistsException.class, ApiErrorCode.COMPANY_TAX_ID_ALREADY_EXISTS);
-        EX_MAP.put(DistrictNotFoundException.class, ApiErrorCode.DISTRICT_NOT_FOUND);
         EX_MAP.put(CompanyIncompleteException.class, ApiErrorCode.COMPANY_INCOMPLETE);
+
+        // Catálogos (common)
+        EX_MAP.put(AreaNotFoundException.class, ApiErrorCode.AREA_NOT_FOUND);
+        EX_MAP.put(SectorNotFoundException.class, ApiErrorCode.SECTOR_NOT_FOUND);
+        EX_MAP.put(DistrictNotFoundException.class, ApiErrorCode.DISTRICT_NOT_FOUND);
+        EX_MAP.put(EmploymentTypeNotFoundException.class, ApiErrorCode.EMPLOYMENT_TYPE_NOT_FOUND);
+        EX_MAP.put(WorkModeNotFoundException.class, ApiErrorCode.WORK_MODE_NOT_FOUND);
 
         // Applicants
         EX_MAP.put(ApplicantNotFoundException.class, ApiErrorCode.APPLICANT_NOT_FOUND);
@@ -103,8 +113,15 @@ public class GlobalExceptionHandler {
             ForbiddenJobAccessException.class,
             CompanyNotFoundException.class,
             TaxIdAlreadyExistsException.class,
-            DistrictNotFoundException.class,
             CompanyIncompleteException.class,
+
+            // Catálogos (common)
+            AreaNotFoundException.class,
+            SectorNotFoundException.class,
+            DistrictNotFoundException.class,
+            EmploymentTypeNotFoundException.class,
+            WorkModeNotFoundException.class,
+
             ApplicantNotFoundException.class,
             JobNotFoundException.class,
             JobClosedException.class,
@@ -115,9 +132,24 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiErrorResponse> mapped(HttpServletRequest req, Throwable ex) {
         ApiErrorCode code = resolveCode(ex);
+
+        List<FieldErrorItem> fields = null;
+
+        if (ex instanceof AreaNotFoundException) {
+            fields = List.of(new FieldErrorItem("areaId", "NotFound", "El área no existe."));
+        } else if (ex instanceof SectorNotFoundException) {
+            fields = List.of(new FieldErrorItem("sectorId", "NotFound", "El sector no existe."));
+        } else if (ex instanceof DistrictNotFoundException) {
+            fields = List.of(new FieldErrorItem("districtId", "NotFound", "El distrito no existe."));
+        } else if (ex instanceof EmploymentTypeNotFoundException) {
+            fields = List.of(new FieldErrorItem("employmentTypeId", "NotFound", "El tipo de empleo no existe."));
+        } else if (ex instanceof WorkModeNotFoundException) {
+            fields = List.of(new FieldErrorItem("workModeId", "NotFound", "La modalidad de trabajo no existe."));
+        }
+
         logByStatus(code, ex);
         return ResponseEntity.status(code.status)
-                .body(ApiErrorFactory.build(req, code, null, null));
+                .body(ApiErrorFactory.build(req, code, fields, null));
     }
 
     // ===== Validación: @Valid (body) =====

@@ -12,5 +12,3 @@ public interface JpaJobOfferRepository
 
     boolean existsByIdAndCompanyId(UUID id, UUID companyId);
 }
-
-

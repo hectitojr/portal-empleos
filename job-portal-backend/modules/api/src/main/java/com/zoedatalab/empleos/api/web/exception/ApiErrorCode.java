@@ -4,7 +4,9 @@ import org.springframework.http.HttpStatus;
 
 public enum ApiErrorCode {
 
+    // =========================================================
     // IAM
+    // =========================================================
     EMAIL_EXISTS(HttpStatus.CONFLICT, "El correo ya está registrado."),
     BAD_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Credenciales inválidas."),
     USER_SUSPENDED(HttpStatus.UNAUTHORIZED, "La cuenta está suspendida."),
@@ -14,28 +16,48 @@ public enum ApiErrorCode {
     RESET_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "El enlace de restablecimiento no es válido."),
     RESET_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "El enlace de restablecimiento ha expirado."),
 
+    // =========================================================
     // Autorización
+    // =========================================================
     FORBIDDEN(HttpStatus.FORBIDDEN, "Acceso no permitido."),
 
+    // =========================================================
     // Companies
+    // =========================================================
     COMPANY_NOT_FOUND(HttpStatus.NOT_FOUND, "La empresa no existe."),
     COMPANY_TAX_ID_ALREADY_EXISTS(HttpStatus.CONFLICT, "El RUC ya está asociado a otra cuenta."),
-    DISTRICT_NOT_FOUND(HttpStatus.BAD_REQUEST, "El distrito no existe."),
     COMPANY_INCOMPLETE(HttpStatus.BAD_REQUEST, "Completa la ficha de empresa."),
 
+    // =========================================================
+    // Catálogos (common)
+    // =========================================================
+    AREA_NOT_FOUND(HttpStatus.BAD_REQUEST, "El área no existe."),
+    SECTOR_NOT_FOUND(HttpStatus.BAD_REQUEST, "El sector no existe."),
+    DISTRICT_NOT_FOUND(HttpStatus.BAD_REQUEST, "El distrito no existe."),
+    EMPLOYMENT_TYPE_NOT_FOUND(HttpStatus.BAD_REQUEST, "El tipo de empleo no existe."),
+    WORK_MODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "La modalidad de trabajo no existe."),
+
+    // =========================================================
     // Applicants
+    // =========================================================
     APPLICANT_NOT_FOUND(HttpStatus.NOT_FOUND, "El postulante no existe."),
 
+    // =========================================================
     // Jobs
+    // =========================================================
     JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "La oferta no existe."),
     JOB_CLOSED(HttpStatus.CONFLICT, "La oferta está cerrada."),
 
+    // =========================================================
     // Applications
+    // =========================================================
     APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "La postulación no existe."),
     DUPLICATE_APPLICATION(HttpStatus.CONFLICT, "Ya postulaste a esta oferta."),
     APPLICANT_INCOMPLETE(HttpStatus.BAD_REQUEST, "Completa tu perfil de postulante."),
 
+    // =========================================================
     // Validación / framework
+    // =========================================================
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Error de validación."),
     CONSTRAINT_VIOLATION(HttpStatus.BAD_REQUEST, "Parámetros inválidos."),
     MALFORMED_JSON(HttpStatus.BAD_REQUEST, "JSON mal formado."),
@@ -44,7 +66,9 @@ public enum ApiErrorCode {
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado."),
     DATA_INTEGRITY_VIOLATION(HttpStatus.CONFLICT, "Violación de integridad de datos."),
 
+    // =========================================================
     // Fallback
+    // =========================================================
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error inesperado.");
 
     public final HttpStatus status;

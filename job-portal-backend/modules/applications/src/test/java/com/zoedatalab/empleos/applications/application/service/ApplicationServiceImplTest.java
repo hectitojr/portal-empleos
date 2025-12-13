@@ -42,18 +42,16 @@ import static org.mockito.Mockito.when;
  */
 class ApplicationServiceImplTest {
 
-    private ApplicationRepositoryPort repo;
-    private ApplicantRepositoryPort applicantRepo;
-    private JobRepositoryPort jobRepo;
-    private CompanyOwnershipPort ownershipPort;
-
-    private ApplicationServiceImpl service;
-
     private final UUID applicantUserId = UUID.randomUUID();
     private final UUID applicantId = UUID.randomUUID();
     private final UUID companyId = UUID.randomUUID();
     private final UUID jobId = UUID.randomUUID();
     private final UUID applicationId = UUID.randomUUID();
+    private ApplicationRepositoryPort repo;
+    private ApplicantRepositoryPort applicantRepo;
+    private JobRepositoryPort jobRepo;
+    private CompanyOwnershipPort ownershipPort;
+    private ApplicationServiceImpl service;
 
     @BeforeEach
     void setUp() {
@@ -240,8 +238,6 @@ class ApplicationServiceImplTest {
                 () -> service.updateStatus(UUID.randomUUID(), applicationId,
                         new UpdateApplicationStatusCommand(Application.Status.IN_REVIEW)));
     }
-
-    // ===== queries =====
 
     @Test
     void myApplications_ok_devuelveLista() {
