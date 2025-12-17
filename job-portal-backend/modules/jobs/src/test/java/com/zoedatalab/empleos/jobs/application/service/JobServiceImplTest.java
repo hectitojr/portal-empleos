@@ -1,5 +1,10 @@
 package com.zoedatalab.empleos.jobs.application.service;
 
+import com.zoedatalab.empleos.common.catalogs.exception.AreaNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.EmploymentTypeNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.SectorNotFoundException;
+import com.zoedatalab.empleos.common.catalogs.exception.WorkModeNotFoundException;
 import com.zoedatalab.empleos.jobs.application.dto.CreateJobCommand;
 import com.zoedatalab.empleos.jobs.application.dto.JobDetailView;
 import com.zoedatalab.empleos.jobs.application.dto.JobSummaryView;
@@ -7,6 +12,7 @@ import com.zoedatalab.empleos.jobs.application.dto.UpdateJobCommand;
 import com.zoedatalab.empleos.jobs.application.ports.out.ApplicantLookupPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobApplicantStatePort;
+import com.zoedatalab.empleos.jobs.application.ports.out.JobCatalogValidationPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobLocationQueryPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobRepositoryPort;
 import com.zoedatalab.empleos.jobs.domain.JobOffer;
@@ -38,6 +44,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,6 +65,9 @@ class JobServiceImplTest {
     @Mock
     JobApplicantStatePort applicantState;
 
+    @Mock
+    JobCatalogValidationPort catalogValidation;
+
     @InjectMocks
     JobServiceImpl service;
 
@@ -72,15 +82,29 @@ class JobServiceImplTest {
         jobId = UUID.randomUUID();
     }
 
+    // -------------------------
+    // Helpers de stubbing
+    // -------------------------
+
+    private void stubCatalogsAllExist() {
+        when(catalogValidation.areaExists(any())).thenReturn(true);
+        when(catalogValidation.sectorExists(any())).thenReturn(true);
+        when(catalogValidation.districtExists(any())).thenReturn(true);
+        when(catalogValidation.employmentTypeExists(any())).thenReturn(true);
+        when(catalogValidation.workModeExists(any())).thenReturn(true);
+    }
+
     // ---------- CREATE ----------
 
     @Test
     void create_ok_whenCompanyActiveAndComplete() {
+        stubCatalogsAllExist();
+
         when(ownership.getForUser(userId))
                 .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
 
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        
+
         when(jobLocationQueries.findDetail(any(UUID.class)))
                 .thenAnswer(inv -> Optional.of(sampleDetailRow(
                         inv.getArgument(0, UUID.class),
@@ -98,6 +122,8 @@ class JobServiceImplTest {
                 .areaId(UUID.randomUUID())
                 .sectorId(UUID.randomUUID())
                 .districtId(UUID.randomUUID())
+                .employmentTypeId(UUID.randomUUID())
+                .workModeId(UUID.randomUUID())
                 .disabilityFriendly(true)
                 .build();
 
@@ -109,37 +135,139 @@ class JobServiceImplTest {
         assertTrue(out.disabilityFriendly());
         assertEquals(companyId, out.companyId());
 
-        // Verifica que lo haya guardado con status/publishedAt correctamente
         ArgumentCaptor<JobOffer> cap = ArgumentCaptor.forClass(JobOffer.class);
         verify(repo).save(cap.capture());
         JobOffer saved = cap.getValue();
+
         assertEquals(Status.OPEN, saved.getStatus());
         assertNotNull(saved.getPublishedAt());
         assertEquals(companyId, saved.getCompanyId());
 
-        // 🔥 CLAVE del fix: debe forzar flush antes de leer el read-model por JDBC
         verify(repo, times(1)).flush();
-
-        // Verifica que el read-model se consultó con el ID realmente guardado
         verify(jobLocationQueries).findDetail(saved.getId());
+
+        verify(catalogValidation).areaExists(eq(cmd.areaId()));
+        verify(catalogValidation).sectorExists(eq(cmd.sectorId()));
+        verify(catalogValidation).districtExists(eq(cmd.districtId()));
+        verify(catalogValidation).employmentTypeExists(eq(cmd.employmentTypeId()));
+        verify(catalogValidation).workModeExists(eq(cmd.workModeId()));
     }
 
     @Test
     void create_throws_whenCompanyIncompleteOrInactive() {
-        // Incompleta
         when(ownership.getForUser(userId))
                 .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, false));
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
 
-        // Inactiva
         when(ownership.getForUser(userId))
                 .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, false, true));
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
 
-        // Sin company (no provisionada aún)
         when(ownership.getForUser(userId))
                 .thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false, false));
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
+
+        verify(repo, never()).save(any());
+        verify(repo, never()).flush();
+        verify(jobLocationQueries, never()).findDetail(any());
+
+        verifyNoInteractions(catalogValidation);
+    }
+
+    @Test
+    void create_throws_whenAreaNotFound() {
+        when(ownership.getForUser(userId))
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+
+        UUID areaId = UUID.randomUUID();
+        when(catalogValidation.areaExists(areaId)).thenReturn(false);
+
+        var cmd = CreateJobCommand.builder()
+                .title("t").description("d")
+                .areaId(areaId)
+                .build();
+
+        assertThrows(AreaNotFoundException.class, () -> service.create(userId, cmd));
+
+        verify(repo, never()).save(any());
+        verify(repo, never()).flush();
+        verify(jobLocationQueries, never()).findDetail(any());
+    }
+
+    @Test
+    void create_throws_whenSectorNotFound() {
+        when(ownership.getForUser(userId))
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+
+        UUID sectorId = UUID.randomUUID();
+        when(catalogValidation.sectorExists(sectorId)).thenReturn(false);
+
+        var cmd = CreateJobCommand.builder()
+                .title("t").description("d")
+                .sectorId(sectorId)
+                .build();
+
+        assertThrows(SectorNotFoundException.class, () -> service.create(userId, cmd));
+
+        verify(repo, never()).save(any());
+        verify(repo, never()).flush();
+        verify(jobLocationQueries, never()).findDetail(any());
+    }
+
+    @Test
+    void create_throws_whenDistrictNotFound() {
+        when(ownership.getForUser(userId))
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+
+        UUID districtId = UUID.randomUUID();
+        when(catalogValidation.districtExists(districtId)).thenReturn(false);
+
+        var cmd = CreateJobCommand.builder()
+                .title("t").description("d")
+                .districtId(districtId)
+                .build();
+
+        assertThrows(DistrictNotFoundException.class, () -> service.create(userId, cmd));
+
+        verify(repo, never()).save(any());
+        verify(repo, never()).flush();
+        verify(jobLocationQueries, never()).findDetail(any());
+    }
+
+    @Test
+    void create_throws_whenEmploymentTypeNotFound() {
+        when(ownership.getForUser(userId))
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+
+        UUID employmentTypeId = UUID.randomUUID();
+        when(catalogValidation.employmentTypeExists(employmentTypeId)).thenReturn(false);
+
+        var cmd = CreateJobCommand.builder()
+                .title("t").description("d")
+                .employmentTypeId(employmentTypeId)
+                .build();
+
+        assertThrows(EmploymentTypeNotFoundException.class, () -> service.create(userId, cmd));
+
+        verify(repo, never()).save(any());
+        verify(repo, never()).flush();
+        verify(jobLocationQueries, never()).findDetail(any());
+    }
+
+    @Test
+    void create_throws_whenWorkModeNotFound() {
+        when(ownership.getForUser(userId))
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+
+        UUID workModeId = UUID.randomUUID();
+        when(catalogValidation.workModeExists(workModeId)).thenReturn(false);
+
+        var cmd = CreateJobCommand.builder()
+                .title("t").description("d")
+                .workModeId(workModeId)
+                .build();
+
+        assertThrows(WorkModeNotFoundException.class, () -> service.create(userId, cmd));
 
         verify(repo, never()).save(any());
         verify(repo, never()).flush();
@@ -150,6 +278,8 @@ class JobServiceImplTest {
 
     @Test
     void update_ok_whenOwnerAndOpen() {
+        stubCatalogsAllExist();
+
         when(ownership.getForUser(userId))
                 .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
 
@@ -158,7 +288,6 @@ class JobServiceImplTest {
         when(repo.isOwner(jobId, companyId)).thenReturn(true);
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        // el retorno se construye desde el read-model, por eso debe reflejar el estado "post-update"
         when(jobLocationQueries.findDetail(jobId))
                 .thenReturn(Optional.of(sampleDetailRow(
                         jobId,
@@ -176,6 +305,8 @@ class JobServiceImplTest {
                 .areaId(UUID.randomUUID())
                 .sectorId(UUID.randomUUID())
                 .districtId(UUID.randomUUID())
+                .employmentTypeId(UUID.randomUUID())
+                .workModeId(UUID.randomUUID())
                 .disabilityFriendly(false)
                 .build();
 
@@ -189,6 +320,12 @@ class JobServiceImplTest {
         verify(repo).save(any(JobOffer.class));
         verify(repo, times(1)).flush();
         verify(jobLocationQueries).findDetail(jobId);
+
+        verify(catalogValidation).areaExists(eq(cmd.areaId()));
+        verify(catalogValidation).sectorExists(eq(cmd.sectorId()));
+        verify(catalogValidation).districtExists(eq(cmd.districtId()));
+        verify(catalogValidation).employmentTypeExists(eq(cmd.employmentTypeId()));
+        verify(catalogValidation).workModeExists(eq(cmd.workModeId()));
     }
 
     @Test
@@ -197,7 +334,7 @@ class JobServiceImplTest {
                 .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
 
         when(repo.findById(jobId))
-                .thenReturn(Optional.of(sampleJob(jobId, UUID.randomUUID(), Status.OPEN))); // otro dueño
+                .thenReturn(Optional.of(sampleJob(jobId, UUID.randomUUID(), Status.OPEN)));
 
         when(repo.isOwner(eq(jobId), eq(companyId))).thenReturn(false);
 
@@ -207,6 +344,8 @@ class JobServiceImplTest {
         verify(repo, never()).save(any());
         verify(repo, never()).flush();
         verify(jobLocationQueries, never()).findDetail(any());
+
+        verifyNoInteractions(catalogValidation);
     }
 
     @Test
@@ -225,6 +364,8 @@ class JobServiceImplTest {
         verify(repo, never()).save(any());
         verify(repo, never()).flush();
         verify(jobLocationQueries, never()).findDetail(any());
+
+        verifyNoInteractions(catalogValidation);
     }
 
     // ---------- CLOSE ----------
@@ -257,6 +398,8 @@ class JobServiceImplTest {
         verify(repo).save(any(JobOffer.class));
         verify(repo, times(1)).flush();
         verify(jobLocationQueries).findDetail(jobId);
+
+        verifyNoInteractions(catalogValidation);
     }
 
     @Test
@@ -287,6 +430,8 @@ class JobServiceImplTest {
         verify(repo).save(any(JobOffer.class));
         verify(repo, times(1)).flush();
         verify(jobLocationQueries).findDetail(jobId);
+
+        verifyNoInteractions(catalogValidation);
     }
 
     @Test
@@ -304,6 +449,8 @@ class JobServiceImplTest {
         verify(repo, never()).save(any());
         verify(repo, never()).flush();
         verify(jobLocationQueries, never()).findDetail(any());
+
+        verifyNoInteractions(catalogValidation);
     }
 
     // ---------- GET / SEARCH ----------
@@ -324,12 +471,16 @@ class JobServiceImplTest {
         JobDetailView out = service.getById(jobId);
         assertEquals(jobId, out.id());
         assertEquals("OPEN", out.status());
+
+        verifyNoInteractions(catalogValidation);
     }
 
     @Test
     void getById_throws_whenNotFound() {
         when(jobLocationQueries.findDetail(jobId)).thenReturn(Optional.empty());
         assertThrows(JobNotFoundException.class, () -> service.getById(jobId));
+
+        verifyNoInteractions(catalogValidation);
     }
 
     @Test
@@ -347,6 +498,8 @@ class JobServiceImplTest {
         assertEquals(2, list.size());
         assertEquals("ACME Corp.", list.get(0).companyPublicName());
         assertEquals("ACME Corp.", list.get(1).companyPublicName());
+
+        verifyNoInteractions(catalogValidation);
     }
 
     // ---------- Helpers ----------
@@ -355,6 +508,7 @@ class JobServiceImplTest {
         return CreateJobCommand.builder()
                 .title("t").description("d")
                 .areaId(null).sectorId(null).districtId(null)
+                .employmentTypeId(null).workModeId(null)
                 .disabilityFriendly(false)
                 .build();
     }
@@ -369,6 +523,8 @@ class JobServiceImplTest {
                 .sectorId(UUID.randomUUID())
                 .districtId(UUID.randomUUID())
                 .disabilityFriendly(true)
+                .employmentTypeId(UUID.randomUUID())
+                .workModeId(UUID.randomUUID())
                 .status(status)
                 .publishedAt(Instant.now())
                 .suspended(false)
