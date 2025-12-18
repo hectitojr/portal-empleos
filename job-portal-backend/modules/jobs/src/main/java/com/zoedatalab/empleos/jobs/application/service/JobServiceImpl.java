@@ -41,12 +41,24 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
     private final ApplicantLookupPort applicantLookup;
     private final JobApplicantStatePort applicantState;
     private final JobLocationQueryPort jobLocationQueries;
-    
+
     private final JobCatalogValidationPort catalogValidation;
 
     // -------------------------
-    // Commands (empresa)
+    // Geo filter normalization
     // -------------------------
+
+    /**
+     * Precedencia: districtId > provinceId > departmentId
+     * - si llega districtId, se ignoran provinceId y departmentId
+     * - si llega provinceId, se ignora departmentId
+     */
+    private GeoFilter normalizeGeo(UUID departmentId, UUID provinceId, UUID districtId) {
+        if (districtId != null) return new GeoFilter(null, null, districtId);
+        if (provinceId != null) return new GeoFilter(null, provinceId, null);
+        if (departmentId != null) return new GeoFilter(departmentId, null, null);
+        return new GeoFilter(null, null, null);
+    }
 
     @Override
     public JobDetailView create(UUID companyUserId, CreateJobCommand cmd) {
@@ -80,6 +92,10 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
 
         return getById(job.getId());
     }
+
+    // -------------------------
+    // Commands (empresa)
+    // -------------------------
 
     @Override
     public JobDetailView update(UUID companyUserId, UUID jobId, UpdateJobCommand cmd) {
@@ -129,10 +145,6 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         return getById(jobId);
     }
 
-    // -------------------------
-    // Queries públicas
-    // -------------------------
-
     @Override
     public JobDetailView getById(UUID jobId) {
         var r = jobLocationQueries.findDetail(jobId)
@@ -159,13 +171,33 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         );
     }
 
+    // -------------------------
+    // Queries públicas
+    // -------------------------
+
     @Override
-    public List<JobSummaryView> search(UUID areaId, UUID sectorId, UUID districtId,
-                                       Boolean disabilityFriendly, Instant fromDate,
-                                       int page, int size) {
+    public List<JobSummaryView> search(UUID areaId,
+                                       UUID sectorId,
+                                       UUID departmentId,
+                                       UUID provinceId,
+                                       UUID districtId,
+                                       Boolean disabilityFriendly,
+                                       Instant fromDate,
+                                       int page,
+                                       int size) {
+
+        var geo = normalizeGeo(departmentId, provinceId, districtId);
 
         var rows = jobLocationQueries.searchSummaries(
-                areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size
+                areaId,
+                sectorId,
+                geo.departmentId(),
+                geo.provinceId(),
+                geo.districtId(),
+                disabilityFriendly,
+                fromDate,
+                page,
+                size
         );
 
         return rows.stream()
@@ -201,18 +233,30 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                 .toList();
     }
 
-    // -------------------------
-    // Queries applicant logueado
-    // -------------------------
-
     @Override
     public List<ApplicantJobSummaryView> searchForApplicant(UUID applicantUserId,
-                                                            UUID areaId, UUID sectorId, UUID districtId,
-                                                            Boolean disabilityFriendly, Instant fromDate,
-                                                            int page, int size) {
+                                                            UUID areaId,
+                                                            UUID sectorId,
+                                                            UUID departmentId,
+                                                            UUID provinceId,
+                                                            UUID districtId,
+                                                            Boolean disabilityFriendly,
+                                                            Instant fromDate,
+                                                            int page,
+                                                            int size) {
+
+        var geo = normalizeGeo(departmentId, provinceId, districtId);
 
         var rows = jobLocationQueries.searchSummaries(
-                areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size
+                areaId,
+                sectorId,
+                geo.departmentId(),
+                geo.provinceId(),
+                geo.districtId(),
+                disabilityFriendly,
+                fromDate,
+                page,
+                size
         );
 
         var applicantId = resolveApplicantId(applicantUserId);
@@ -251,6 +295,10 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                 })
                 .toList();
     }
+
+    // -------------------------
+    // Queries applicant logueado
+    // -------------------------
 
     @Override
     public ApplicantJobDetailView getByIdForApplicant(UUID applicantUserId, UUID jobId) {
@@ -291,13 +339,13 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         );
     }
 
-    // -------------------------
-    // Helpers internos
-    // -------------------------
-
     private boolean isActive(String status, boolean suspended) {
         return "OPEN".equals(status) && !suspended;
     }
+
+    // -------------------------
+    // Helpers internos
+    // -------------------------
 
     private String quickApplyText(String status, boolean suspended, boolean applied) {
         if (!"OPEN".equals(status) || suspended) {
@@ -340,5 +388,8 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         if (workModeId != null && !catalogValidation.workModeExists(workModeId)) {
             throw new WorkModeNotFoundException();
         }
+    }
+
+    private record GeoFilter(UUID departmentId, UUID provinceId, UUID districtId) {
     }
 }

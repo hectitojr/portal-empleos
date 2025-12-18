@@ -21,9 +21,15 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public List<JobSummaryRow> searchSummaries(UUID areaId, UUID sectorId, UUID districtId,
-                                               Boolean disabilityFriendly, Instant fromDate,
-                                               int page, int size) {
+    public List<JobSummaryRow> searchSummaries(UUID areaId,
+                                               UUID sectorId,
+                                               UUID departmentId,
+                                               UUID provinceId,
+                                               UUID districtId,
+                                               Boolean disabilityFriendly,
+                                               Instant fromDate,
+                                               int page,
+                                               int size) {
 
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(size, 1);
@@ -52,30 +58,40 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
                 where jo.suspended = false
                 """);
 
-        var params = new org.springframework.jdbc.core.namedparam.MapSqlParameterSource();
+        var params = new MapSqlParameterSource();
 
         if (areaId != null) {
-            sql.append(" and jo.area_id = :areaId");
+            sql.append(" and jo.area_id = :areaId ");
             params.addValue("areaId", areaId);
         }
         if (sectorId != null) {
-            sql.append(" and jo.sector_id = :sectorId");
+            sql.append(" and jo.sector_id = :sectorId ");
             params.addValue("sectorId", sectorId);
         }
+
+        // Geo filters (determinista): districtId > provinceId > departmentId
         if (districtId != null) {
-            sql.append(" and jo.district_id = :districtId");
+            sql.append(" and jo.district_id = :districtId ");
             params.addValue("districtId", districtId);
+        } else if (provinceId != null) {
+            sql.append(" and d.province_id = :provinceId ");
+            params.addValue("provinceId", provinceId);
+        } else if (departmentId != null) {
+            sql.append(" and d.department_id = :departmentId ");
+            params.addValue("departmentId", departmentId);
         }
+
         if (disabilityFriendly != null) {
-            sql.append(" and jo.disability_friendly = :disabilityFriendly");
+            sql.append(" and jo.disability_friendly = :disabilityFriendly ");
             params.addValue("disabilityFriendly", disabilityFriendly);
         }
         if (fromDate != null) {
-            sql.append(" and jo.published_at >= :fromDate");
+            sql.append(" and jo.published_at >= :fromDate ");
             params.addValue("fromDate", fromDate);
         }
 
         sql.append("""
+                
                 order by jo.published_at desc, jo.id desc
                 offset :offset
                 limit  :limit

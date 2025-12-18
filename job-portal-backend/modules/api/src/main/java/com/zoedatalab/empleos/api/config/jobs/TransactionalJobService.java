@@ -58,10 +58,28 @@ public class TransactionalJobService implements JobCommandService, JobQueryServi
 
     @Override
     @Transactional(readOnly = true)
-    public List<JobSummaryView> search(UUID areaId, UUID sectorId, UUID districtId,
-                                       Boolean disabilityFriendly, Instant fromDate,
-                                       int page, int size) {
-        return qry.search(areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size);
+    public List<JobSummaryView> search(
+            UUID areaId,
+            UUID sectorId,
+            UUID departmentId,
+            UUID provinceId,
+            UUID districtId,
+            Boolean disabilityFriendly,
+            Instant fromDate,
+            int page,
+            int size
+    ) {
+        return qry.search(
+                areaId,
+                sectorId,
+                departmentId,
+                provinceId,
+                districtId,
+                disabilityFriendly,
+                fromDate,
+                page,
+                size
+        );
     }
 
     // -------------------------
@@ -70,13 +88,30 @@ public class TransactionalJobService implements JobCommandService, JobQueryServi
 
     @Override
     @Transactional(readOnly = true)
-    public List<ApplicantJobSummaryView> searchForApplicant(UUID applicantUserId,
-                                                            UUID areaId, UUID sectorId, UUID districtId,
-                                                            Boolean disabilityFriendly, Instant fromDate,
-                                                            int page, int size) {
-
-        return qry.searchForApplicant(applicantUserId, areaId, sectorId, districtId,
-                disabilityFriendly, fromDate, page, size);
+    public List<ApplicantJobSummaryView> searchForApplicant(
+            UUID applicantUserId,
+            UUID areaId,
+            UUID sectorId,
+            UUID departmentId,
+            UUID provinceId,
+            UUID districtId,
+            Boolean disabilityFriendly,
+            Instant fromDate,
+            int page,
+            int size
+    ) {
+        return qry.searchForApplicant(
+                applicantUserId,
+                areaId,
+                sectorId,
+                departmentId,
+                provinceId,
+                districtId,
+                disabilityFriendly,
+                fromDate,
+                page,
+                size
+        );
     }
 
     @Override

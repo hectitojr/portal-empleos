@@ -29,6 +29,8 @@ public class ApplicantJobController {
     public ResponseEntity<List<ApplicantJobSummaryResponse>> searchForApplicant(
             @RequestParam(required = false) UUID areaId,
             @RequestParam(required = false) UUID sectorId,
+            @RequestParam(required = false) UUID departmentId,
+            @RequestParam(required = false) UUID provinceId,
             @RequestParam(required = false) UUID districtId,
             @RequestParam(required = false) Boolean disabilityFriendly,
             @RequestParam(required = false) Instant fromDate,
@@ -38,8 +40,16 @@ public class ApplicantJobController {
         var userId = CurrentUser.idOrThrow();
 
         var list = queries.searchForApplicant(
-                        userId, areaId, sectorId, districtId,
-                        disabilityFriendly, fromDate, page, size
+                        userId,
+                        areaId,
+                        sectorId,
+                        departmentId,
+                        provinceId,
+                        districtId,
+                        disabilityFriendly,
+                        fromDate,
+                        page,
+                        size
                 )
                 .stream()
                 .map(ApplicantJobSummaryResponse::from)

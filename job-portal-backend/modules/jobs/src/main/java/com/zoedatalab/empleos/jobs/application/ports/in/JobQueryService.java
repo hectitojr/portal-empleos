@@ -13,14 +13,30 @@ public interface JobQueryService {
 
     JobDetailView getById(UUID jobId);
 
-    List<JobSummaryView> search(UUID areaId, UUID sectorId, UUID districtId,
-                                Boolean disabilityFriendly, Instant fromDate,
-                                int page, int size);
+    List<JobSummaryView> search(
+            UUID areaId,
+            UUID sectorId,
+            UUID departmentId,
+            UUID provinceId,
+            UUID districtId,
+            Boolean disabilityFriendly,
+            Instant fromDate,
+            int page,
+            int size
+    );
 
     ApplicantJobDetailView getByIdForApplicant(UUID applicantUserId, UUID jobId);
 
-    List<ApplicantJobSummaryView> searchForApplicant(UUID applicantUserId,
-                                                     UUID areaId, UUID sectorId, UUID districtId,
-                                                     Boolean disabilityFriendly, Instant fromDate,
-                                                     int page, int size);
+    List<ApplicantJobSummaryView> searchForApplicant(
+            UUID applicantUserId,
+            UUID areaId,
+            UUID sectorId,
+            UUID departmentId,
+            UUID provinceId,
+            UUID districtId,
+            Boolean disabilityFriendly,
+            Instant fromDate,
+            int page,
+            int size
+    );
 }

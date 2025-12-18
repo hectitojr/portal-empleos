@@ -62,17 +62,17 @@ ALTER TABLE catalog_district
   ON DELETE RESTRICT;
 
 -- Índices para jerarquía geográfica
-CREATE INDEX ix_catalog_province__department
+CREATE INDEX IF NOT EXISTS ix_catalog_province__department
   ON catalog_province(department_id);
 
-CREATE INDEX ix_catalog_district__province
+CREATE INDEX IF NOT EXISTS ix_catalog_district__province
   ON catalog_district(province_id);
 
-CREATE INDEX ix_catalog_district__department
+CREATE INDEX IF NOT EXISTS ix_catalog_district__department
   ON catalog_district(department_id);
 
 -- Índice compuesto para filtros combinados (province + department)
-CREATE INDEX ix_catalog_district__province_department
+CREATE INDEX IF NOT EXISTS ix_catalog_district__province_department
   ON catalog_district (province_id, department_id);
 
 -------------------------

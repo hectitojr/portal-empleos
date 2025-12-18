@@ -7,7 +7,6 @@ import com.zoedatalab.empleos.common.catalogs.exception.SectorNotFoundException;
 import com.zoedatalab.empleos.common.catalogs.exception.WorkModeNotFoundException;
 import com.zoedatalab.empleos.jobs.application.dto.CreateJobCommand;
 import com.zoedatalab.empleos.jobs.application.dto.JobDetailView;
-import com.zoedatalab.empleos.jobs.application.dto.JobSummaryView;
 import com.zoedatalab.empleos.jobs.application.dto.UpdateJobCommand;
 import com.zoedatalab.empleos.jobs.application.ports.out.ApplicantLookupPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
@@ -32,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,7 +40,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -164,7 +166,8 @@ class JobServiceImplTest {
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
 
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false, false));
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false,
+                        false));
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
 
         verify(repo, never()).save(any());
@@ -453,7 +456,7 @@ class JobServiceImplTest {
         verifyNoInteractions(catalogValidation);
     }
 
-    // ---------- GET / SEARCH ----------
+    // ---------- GET ----------
 
     @Test
     void getById_ok() {
@@ -483,23 +486,110 @@ class JobServiceImplTest {
         verifyNoInteractions(catalogValidation);
     }
 
+    // ---------- SEARCH (geo precedence) ----------
+
     @Test
-    void search_mapsCompanyPublicName() {
-        when(jobLocationQueries.searchSummaries(any(), any(), any(), any(), any(), eq(0), eq(10)))
-                .thenReturn(List.of(
-                        sampleSummaryRow(UUID.randomUUID(), companyId, "OPEN", false),
-                        sampleSummaryRow(UUID.randomUUID(), companyId, "OPEN", false)
-                ));
+    void search_prefersDistrict_overProvinceAndDepartment() {
+        UUID depId = UUID.randomUUID();
+        UUID provId = UUID.randomUUID();
+        UUID distId = UUID.randomUUID();
 
-        when(ownership.publicName(companyId)).thenReturn("ACME Corp.");
+        when(jobLocationQueries.searchSummaries(
+                any(), any(),
+                isNull(), isNull(), eq(distId),
+                any(), any(),
+                eq(0), eq(10)
+        )).thenReturn(List.of(sampleSummaryRow(UUID.randomUUID(), companyId, "OPEN", false)));
 
-        List<JobSummaryView> list = service.search(null, null, null, null, null, 0, 10);
+        when(ownership.publicName(companyId)).thenReturn("ACME");
 
-        assertEquals(2, list.size());
-        assertEquals("ACME Corp.", list.get(0).companyPublicName());
-        assertEquals("ACME Corp.", list.get(1).companyPublicName());
+        service.search(null, null, depId, provId, distId, null, null,
+                0, 10);
 
-        verifyNoInteractions(catalogValidation);
+        verify(jobLocationQueries).searchSummaries(
+                isNull(), isNull(),
+                isNull(), isNull(), eq(distId),
+                isNull(), isNull(),
+                eq(0), eq(10)
+        );
+    }
+
+    @Test
+    void search_prefersProvince_overDepartment_whenNoDistrict() {
+        UUID depId = UUID.randomUUID();
+        UUID provId = UUID.randomUUID();
+
+        when(jobLocationQueries.searchSummaries(
+                any(), any(),
+                isNull(), eq(provId), isNull(),
+                any(), any(),
+                eq(0), eq(10)
+        )).thenReturn(List.of(sampleSummaryRow(UUID.randomUUID(), companyId, "OPEN", false)));
+
+        when(ownership.publicName(companyId)).thenReturn("ACME");
+
+        service.search(null, null, depId, provId, null, null, null,
+                0, 10);
+
+        verify(jobLocationQueries).searchSummaries(
+                isNull(), isNull(),
+                isNull(), eq(provId), isNull(),
+                isNull(), isNull(),
+                eq(0), eq(10)
+        );
+    }
+
+    @Test
+    void search_usesDepartment_whenOnlyDepartmentProvided() {
+        UUID depId = UUID.randomUUID();
+
+        when(jobLocationQueries.searchSummaries(
+                any(), any(),
+                eq(depId), isNull(), isNull(),
+                any(), any(),
+                eq(0), eq(10)
+        )).thenReturn(List.of(sampleSummaryRow(UUID.randomUUID(), companyId, "OPEN", false)));
+
+        when(ownership.publicName(companyId)).thenReturn("ACME");
+
+        service.search(null, null, depId, null, null, null, null, 0, 10);
+
+        verify(jobLocationQueries).searchSummaries(
+                isNull(), isNull(),
+                eq(depId), isNull(), isNull(),
+                isNull(), isNull(),
+                eq(0), eq(10)
+        );
+    }
+
+    @Test
+    void searchForApplicant_prefersDistrict_overProvinceAndDepartment() {
+        UUID depId = UUID.randomUUID();
+        UUID provId = UUID.randomUUID();
+        UUID distId = UUID.randomUUID();
+
+        var rowId = UUID.randomUUID();
+
+        when(jobLocationQueries.searchSummaries(
+                any(), any(),
+                isNull(), isNull(), eq(distId),
+                any(), any(),
+                eq(0), eq(10)
+        )).thenReturn(List.of(sampleSummaryRow(rowId, companyId, "OPEN", false)));
+
+        when(applicantLookup.getApplicantIdByUserId(userId)).thenReturn(UUID.randomUUID());
+        when(applicantState.findAppliedJobIds(any(), anyList())).thenReturn(Set.of());
+        when(applicantState.findViewedJobIds(any(), anyList())).thenReturn(Set.of());
+        when(ownership.publicName(companyId)).thenReturn("ACME");
+
+        service.searchForApplicant(userId, null, null, depId, provId, distId, null, null, 0, 10);
+
+        verify(jobLocationQueries).searchSummaries(
+                isNull(), isNull(),
+                isNull(), isNull(), eq(distId),
+                isNull(), isNull(),
+                eq(0), eq(10)
+        );
     }
 
     // ---------- Helpers ----------

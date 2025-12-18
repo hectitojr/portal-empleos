@@ -26,13 +26,18 @@ public class PublicJobController {
     public ResponseEntity<List<JobSummaryResponse>> search(
             @RequestParam(required = false) UUID areaId,
             @RequestParam(required = false) UUID sectorId,
+            @RequestParam(required = false) UUID departmentId,
+            @RequestParam(required = false) UUID provinceId,
             @RequestParam(required = false) UUID districtId,
             @RequestParam(required = false) Boolean disabilityFriendly,
             @RequestParam(required = false) Instant fromDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        var list = queries.search(areaId, sectorId, districtId, disabilityFriendly, fromDate, page, size)
+        var list = queries.search(
+                        areaId, sectorId, departmentId, provinceId, districtId,
+                        disabilityFriendly, fromDate, page, size
+                )
                 .stream()
                 .map(JobSummaryResponse::from)
                 .toList();
