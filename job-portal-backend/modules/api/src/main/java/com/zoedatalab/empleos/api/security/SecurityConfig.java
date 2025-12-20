@@ -49,7 +49,23 @@ public class SecurityConfig {
                 .authorizeHttpRequests(reg -> reg
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // endpoints de auth públicos
+                        // -------------------------
+                        // PUBLIC: HOME + FILTERS
+                        // -------------------------
+                        // Jobs públicos (listado + detalle)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/jobs",
+                                "/api/v1/jobs/*"
+                        ).permitAll()
+
+                        // Catálogos públicos usados por el home y filtros
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/catalogs/**"
+                        ).permitAll()
+
+                        // -------------------------
+                        // PUBLIC: AUTH
+                        // -------------------------
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/register",
                                 "/api/v1/auth/login",
@@ -61,7 +77,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/error").permitAll()
 
-                        // Todo lo demás requiere login, incluyendo GET /api/v1/auth/me
+                        // -------------------------
+                        // PRIVATE: EVERYTHING ELSE
+                        // -------------------------
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
@@ -72,11 +90,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Profile({"dev","test"})
+    @Profile({"dev", "test"})
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOriginPatterns(List.of("*"));
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",

@@ -35,7 +35,7 @@ public class CompanyController {
     @GetMapping
     @PreAuthorize("hasRole('COMPANY')")
     public ResponseEntity<CompanyMeResponse> me() {
-        var u = CurrentUser.idOrThrow(); // ← antes: CurrentUser.id()
+        var u = CurrentUser.idOrThrow();
         var v = query.getMyCompany(u);
         return ResponseEntity.ok(toResp(v));
     }
@@ -43,7 +43,7 @@ public class CompanyController {
     @PutMapping
     @PreAuthorize("hasRole('COMPANY')")
     public ResponseEntity<CompanyMeResponse> upsert(@Valid @RequestBody CompanyUpsertRequest body) {
-        var u = CurrentUser.idOrThrow(); // ← antes: CurrentUser.id()
+        var u = CurrentUser.idOrThrow();
         var cmd = UpsertMyCompanyCommand.builder()
                 .legalName(body.legalName())
                 .taxId(body.taxId())

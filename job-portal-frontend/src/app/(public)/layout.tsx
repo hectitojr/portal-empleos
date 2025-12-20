@@ -4,13 +4,25 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Briefcase } from 'lucide-react';
+
 import { routes } from '@/lib/routes';
 import Footer from '@/app/components/layout/Footer';
+
+import { useMe } from '@/features/iam/hooks/useMe';
+import AccountMenu from '@/features/iam/components/AccountMenu';
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const isLogin = pathname?.startsWith('/auth/login');
+
+  const { data: me } = useMe();
+
+  const role = (me as any)?.role as
+    | 'APPLICANT'
+    | 'COMPANY'
+    | 'ADMIN'
+    | undefined;
 
   const [activeHash, setActiveHash] = useState<string>(
     typeof window !== 'undefined' ? window.location.hash : ''
@@ -32,7 +44,6 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
-
       <header
         className="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm"
         role="banner"
@@ -81,29 +92,41 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-stretch space-x-6">
-            {!isLogin && (
-              <button
-                onClick={() => {
-                  const next = encodeURIComponent(pathname || '/');
-                  router.push(`/auth/login?next=${next}`);
-                }}
-                className={`${itemBase} ${
-                  pathname === '/auth/login' ? itemActive : itemIdle
-                }`}
-              >
-                Iniciar sesión
-              </button>
-            )}
+            {me?.email ? (
+              <AccountMenu
+                email={me.email}
+                variant={(role ?? 'APPLICANT') as any}
+                jobsHref={
+                  (role === 'COMPANY'
+                    ? routes.dashboard.company.home
+                    : routes.dashboard.applicant.home) as any
+                }
+                showPublishCta={role === 'COMPANY'}
+              />
+            ) : (
+              !isLogin && (
+                <>
+                  <button
+                    onClick={() => {
+                      const next = encodeURIComponent(pathname || '/');
+                      router.push(`/auth/login?next=${next}`);
+                    }}
+                    className={`${itemBase} ${
+                      pathname === '/auth/login' ? itemActive : itemIdle
+                    }`}
+                  >
+                    Iniciar sesión
+                  </button>
 
-            {!isLogin && (
-              <>
-                <span className="hidden md:inline-flex items-center h-16 text-slate-300">
-                  |
-                </span>
-                <a href="#publicar" className={`${itemBase} ${itemIdle}`}>
-                  Publicar empleos
-                </a>
-              </>
+                  <span className="hidden md:inline-flex items-center h-16 text-slate-300">
+                    |
+                  </span>
+
+                  <a href="#publicar" className={`${itemBase} ${itemIdle}`}>
+                    Publicar empleos
+                  </a>
+                </>
+              )
             )}
           </div>
         </div>

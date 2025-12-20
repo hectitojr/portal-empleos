@@ -39,4 +39,13 @@ public interface JobQueryService {
             int page,
             int size
     );
+
+    List<JobSummaryView> searchForCompany(
+            UUID companyUserId,
+            String q,
+            String status,
+            Instant fromDate,
+            int page,
+            int size
+    );
 }

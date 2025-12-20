@@ -83,6 +83,23 @@ public class TransactionalJobService implements JobCommandService, JobQueryServi
     }
 
     // -------------------------
+    // Queries company logueado
+    // -------------------------
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobSummaryView> searchForCompany(
+            UUID companyUserId,
+            String q,
+            String status,
+            Instant fromDate,
+            int page,
+            int size
+    ) {
+        return qry.searchForCompany(companyUserId, q, status, fromDate, page, size);
+    }
+
+    // -------------------------
     // Queries applicant logueado
     // -------------------------
 

@@ -1,5 +1,6 @@
 package com.zoedatalab.empleos.api.config.catalogs;
 
+import com.zoedatalab.empleos.catalogs.application.dto.DistrictResolveView;
 import com.zoedatalab.empleos.catalogs.application.dto.GeoItemView;
 import com.zoedatalab.empleos.catalogs.application.ports.in.GeoCatalogQueryService;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,5 +32,11 @@ public class TransactionalGeoCatalogQueryService implements GeoCatalogQueryServi
     @Transactional(readOnly = true)
     public List<GeoItemView> getDistrictsByProvince(UUID provinceId) {
         return delegate.getDistrictsByProvince(provinceId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DistrictResolveView resolveDistrict(UUID districtId) {
+        return delegate.resolveDistrict(districtId);
     }
 }

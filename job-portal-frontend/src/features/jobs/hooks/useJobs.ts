@@ -80,10 +80,13 @@ export function usePublicJobs(params?: {
   size?: number;
   areaId?: string;
   sectorId?: string;
+  departmentId?: string;
+  provinceId?: string;
   districtId?: string;
   disabilityFriendly?: boolean;
   fromDate?: string;
 }) {
+
   const catalogs = useJobCatalogs();
 
   const query = useQuery<PublicJobSummaryResponse[], ApiError>({
@@ -114,10 +117,13 @@ export function useApplicantJobs(params?: {
   size?: number;
   areaId?: string;
   sectorId?: string;
+  departmentId?: string;
+  provinceId?: string;
   districtId?: string;
   disabilityFriendly?: boolean;
   fromDate?: string;
 }) {
+
   const catalogs = useJobCatalogs();
 
   const query = useQuery<ApplicantJobSummaryResponse[], ApiError>({

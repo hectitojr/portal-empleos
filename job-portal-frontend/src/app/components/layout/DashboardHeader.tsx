@@ -21,10 +21,16 @@ export default function DashboardHeader() {
   const userEmail = me?.email ?? '';
 
   const isApplicant =
-    pathname.startsWith('/dashboard/applicant') || pathname === '/applicant';
+    pathname === '/applicant' ||
+    pathname.startsWith('/applicant/') ||
+    pathname.startsWith('/me/applicant');
+
   const isCompany =
-    pathname.startsWith('/dashboard/company') || pathname === '/company';
-  const isAdmin = pathname.startsWith('/dashboard/admin');
+    pathname === '/company' ||
+    pathname.startsWith('/company/') ||
+    pathname.startsWith('/me/company');
+
+  const isAdmin = pathname === '/dashboard/admin' || pathname.startsWith('/dashboard/admin/');
 
   const [activeHash, setActiveHash] = useState<string>(
     typeof window !== 'undefined' ? window.location.hash : ''
@@ -45,32 +51,26 @@ export default function DashboardHeader() {
     return () => window.removeEventListener('hashchange', sync);
   }, [isApplicant]);
 
-  const itemBase =
-    'inline-flex h-16 items-center border-b-2 transition-colors px-1';
-  const itemIdle =
-    'border-transparent text-[#595959] hover:text-[#2d2d2d] hover:border-[#2557a7]';
+  const itemBase = 'inline-flex h-16 items-center border-b-2 transition-colors px-1';
+  const itemIdle = 'border-transparent text-[#595959] hover:text-[#2d2d2d] hover:border-[#2557a7]';
   const itemActive = 'border-[#2557a7] text-[#2d2d2d]';
 
-  const inicioActive = useMemo(
-    () =>
-      pathname === routes.dashboard.applicant.home ||
-      pathname === `${routes.dashboard.applicant.home}/`,
-    [pathname]
-  );
+  const inicioActive = useMemo(() => pathname === routes.dashboard.applicant.home, [pathname]);
 
   const empresasActive = activeHash === '#empresas';
 
   const applicantActiveKey = useMemo(() => {
-    if (pathname.startsWith('/applicant/messages') || activeHash === '#mensajes')
-      return 'messages';
-    if (
-      pathname.startsWith('/applicant/notifications') ||
-      activeHash === '#notificaciones'
-    )
+    if (pathname.startsWith('/applicant/messages') || activeHash === '#mensajes') return 'messages';
+    if (pathname.startsWith('/applicant/notifications') || activeHash === '#notificaciones')
       return 'notifications';
     if (pathname.startsWith('/me/applicant')) return 'account';
     return 'jobs';
   }, [pathname, activeHash]);
+
+  const companyActiveKey = useMemo(() => {
+    if (pathname.startsWith('/me/company')) return 'account';
+    return 'jobs';
+  }, [pathname]);
 
   async function handleLogout() {
     await logoutReq();
@@ -87,13 +87,17 @@ export default function DashboardHeader() {
             onClick={() => router.push(routes.dashboard.me)}
             className="flex items-center space-x-2 h-16"
             aria-label="Ir al inicio"
+            type="button"
           >
             <Briefcase className="w-6 h-6 text-blue-600" aria-hidden="true" />
             <span className="text-2xl font-bold text-blue-600">EmpleosPeru</span>
           </button>
 
           {isApplicant && (
-            <nav className="hidden md:flex items-stretch space-x-6" aria-label="Navegación Applicant">
+            <nav
+              className="hidden md:flex items-stretch space-x-6"
+              aria-label="Navegación Applicant"
+            >
               <Link
                 href={routes.dashboard.applicant.home as Route}
                 aria-current={inicioActive ? 'page' : undefined}
@@ -122,6 +126,7 @@ export default function DashboardHeader() {
               >
                 Panel empresa
               </Link>
+
               <Link
                 href={routes.dashboard.company.jobs as Route}
                 className={`${itemBase} ${
@@ -142,7 +147,7 @@ export default function DashboardHeader() {
           )}
         </div>
 
-        {isApplicant ? (
+        {isApplicant && (
           <AccountMenu
             email={userEmail}
             variant="APPLICANT"
@@ -151,15 +156,34 @@ export default function DashboardHeader() {
             messagesHref={'/applicant/messages' as Route}
             notificationsHref={'/applicant/notifications' as Route}
             accountHref={routes.dashboard.applicant.profileSetup}
-            showPublishCta
+            settingsHref={'/me/applicant/settings' as Route}
+            showPublishCta={false}
             onLogout={handleLogout}
           />
-        ) : (
+        )}
+
+        {isCompany && (
+          <AccountMenu
+            email={userEmail}
+            variant="COMPANY"
+            activeKey={companyActiveKey}
+            jobsHref={routes.dashboard.company.jobs}
+            notificationsHref={'/company/notifications' as Route}
+            accountHref={routes.dashboard.company.profileSetup}
+            settingsHref={'/me/company/settings' as Route}
+            showPublishCta
+            publishHref={'/company/jobs/new' as Route}
+            onLogout={handleLogout}
+          />
+        )}
+
+        {isAdmin && (
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <span className="hidden sm:inline">{userEmail}</span>
             <button
               onClick={handleLogout}
               className="text-blue-700 hover:text-blue-800 font-medium"
+              type="button"
             >
               Cerrar sesión
             </button>

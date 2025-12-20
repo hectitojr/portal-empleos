@@ -2,18 +2,19 @@
 
 import { useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Route } from 'next';
 import { ArrowLeft } from 'lucide-react';
 
 type Props = {
   className?: string;
   /** A dónde ir si no hay historial válido */
-  fallbackPath?: string; // default: '/'
-  label?: string;        // default: 'Volver'
+  fallbackPath?: Route; // default: '/'
+  label?: string;       // default: 'Volver'
 };
 
 export default function BackButton({
   className = '',
-  fallbackPath = '/',
+  fallbackPath = '/' as Route,
   label = 'Volver',
 }: Props) {
   const router = useRouter();

@@ -1,8 +1,10 @@
 package com.zoedatalab.empleos.catalogs.application.service;
 
+import com.zoedatalab.empleos.catalogs.application.dto.DistrictResolveView;
 import com.zoedatalab.empleos.catalogs.application.dto.GeoItemView;
 import com.zoedatalab.empleos.catalogs.application.ports.in.GeoCatalogQueryService;
 import com.zoedatalab.empleos.catalogs.application.ports.out.GeoCatalogQueryPort;
+import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -33,4 +35,13 @@ public class GeoCatalogQueryServiceImpl implements GeoCatalogQueryService {
                 .map(i -> new GeoItemView(i.id(), i.name()))
                 .toList();
     }
+
+    @Override
+    public DistrictResolveView resolveDistrict(UUID districtId) {
+        var r = port.findActiveDistrictResolve(districtId)
+                .orElseThrow(DistrictNotFoundException::new);
+
+        return new DistrictResolveView(r.id(), r.name(), r.provinceId(), r.departmentId());
+    }
+
 }

@@ -26,12 +26,22 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
         return s != null && !s.trim().isEmpty();
     }
 
-    private static String trimOr(String base, String cand) {
-        return cand == null ? base : cand.trim();
+    private static String trimToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 
-    private static String trimLowerOr(String base, String cand) {
-        return cand == null ? base : cand.trim().toLowerCase();
+    private static String trimLowerToNull(String s) {
+        String t = trimToNull(s);
+        return t == null ? null : t.toLowerCase();
+    }
+
+    private static String digitsOnlyToNull(String s) {
+        String t = trimToNull(s);
+        if (t == null) return null;
+        String digits = t.replaceAll("\\D+", "");
+        return digits.isEmpty() ? null : digits;
     }
 
     private static CompanyView toView(Company c) {
@@ -58,12 +68,25 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
     public CompanyView upsertMyCompany(UUID userId, UpsertMyCompanyCommand cmd) {
         var existing = repo.findByUserId(userId).orElse(null);
 
-        var legalName = trimOr(existing != null ? existing.getLegalName() : null, cmd.legalName());
-        var taxId = trimOr(existing != null ? existing.getTaxId() : null, cmd.taxId());
-        var contactEmail = trimLowerOr(existing != null ? existing.getContactEmail() : null, cmd.contactEmail());
-        var contactPhone = trimOr(existing != null ? existing.getContactPhone() : null, cmd.contactPhone());
-        var districtId = (cmd.districtId() != null ? cmd.districtId()
-                : (existing != null ? existing.getDistrictId() : null));
+        var legalName = (cmd.legalName() != null)
+                ? trimToNull(cmd.legalName())
+                : (existing != null ? existing.getLegalName() : null);
+
+        var taxId = (cmd.taxId() != null)
+                ? digitsOnlyToNull(cmd.taxId())
+                : (existing != null ? existing.getTaxId() : null);
+
+        var contactEmail = (cmd.contactEmail() != null)
+                ? trimLowerToNull(cmd.contactEmail())
+                : (existing != null ? existing.getContactEmail() : null);
+
+        var contactPhone = (cmd.contactPhone() != null)
+                ? trimToNull(cmd.contactPhone())
+                : (existing != null ? existing.getContactPhone() : null);
+
+        var districtId = (cmd.districtId() != null)
+                ? cmd.districtId()
+                : (existing != null ? existing.getDistrictId() : null);
 
         if (districtId != null) {
             boolean changed = (existing == null) || !districtId.equals(existing.getDistrictId());
@@ -71,7 +94,7 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
                 throw new DistrictNotFoundException();
             }
         }
-
+        
         if (taxId != null && !taxId.isBlank()) {
             boolean usedByOther = repo.existsByTaxIdIgnoreCaseAndUserIdNot(taxId, userId);
             if (usedByOther) {
@@ -79,7 +102,11 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
             }
         }
 
-        var profileComplete = isFilled(legalName) && isFilled(contactEmail);
+        var profileComplete =
+                isFilled(legalName)
+                        && isFilled(taxId)
+                        && isFilled(contactEmail)
+                        && (districtId != null);
 
         var now = clock.now();
 

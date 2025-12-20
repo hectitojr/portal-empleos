@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Bookmark,
   MessageSquare,
@@ -14,21 +14,26 @@ import {
   HelpCircle,
   LogOut,
   Settings,
+  Users,
 } from 'lucide-react';
 import { logoutReq } from '@/features/iam/api/authClient';
 import { routes } from '@/lib/routes';
 
 type RoleVariant = 'APPLICANT' | 'COMPANY' | 'ADMIN';
-type MenuKey = 'jobs' | 'messages' | 'notifications' | 'account';
+type MenuKey = 'jobs' | 'applications' | 'messages' | 'notifications' | 'account';
 
 type Props = {
   email: string;
   variant?: RoleVariant;
   activeKey?: MenuKey;
+
   jobsHref?: Route;
+  applicationsHref?: Route;
   messagesHref?: Route;
   notificationsHref?: Route;
   accountHref?: Route;
+  settingsHref?: Route;
+
   showPublishCta?: boolean;
   publishHref?: Route;
 
@@ -59,7 +64,9 @@ function HeaderIconButton({
         hover:after:scale-x-100 ${active ? 'after:scale-x-100' : ''}
       `}
     >
-      <div className="w-10 h-10 flex items-center justify-center rounded-full">{children}</div>
+      <div className="w-10 h-10 flex items-center justify-center rounded-full">
+        {children}
+      </div>
 
       {showTooltip && (
         <div
@@ -82,17 +89,53 @@ export default function AccountMenu({
   email,
   variant = 'APPLICANT',
   activeKey,
-  jobsHref = '/applicant' as Route,
-  messagesHref = '/applicant#mensajes' as Route,
-  notificationsHref = '/applicant#notificaciones' as Route,
-  accountHref = '/me/applicant/profile/setup' as Route,
-  showPublishCta = true,
-  publishHref = '/dashboard/company/jobs/new' as Route,
+
+  jobsHref,
+  applicationsHref,
+  messagesHref,
+  notificationsHref,
+  accountHref,
+  settingsHref,
+
+  showPublishCta,
+  publishHref,
 
   onLogout,
 }: Props) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const isApplicant = variant === 'APPLICANT';
+  const isCompany = variant === 'COMPANY';
+
+  const computedJobsHref =
+    jobsHref ??
+    (isCompany ? routes.dashboard.company.jobs : routes.dashboard.applicant.home);
+
+  const computedApplicationsHref = applicationsHref;
+
+  const computedMessagesHref = messagesHref ?? ('/applicant#mensajes' as Route);
+  const computedNotificationsHref =
+    notificationsHref ??
+    (isCompany ? ('/company/notifications' as Route) : ('/applicant#notificaciones' as Route));
+
+  const computedAccountHref =
+    accountHref ??
+    (isCompany ? routes.dashboard.company.profileSetup : routes.dashboard.applicant.profileSetup);
+
+  const computedSettingsHref =
+    settingsHref ??
+    (isCompany
+      ? ('/me/company/settings' as Route)
+      : ('/me/applicant/settings' as Route));
+
+  const computedShowPublishCta = showPublishCta ?? isCompany;
+  const computedPublishHref = publishHref ?? ('/company/jobs/new' as Route);
 
   async function handleLogout() {
     try {
@@ -104,31 +147,57 @@ export default function AccountMenu({
     }
   }
 
-  const itemBase = 'inline-flex h-16 items-center border-b-2 transition-colors px-1';
-  const itemIdle = 'border-transparent text-[#595959] hover:text-[#2d2d2d] hover:border-[#2557a7]';
+  const itemBase =
+    'inline-flex h-16 items-center border-b-2 transition-colors px-1';
+  const itemIdle =
+    'border-transparent text-[#595959] hover:text-[#2d2d2d] hover:border-[#2557a7]';
 
   return (
     <div className="flex items-center gap-4">
-
       <div className="flex items-stretch gap-1">
-        <Link href={jobsHref} className="inline-flex items-stretch">
-          <HeaderIconButton label="Mis empleos" active={activeKey === 'jobs'}>
+
+        <Link href={computedJobsHref} className="inline-flex items-stretch">
+          <HeaderIconButton
+            label={isCompany ? 'Mis ofertas' : 'Mis empleos'}
+            active={activeKey === 'jobs'}
+          >
             <Bookmark className="w-5 h-5" />
           </HeaderIconButton>
         </Link>
 
-        <Link href={messagesHref} className="inline-flex items-stretch">
-          <HeaderIconButton label="Mensajes" active={activeKey === 'messages'}>
-            <MessageSquare className="w-5 h-5" />
-          </HeaderIconButton>
-        </Link>
+        {isCompany && computedApplicationsHref && (
+          <Link href={computedApplicationsHref} className="inline-flex items-stretch">
+            <HeaderIconButton
+              label="Postulaciones"
+              active={activeKey === 'applications'}
+            >
+              <Users className="w-5 h-5" />
+            </HeaderIconButton>
+          </Link>
+        )}
 
-        <Link href={notificationsHref} className="inline-flex items-stretch">
-          <HeaderIconButton label="Notificaciones" active={activeKey === 'notifications'}>
+        {isApplicant && (
+          <Link href={computedMessagesHref} className="inline-flex items-stretch">
+            <HeaderIconButton
+              label="Mensajes"
+              active={activeKey === 'messages'}
+            >
+              <MessageSquare className="w-5 h-5" />
+            </HeaderIconButton>
+          </Link>
+        )}
+
+        {/* Notificaciones */}
+        <Link href={computedNotificationsHref} className="inline-flex items-stretch">
+          <HeaderIconButton
+            label="Notificaciones"
+            active={activeKey === 'notifications'}
+          >
             <Bell className="w-5 h-5" />
           </HeaderIconButton>
         </Link>
 
+        {/* Cuenta */}
         <div className="relative flex items-stretch">
           <button
             type="button"
@@ -147,7 +216,10 @@ export default function AccountMenu({
           </button>
 
           {open && (
-            <div className="absolute right-0 top-full mt-4 w-72 z-[60]" role="menu">
+            <div
+              className="absolute right-0 top-full mt-4 w-72 z-[60]"
+              role="menu"
+            >
               <div
                 className="
                   absolute right-7 -top-3
@@ -170,13 +242,16 @@ export default function AccountMenu({
 
               <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
                 <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{email}</p>
+                  <p className="text-sm font-semibold text-slate-900 truncate">
+                    {email}
+                  </p>
                 </div>
 
                 <nav className="py-2 text-sm text-slate-700">
                   <Link
-                    href={accountHref}
+                    href={computedAccountHref}
                     className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
                   >
                     <FileText className="w-4 h-4 text-slate-500" />
                     <span>Perfil</span>
@@ -191,16 +266,18 @@ export default function AccountMenu({
                   </button>
 
                   <Link
-                    href={'/me/applicant/settings' as Route}
+                    href={computedSettingsHref}
                     className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
                   >
                     <Settings className="w-4 h-4 text-slate-500" />
                     <span>Configuración</span>
                   </Link>
 
                   <Link
-                    href="/ayuda"
+                    href={routes.public.help}
                     className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
                   >
                     <HelpCircle className="w-4 h-4 text-slate-500" />
                     <span>Ayuda</span>
@@ -230,11 +307,13 @@ export default function AccountMenu({
         </div>
       </div>
 
-      {showPublishCta && (
+      {computedShowPublishCta && (
         <>
-          <span className="hidden md:inline-flex items-center h-16 text-slate-300">|</span>
+          <span className="hidden md:inline-flex items-center h-16 text-slate-300">
+            |
+          </span>
 
-          <Link href={publishHref} className={`${itemBase} ${itemIdle}`}>
+          <Link href={computedPublishHref} className={`${itemBase} ${itemIdle}`}>
             Publicar empleos
           </Link>
         </>

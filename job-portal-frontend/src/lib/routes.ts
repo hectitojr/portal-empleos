@@ -19,7 +19,6 @@ export const routes = {
 
   dashboard: {
     me: '/me' as Route,
-    applications: '/applications' as Route,
 
     applicant: {
       home: '/applicant' as Route,
@@ -29,7 +28,15 @@ export const routes = {
     company: {
       home: '/company' as Route,
       profileSetup: '/me/company/profile/setup' as Route,
+
       jobs: '/company/jobs' as Route,
+      jobNew: '/company/jobs/new' as Route,
+
+      applications: '/company/applications' as Route,
+      notifications: '/company/notifications' as Route,
+
+      settings: '/me/company/settings' as Route,
+
       jobApplications: (id: string) =>
         `/company/jobs/${id}/applications` as Route,
     },

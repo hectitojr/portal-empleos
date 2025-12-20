@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
-import { backendFetch } from '../../_lib/http';
+import { backendFetch } from '@/app/api/_lib/http';
 
-export async function GET() {
-  const res = await backendFetch('/api/v1/catalogs/districts');
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const provinceId = url.searchParams.get('provinceId');
 
-  const payload = await res.json().catch(() => []);
-  return NextResponse.json(payload, { status: res.status });
+  const qs = provinceId ? `?provinceId=${encodeURIComponent(provinceId)}` : '';
+  const res = await backendFetch(`/api/v1/catalogs/districts${qs}`, { retryOn401: true });
+
+  const text = await res.text();
+  return new Response(text, { status: res.status, headers: { 'Content-Type': 'application/json' } });
 }

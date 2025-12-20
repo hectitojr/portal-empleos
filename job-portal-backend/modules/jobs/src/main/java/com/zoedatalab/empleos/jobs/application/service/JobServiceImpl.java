@@ -47,12 +47,6 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
     // -------------------------
     // Geo filter normalization
     // -------------------------
-
-    /**
-     * Precedencia: districtId > provinceId > departmentId
-     * - si llega districtId, se ignoran provinceId y departmentId
-     * - si llega provinceId, se ignora departmentId
-     */
     private GeoFilter normalizeGeo(UUID departmentId, UUID provinceId, UUID districtId) {
         if (districtId != null) return new GeoFilter(null, null, districtId);
         if (provinceId != null) return new GeoFilter(null, provinceId, null);
@@ -218,6 +212,70 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                             r.districtId(),
                             r.provinceName(),
                             r.districtName(),
+                            r.departmentName(),
+                            r.disabilityFriendly(),
+                            r.employmentTypeId(),
+                            r.workModeId(),
+                            r.salaryText(),
+                            active,
+                            false,
+                            false,
+                            quickText,
+                            r.status(),
+                            r.publishedAt()
+                    );
+                })
+                .toList();
+    }
+
+    // -------------------------
+    // Queries company (mis ofertas)
+    // -------------------------
+
+    @Override
+    public List<JobSummaryView> searchForCompany(UUID companyUserId,
+                                                 String q,
+                                                 String status,
+                                                 Instant fromDate,
+                                                 int page,
+                                                 int size) {
+
+        var own = ownership.getForUser(companyUserId);
+        if (own.companyId() == null || !own.active() || !own.profileComplete()) {
+            throw new CompanyIncompleteException();
+        }
+
+        var rows = jobLocationQueries.searchCompanySummaries(
+                own.companyId(),
+                q,
+                status,
+                fromDate,
+                page,
+                size
+        );
+
+        return rows.stream()
+                .map(r -> {
+                    boolean active = isActive(r.status(), r.suspended());
+
+                    String quickText = null;
+
+                    if (r.suspended()) {
+                        quickText = "Oferta suspendida temporalmente";
+                    } else if ("CLOSED".equals(r.status())) {
+                        quickText = "Ya no se aceptan postulaciones";
+                    }
+
+                    return new JobSummaryView(
+                            r.id(),
+                            r.title(),
+                            r.companyId(),
+                            ownership.publicName(r.companyId()),
+                            r.sectorId(),
+                            r.districtId(),
+                            r.provinceName(),
+                            r.districtName(),
+                            r.departmentName(),
                             r.disabilityFriendly(),
                             r.employmentTypeId(),
                             r.workModeId(),

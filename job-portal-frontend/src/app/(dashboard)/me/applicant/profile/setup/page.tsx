@@ -13,8 +13,8 @@ export default function ApplicantProfileSetupPage() {
         </header>
 
         <p className="text-sm text-slate-500">
-          (Placeholder inicial) Más adelante aquí conectaremos los formularios
-          reales del módulo <strong>applicants</strong> de tu backend.
+          Más adelante aquí conectaremos los formularios
+          reales del módulo <strong>applicants</strong> del backend.
         </p>
       </div>
     </section>

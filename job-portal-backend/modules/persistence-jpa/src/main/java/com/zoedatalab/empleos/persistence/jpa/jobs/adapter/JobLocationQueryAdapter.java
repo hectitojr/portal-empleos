@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -19,21 +20,29 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
 
     private final NamedParameterJdbcTemplate jdbc;
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<JobSummaryRow> searchSummaries(UUID areaId,
-                                               UUID sectorId,
-                                               UUID departmentId,
-                                               UUID provinceId,
-                                               UUID districtId,
-                                               Boolean disabilityFriendly,
-                                               Instant fromDate,
-                                               int page,
-                                               int size) {
+    // -------------------------
+    // Helpers SQL
+    // -------------------------
 
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.max(size, 1);
+    private static void applyFromDateFilter(StringBuilder sql, MapSqlParameterSource params, Instant fromDate) {
+        if (fromDate != null) {
+            sql.append(" and jo.published_at >= :fromDate ");
+            params.addValue("fromDate", fromDate);
+        }
+    }
 
+    private static void applyPaging(StringBuilder sql, MapSqlParameterSource params, int safePage, int safeSize) {
+        sql.append("""
+                
+                order by jo.published_at desc, jo.id desc
+                offset :offset
+                limit  :limit
+                """);
+        params.addValue("offset", safePage * safeSize);
+        params.addValue("limit", safeSize);
+    }
+    
+    private static StringBuilder baseSummarySql(boolean onlyNotSuspended) {
         var sql = new StringBuilder("""
                 select
                   jo.id,
@@ -55,9 +64,41 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
                 left join catalog_district d on d.id = jo.district_id
                 left join catalog_province p on p.id = d.province_id
                 left join catalog_department dep on dep.id = d.department_id
-                where jo.suspended = false
+                where 1=1
                 """);
 
+        if (onlyNotSuspended) {
+            sql.append(" and jo.suspended = false ");
+        }
+
+        return sql;
+    }
+
+    // -------------------------
+    // Queries
+    // -------------------------
+
+    private static Instant toInstant(Timestamp ts) {
+        return ts == null ? null : ts.toInstant();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobSummaryRow> searchSummaries(
+            UUID areaId,
+            UUID sectorId,
+            UUID departmentId,
+            UUID provinceId,
+            UUID districtId,
+            Boolean disabilityFriendly,
+            Instant fromDate,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+
+        var sql = baseSummarySql(true);
         var params = new MapSqlParameterSource();
 
         if (areaId != null) {
@@ -69,7 +110,7 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
             params.addValue("sectorId", sectorId);
         }
 
-        // Geo filters (determinista): districtId > provinceId > departmentId
+        // Geo determinista: district > province > department
         if (districtId != null) {
             sql.append(" and jo.district_id = :districtId ");
             params.addValue("districtId", districtId);
@@ -85,23 +126,51 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
             sql.append(" and jo.disability_friendly = :disabilityFriendly ");
             params.addValue("disabilityFriendly", disabilityFriendly);
         }
-        if (fromDate != null) {
-            sql.append(" and jo.published_at >= :fromDate ");
-            params.addValue("fromDate", fromDate);
-        }
 
-        sql.append("""
-                
-                order by jo.published_at desc, jo.id desc
-                offset :offset
-                limit  :limit
-                """);
-
-        params.addValue("offset", safePage * safeSize);
-        params.addValue("limit", safeSize);
+        applyFromDateFilter(sql, params, fromDate);
+        applyPaging(sql, params, safePage, safeSize);
 
         return jdbc.query(sql.toString(), params, (rs, rowNum) -> mapSummary(rs));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobSummaryRow> searchCompanySummaries(
+            UUID companyId,
+            String q,
+            String status,
+            Instant fromDate,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+
+        var sql = baseSummarySql(false);
+        var params = new MapSqlParameterSource();
+
+        sql.append(" and jo.company_id = :companyId ");
+        params.addValue("companyId", companyId);
+
+        if (q != null && !q.isBlank()) {
+            sql.append(" and lower(jo.title) like :q ");
+            params.addValue("q", "%" + q.trim().toLowerCase() + "%");
+        }
+
+        if (status != null && !status.isBlank()) {
+            sql.append(" and jo.status = :status ");
+            params.addValue("status", status.trim().toUpperCase());
+        }
+
+        applyFromDateFilter(sql, params, fromDate);
+        applyPaging(sql, params, safePage, safeSize);
+
+        return jdbc.query(sql.toString(), params, (rs, rowNum) -> mapSummary(rs));
+    }
+
+    // -------------------------
+    // Mappers
+    // -------------------------
 
     @Override
     @Transactional(readOnly = true)
@@ -151,7 +220,7 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
                 rs.getObject("work_mode_id", UUID.class),
                 rs.getString("salary_text"),
                 rs.getString("status"),
-                rs.getTimestamp("published_at").toInstant(),
+                toInstant(rs.getTimestamp("published_at")),
                 rs.getBoolean("suspended")
         );
     }
@@ -173,7 +242,7 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
                 rs.getObject("work_mode_id", UUID.class),
                 rs.getString("salary_text"),
                 rs.getString("status"),
-                rs.getTimestamp("published_at").toInstant(),
+                toInstant(rs.getTimestamp("published_at")),
                 rs.getBoolean("suspended")
         );
     }

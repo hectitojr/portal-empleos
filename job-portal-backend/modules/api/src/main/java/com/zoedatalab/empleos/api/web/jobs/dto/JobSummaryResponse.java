@@ -11,6 +11,7 @@ public record JobSummaryResponse(
         String companyName,
         UUID sectorId,
         UUID districtId,
+        String departmentName,
         String provinceName,
         String districtName,
         boolean disabilityFriendly,
@@ -31,6 +32,7 @@ public record JobSummaryResponse(
                 v.companyPublicName(),
                 v.sectorId(),
                 v.districtId(),
+                v.departmentName(),
                 v.provinceName(),
                 v.districtName(),
                 v.disabilityFriendly(),
@@ -46,3 +48,4 @@ public record JobSummaryResponse(
         );
     }
 }
+

@@ -37,6 +37,8 @@ export function humanize(code?: ApiErrorCode | string): string {
       return 'La sesión expiró. Vuelve a iniciar sesión.';
     case 'TOKEN_INVALID':
       return 'Token inválido. Vuelve a iniciar sesión.';
+    case 'UNAUTHENTICATED':
+      return 'No autenticado. Vuelve a iniciar sesión.';
     case 'USER_SUSPENDED':
       return 'La cuenta está suspendida.';
     case 'RESET_TOKEN_INVALID':
@@ -45,6 +47,18 @@ export function humanize(code?: ApiErrorCode | string): string {
       return 'El enlace de restablecimiento ha expirado. Solicita uno nuevo.';
     case 'FORBIDDEN':
       return 'Acceso no permitido.';
+
+    // Companies
+    case 'COMPANY_NOT_FOUND':
+      return 'La empresa no existe.';
+    case 'COMPANY_TAX_ID_ALREADY_EXISTS':
+      return 'El RUC ya está asociado a otra cuenta.';
+    case 'COMPANY_INCOMPLETE':
+      return 'Completa la ficha de empresa.';
+    case 'DISTRICT_NOT_FOUND':
+      return 'El distrito no existe.';
+
+    // Jobs / Applications
     case 'JOB_NOT_FOUND':
       return 'La oferta de trabajo no existe o ya no está disponible.';
     case 'JOB_CLOSED':
@@ -56,6 +70,7 @@ export function humanize(code?: ApiErrorCode | string): string {
     case 'VALIDATION_ERROR':
     case 'CONSTRAINT_VIOLATION':
       return 'Revisa los campos del formulario.';
+
     default:
       return 'Ocurrió un error. Intenta nuevamente.';
   }
