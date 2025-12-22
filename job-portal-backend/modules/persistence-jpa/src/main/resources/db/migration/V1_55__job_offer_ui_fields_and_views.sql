@@ -1,34 +1,13 @@
 -- File: V1_55__job_offer_ui_fields_and_views.sql
--- Title: JobOffers UI fields + JobOfferViews (applicant -> job)
--- Purpose: Agregar campos necesarios para UI de ofertas
---          y persistir vistas cross-device por postulante.
+-- Title: JobOfferViews (applicant -> job)
+-- Purpose:
+--   - Persistir vistas cross-device por postulante (job_offer_views)
 -- Author: ZOEDATA_LAB | Date: 2025-11-24
 -- Notes:
---   - Requiere que catalog_employment_type y catalog_work_mode existan antes.
---   - No incluye índices de búsqueda (ver V1_56__job_offers_indexes.sql).
+--   - Requiere applicants (V1_40) y job_offers (V1_50).
 
 -------------------------
--- 1) Campos UI en job_offers
--------------------------
-
-ALTER TABLE job_offers
-  ADD COLUMN employment_type_id UUID NULL
-    REFERENCES catalog_employment_type(id) ON DELETE SET NULL,
-  ADD COLUMN work_mode_id UUID NULL
-    REFERENCES catalog_work_mode(id) ON DELETE SET NULL,
-  ADD COLUMN salary_text TEXT NULL;
-
-COMMENT ON COLUMN job_offers.employment_type_id
-  IS 'Catálogo tipo de empleo (full-time, part-time, contrato, prácticas, etc.).';
-
-COMMENT ON COLUMN job_offers.work_mode_id
-  IS 'Catálogo modalidad de trabajo (presencial, remoto, híbrido, campo).';
-
-COMMENT ON COLUMN job_offers.salary_text
-  IS 'Texto libre para salario/beneficios mostrado en UI.';
-
--------------------------
--- 2) Vistas de ofertas por postulante (cross-device)
+-- 1) Vistas de ofertas por postulante (cross-device)
 -------------------------
 
 CREATE TABLE job_offer_views (

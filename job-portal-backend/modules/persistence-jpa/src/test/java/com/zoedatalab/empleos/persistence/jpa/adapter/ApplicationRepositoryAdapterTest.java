@@ -4,7 +4,6 @@ import com.zoedatalab.empleos.applications.domain.Application;
 import com.zoedatalab.empleos.persistence.jpa.TestDataSeeder;
 import com.zoedatalab.empleos.persistence.jpa.applications.adapter.ApplicationRepositoryAdapter;
 import com.zoedatalab.empleos.persistence.jpa.applications.mapper.ApplicationJpaMapper;
-import com.zoedatalab.empleos.persistence.jpa.applications.repository.JpaApplicationRepository;
 import com.zoedatalab.empleos.testsupport.SpringTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,13 +41,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ApplicationRepositoryAdapterTest extends SpringTestBase {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+
     @Autowired
     private ApplicationRepositoryAdapter adapter;
-    @Autowired
-    private JpaApplicationRepository jpaRepo;
+
     @Autowired
     private JdbcTemplate jdbc;
+
     private UUID applicant1;
     private UUID applicant2;
     private UUID job1;
@@ -67,8 +67,7 @@ class ApplicationRepositoryAdapterTest extends SpringTestBase {
     @BeforeEach
     void setup() {
         TestDataSeeder seeder = new TestDataSeeder(jdbc);
-
-        // Usuarios y entidades base
+        
         UUID uA1 = seeder.seedUser("app1@test.com");
         applicant1 = seeder.seedApplicant(uA1);
 

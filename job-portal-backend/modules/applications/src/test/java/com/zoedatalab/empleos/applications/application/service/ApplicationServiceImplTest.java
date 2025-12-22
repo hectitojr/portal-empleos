@@ -37,9 +37,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Service tests con Mockito, alineados al estilo de los módulos existentes.
- */
 class ApplicationServiceImplTest {
 
     private final UUID applicantUserId = UUID.randomUUID();
@@ -73,18 +70,27 @@ class ApplicationServiceImplTest {
     }
 
     private JobOffer job(JobOffer.Status status) {
-        return JobOffer.builder()
-                .id(jobId)
-                .companyId(companyId)
-                .status(status)
-                .title("T")
-                .description("D")
-                .publishedAt(Instant.now())
-                .suspended(false)
-                .build();
-    }
+        JobOffer job = JobOffer.create(
+                jobId,
+                companyId,
+                "T",
+                "D",
+                null,
+                null,
+                UUID.randomUUID(),
+                false,
+                null,
+                null,
+                null,
+                Instant.now()
+        );
 
-    // ===== apply() =====
+        if (status == JobOffer.Status.CLOSED) {
+            job.close();
+        }
+
+        return job;
+    }
 
     @Test
     void apply_ok_creaApplicationEnEstadoApplied() {

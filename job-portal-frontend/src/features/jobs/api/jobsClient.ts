@@ -135,7 +135,8 @@ export type CompanyCreateJobRequest = {
   disabilityFriendly: boolean;
   employmentTypeId?: string | null;
   workModeId?: string | null;
-  salaryText?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
 };
 
 export type CompanyUpdateJobRequest = CompanyCreateJobRequest;
@@ -160,9 +161,7 @@ export type CompanyJobSummaryResponse = {
   publishedAt: string;
 };
 
-type ApiResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; status: number; error: ApiErrorResponse };
+type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; error: ApiErrorResponse };
 
 async function handleJson<T>(res: Response): Promise<ApiResult<T>> {
   const status = res.status;
@@ -180,6 +179,12 @@ async function handleJson<T>(res: Response): Promise<ApiResult<T>> {
     ok: true,
     data: data as T,
   };
+}
+
+function safeNumber(n: unknown): number | null | undefined {
+  if (n == null) return n as null | undefined;
+  if (typeof n !== 'number') return null;
+  return Number.isFinite(n) ? n : null;
 }
 
 // -----------------------
@@ -220,7 +225,7 @@ export async function listPublicJobs(params?: {
 }
 
 export async function getPublicJobDetail(
-  jobId: string,
+  jobId: string
 ): Promise<ApiResult<PublicJobDetailResponse>> {
   const res = await fetch(`/api/jobs/${jobId}`, {
     method: 'GET',
@@ -268,7 +273,7 @@ export async function listApplicantJobs(params?: {
 }
 
 export async function getApplicantJobDetail(
-  jobId: string,
+  jobId: string
 ): Promise<ApiResult<ApplicantJobDetailResponse>> {
   const res = await fetch(`/api/me/applicant/jobs/${jobId}`, {
     method: 'GET',
@@ -278,10 +283,7 @@ export async function getApplicantJobDetail(
   return handleJson<ApplicantJobDetailResponse>(res);
 }
 
-export async function applyToJob(
-  jobId: string,
-  notes?: string,
-): Promise<ApiResult<ApplyResponse>> {
+export async function applyToJob(jobId: string, notes?: string): Promise<ApiResult<ApplyResponse>> {
   const res = await fetch(`/api/jobs/${jobId}/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -297,13 +299,19 @@ export async function applyToJob(
 // -----------------------
 
 export async function createCompanyJob(
-  payload: CompanyCreateJobRequest,
+  payload: CompanyCreateJobRequest
 ): Promise<ApiResult<CompanyJobDetailResponse>> {
+  const safePayload: CompanyCreateJobRequest = {
+    ...payload,
+    salaryMin: safeNumber(payload.salaryMin),
+    salaryMax: safeNumber(payload.salaryMax),
+  };
+
   const res = await fetch('/api/company/jobs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(safePayload),
   });
 
   return handleJson<CompanyJobDetailResponse>(res);
@@ -311,21 +319,25 @@ export async function createCompanyJob(
 
 export async function updateCompanyJob(
   jobId: string,
-  payload: CompanyUpdateJobRequest,
+  payload: CompanyUpdateJobRequest
 ): Promise<ApiResult<CompanyJobDetailResponse>> {
+  const safePayload: CompanyUpdateJobRequest = {
+    ...payload,
+    salaryMin: safeNumber(payload.salaryMin),
+    salaryMax: safeNumber(payload.salaryMax),
+  };
+
   const res = await fetch(`/api/company/jobs/${jobId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(safePayload),
   });
 
   return handleJson<CompanyJobDetailResponse>(res);
 }
 
-export async function closeCompanyJob(
-  jobId: string,
-): Promise<ApiResult<CompanyJobDetailResponse>> {
+export async function closeCompanyJob(jobId: string): Promise<ApiResult<CompanyJobDetailResponse>> {
   const res = await fetch(`/api/company/jobs/${jobId}/close`, {
     method: 'POST',
     cache: 'no-store',
@@ -338,8 +350,8 @@ export async function listCompanyJobs(params?: {
   page?: number;
   size?: number;
   q?: string;
-  status?: string; 
-  fromDate?: string; 
+  status?: string;
+  fromDate?: string;
 }): Promise<ApiResult<CompanyJobSummaryResponse[]>> {
   const search = new URLSearchParams();
   if (params?.page != null) search.set('page', String(params.page));

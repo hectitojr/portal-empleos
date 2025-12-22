@@ -59,7 +59,10 @@ public class JobRepositoryAdapter implements JobRepositoryPort {
                 .and(disabilityEquals(disabilityFriendly))
                 .and(publishedFrom(fromDate));
 
-        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishedAt"));
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+
+        var pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "publishedAt"));
 
         return repo.findAll(spec, pageable)
                 .map(mapper::toDomain)

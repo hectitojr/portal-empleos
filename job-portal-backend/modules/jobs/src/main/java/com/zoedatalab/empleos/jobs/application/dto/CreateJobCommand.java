@@ -2,6 +2,7 @@ package com.zoedatalab.empleos.jobs.application.dto;
 
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Builder
@@ -14,6 +15,8 @@ public record CreateJobCommand(
         boolean disabilityFriendly,
         UUID employmentTypeId,
         UUID workModeId,
-        String salaryText
+        BigDecimal salaryMin,
+        BigDecimal salaryMax
 ) {
 }
+

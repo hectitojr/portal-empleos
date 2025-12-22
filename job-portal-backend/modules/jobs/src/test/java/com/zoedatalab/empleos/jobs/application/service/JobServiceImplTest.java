@@ -604,21 +604,26 @@ class JobServiceImplTest {
     }
 
     private JobOffer sampleJob(UUID id, UUID companyId, Status status) {
-        return JobOffer.builder()
-                .id(id)
-                .companyId(companyId)
-                .title("Backend Sr.")
-                .description("desc")
-                .areaId(UUID.randomUUID())
-                .sectorId(UUID.randomUUID())
-                .districtId(UUID.randomUUID())
-                .disabilityFriendly(true)
-                .employmentTypeId(UUID.randomUUID())
-                .workModeId(UUID.randomUUID())
-                .status(status)
-                .publishedAt(Instant.now())
-                .suspended(false)
-                .build();
+        JobOffer job = JobOffer.create(
+                id,
+                companyId,
+                "Backend Sr.",
+                "desc",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                true,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "S/ 6000",
+                Instant.now()
+        );
+
+        if (status == Status.CLOSED) {
+            job.close();
+        }
+
+        return job;
     }
 
     private JobLocationQueryPort.JobDetailRow sampleDetailRow(

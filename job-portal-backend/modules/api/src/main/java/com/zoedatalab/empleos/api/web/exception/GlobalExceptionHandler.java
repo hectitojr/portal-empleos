@@ -35,6 +35,7 @@ import org.springframework.security.authentication.AuthenticationCredentialsNotF
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -64,8 +65,6 @@ public class GlobalExceptionHandler {
         EX_MAP.put(ResetTokenInvalidException.class, ApiErrorCode.RESET_TOKEN_INVALID);
         EX_MAP.put(ResetTokenExpiredException.class, ApiErrorCode.RESET_TOKEN_EXPIRED);
         EX_MAP.put(AuthenticationCredentialsNotFoundException.class, ApiErrorCode.UNAUTHENTICATED);
-
-        // Tipo base de auth (cubre subclases no listadas)
         EX_MAP.put(AuthenticationException.class, ApiErrorCode.UNAUTHENTICATED);
 
         // Autorización
@@ -78,27 +77,23 @@ public class GlobalExceptionHandler {
         EX_MAP.put(TaxIdAlreadyExistsException.class, ApiErrorCode.COMPANY_TAX_ID_ALREADY_EXISTS);
         EX_MAP.put(CompanyIncompleteException.class, ApiErrorCode.COMPANY_INCOMPLETE);
 
-        // Catálogos (common)
+        // Catálogos
         EX_MAP.put(AreaNotFoundException.class, ApiErrorCode.AREA_NOT_FOUND);
         EX_MAP.put(SectorNotFoundException.class, ApiErrorCode.SECTOR_NOT_FOUND);
         EX_MAP.put(DistrictNotFoundException.class, ApiErrorCode.DISTRICT_NOT_FOUND);
         EX_MAP.put(EmploymentTypeNotFoundException.class, ApiErrorCode.EMPLOYMENT_TYPE_NOT_FOUND);
         EX_MAP.put(WorkModeNotFoundException.class, ApiErrorCode.WORK_MODE_NOT_FOUND);
 
-        // Applicants
+        // Applicants / Jobs / Applications
         EX_MAP.put(ApplicantNotFoundException.class, ApiErrorCode.APPLICANT_NOT_FOUND);
-
-        // Jobs
         EX_MAP.put(JobNotFoundException.class, ApiErrorCode.JOB_NOT_FOUND);
         EX_MAP.put(JobClosedException.class, ApiErrorCode.JOB_CLOSED);
-
-        // Applications
         EX_MAP.put(DuplicateApplicationException.class, ApiErrorCode.DUPLICATE_APPLICATION);
         EX_MAP.put(ApplicantProfileIncompleteException.class, ApiErrorCode.APPLICANT_INCOMPLETE);
         EX_MAP.put(ApplicationNotFoundException.class, ApiErrorCode.APPLICATION_NOT_FOUND);
     }
 
-    // ===== Excepciones de dominio / seguridad mapeadas =====
+    // ===== Excepciones mapeadas de dominio / seguridad =====
     @ExceptionHandler({
             EmailAlreadyExistsException.class,
             AuthBadCredentialsException.class,
@@ -114,14 +109,11 @@ public class GlobalExceptionHandler {
             CompanyNotFoundException.class,
             TaxIdAlreadyExistsException.class,
             CompanyIncompleteException.class,
-
-            // Catálogos (common)
             AreaNotFoundException.class,
             SectorNotFoundException.class,
             DistrictNotFoundException.class,
             EmploymentTypeNotFoundException.class,
             WorkModeNotFoundException.class,
-
             ApplicantNotFoundException.class,
             JobNotFoundException.class,
             JobClosedException.class,
@@ -132,73 +124,71 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiErrorResponse> mapped(HttpServletRequest req, Throwable ex) {
         ApiErrorCode code = resolveCode(ex);
-
-        List<FieldErrorItem> fields = null;
-
-        if (ex instanceof AreaNotFoundException) {
-            fields = List.of(new FieldErrorItem("areaId", "NotFound", "El área no existe."));
-        } else if (ex instanceof SectorNotFoundException) {
-            fields = List.of(new FieldErrorItem("sectorId", "NotFound", "El sector no existe."));
-        } else if (ex instanceof DistrictNotFoundException) {
-            fields = List.of(new FieldErrorItem("districtId", "NotFound", "El distrito no existe."));
-        } else if (ex instanceof EmploymentTypeNotFoundException) {
-            fields = List.of(new FieldErrorItem("employmentTypeId", "NotFound", "El tipo de empleo no existe."));
-        } else if (ex instanceof WorkModeNotFoundException) {
-            fields = List.of(new FieldErrorItem("workModeId", "NotFound", "La modalidad de trabajo no existe."));
-        }
-
         logByStatus(code, ex);
         return ResponseEntity.status(code.status)
-                .body(ApiErrorFactory.build(req, code, fields, null));
+                .body(ApiErrorFactory.build(req, code, null, null));
     }
 
-    // ===== Validación: @Valid (body) =====
+    // ===== IllegalArgumentException => 400 =====
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> illegalArgument(HttpServletRequest req, IllegalArgumentException ex) {
+        var code = ApiErrorCode.VALIDATION_ERROR;
+        var violations = List.of(new ViolationErrorItem(
+                null,
+                "IllegalArgument",
+                Optional.ofNullable(ex.getMessage()).orElse("Parámetro inválido")
+        ));
+        log.warn("Illegal argument: {}", ex.getMessage());
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, null, violations));
+    }
+
+    // ===== Validaciones =====
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> validationBody(HttpServletRequest req, MethodArgumentNotValidException ex) {
-        var fields = ex.getBindingResult().getFieldErrors().stream()
+        var fieldItems = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> new FieldErrorItem(
                         fe.getField(),
                         fe.getCode(),
-                        Optional.ofNullable(fe.getDefaultMessage()).orElse("Valor inválido")))
+                        Optional.ofNullable(fe.getDefaultMessage()).orElse("Valor inválido")
+                ))
                 .toList();
+        var globalItems = ex.getBindingResult().getGlobalErrors().stream()
+                .map(this::toGlobalFieldItem)
+                .toList();
+
+        var fields = java.util.stream.Stream.concat(fieldItems.stream(), globalItems.stream()).toList();
+
         var code = ApiErrorCode.VALIDATION_ERROR;
-        log.warn("Validation body error: {} fields invalid", fields.size());
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, fields, null));
     }
 
-    // ===== Validación: @Validated (params) =====
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiErrorResponse> constraintViolation(HttpServletRequest req, ConstraintViolationException ex) {
         var violations = ex.getConstraintViolations().stream()
                 .map(this::toViolation)
                 .toList();
         var code = ApiErrorCode.CONSTRAINT_VIOLATION;
-        log.warn("Constraint violations: {}", violations.size());
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, violations));
     }
 
-    // ===== BindException (p.ej. @ModelAttribute) =====
     @ExceptionHandler(BindException.class)
     public ResponseEntity<ApiErrorResponse> bindException(HttpServletRequest req, BindException ex) {
         var fields = ex.getFieldErrors().stream()
-                .map(fe -> new FieldErrorItem(
-                        fe.getField(),
-                        fe.getCode(),
+                .map(fe -> new FieldErrorItem(fe.getField(), fe.getCode(),
                         Optional.ofNullable(fe.getDefaultMessage()).orElse("Valor inválido")))
                 .toList();
         var code = ApiErrorCode.VALIDATION_ERROR;
-        log.warn("BindException: {} fields invalid", fields.size());
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, fields, null));
     }
 
-    // ===== Errores de request/infra =====
+    // ===== Infra / request =====
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponse> malformedJson(HttpServletRequest req, HttpMessageNotReadableException ex) {
         var code = ApiErrorCode.MALFORMED_JSON;
-        log.warn("Malformed JSON: {}", ex.getMostSpecificCause().getMessage());
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, null));
     }
@@ -206,12 +196,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiErrorResponse> missingParam(HttpServletRequest req, MissingServletRequestParameterException ex) {
         var code = ApiErrorCode.MISSING_PARAMETER;
-        var v = List.of(new ViolationErrorItem(
-                ex.getParameterName(),
-                "MissingParameter",
-                "El parámetro es obligatorio."
-        ));
-        log.warn("Missing parameter: {}", ex.getParameterName());
+        var v = List.of(new ViolationErrorItem(ex.getParameterName(), "MissingParameter", "El parámetro es obligatorio."));
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, v));
     }
@@ -219,12 +204,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiErrorResponse> typeMismatch(HttpServletRequest req, MethodArgumentTypeMismatchException ex) {
         var code = ApiErrorCode.TYPE_MISMATCH;
-        var v = List.of(new ViolationErrorItem(
-                ex.getName(),
-                "TypeMismatch",
-                "Tipo de dato inválido."
-        ));
-        log.warn("Type mismatch: {} -> {}", ex.getName(), ex.getValue());
+        var v = List.of(new ViolationErrorItem(ex.getName(), "TypeMismatch", "Tipo de dato inválido."));
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, v));
     }
@@ -232,7 +212,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiErrorResponse> unsupportedMedia(HttpServletRequest req, HttpMediaTypeNotSupportedException ex) {
         var code = ApiErrorCode.UNSUPPORTED_MEDIA_TYPE;
-        log.warn("Unsupported media type: {}", ex.getContentType());
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, null));
     }
@@ -240,7 +219,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> dataIntegrity(HttpServletRequest req, DataIntegrityViolationException ex) {
         var code = ApiErrorCode.DATA_INTEGRITY_VIOLATION;
-        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, null));
     }
@@ -255,7 +233,7 @@ public class GlobalExceptionHandler {
     }
 
     // =========================================================
-    // HELPERS
+    // Helpers
     // =========================================================
 
     private ApiErrorCode resolveCode(Throwable ex) {
@@ -274,6 +252,12 @@ public class GlobalExceptionHandler {
                 : "ConstraintViolation";
         String message = Optional.ofNullable(v.getMessage()).orElse("Parámetro inválido");
         return new ViolationErrorItem(param, code, message);
+    }
+
+    private FieldErrorItem toGlobalFieldItem(ObjectError ge) {
+        String code = Optional.ofNullable(ge.getCode()).orElse("ObjectError");
+        String message = Optional.ofNullable(ge.getDefaultMessage()).orElse("Valor inválido");
+        return new FieldErrorItem(null, code, message);
     }
 
     private void logByStatus(ApiErrorCode code, Throwable ex) {

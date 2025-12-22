@@ -1,7 +1,7 @@
 package com.zoedatalab.empleos.jobs.domain;
 
+import com.zoedatalab.empleos.jobs.domain.text.JobTextNormalizer;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Getter
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class JobOffer {
@@ -22,7 +21,7 @@ public class JobOffer {
     private UUID sectorId;
     private UUID districtId;
     private boolean disabilityFriendly;
-    
+
     private UUID employmentTypeId;
     private UUID workModeId;
     private String salaryText;
@@ -30,6 +29,46 @@ public class JobOffer {
     private Status status;
     private Instant publishedAt;
     private boolean suspended;
+
+    // -------------------------
+    // Factory (DDD)
+    // -------------------------
+    public static JobOffer create(
+            UUID id,
+            UUID companyId,
+            String title,
+            String description,
+            UUID areaId,
+            UUID sectorId,
+            UUID districtId,
+            boolean disabilityFriendly,
+            UUID employmentTypeId,
+            UUID workModeId,
+            String salaryText,
+            Instant publishedAt
+    ) {
+        var job = new JobOffer();
+        job.id = (id != null) ? id : UUID.randomUUID();
+        job.companyId = companyId;
+
+        job.title = JobTextNormalizer.normalizeTitle(title);
+        job.description = JobTextNormalizer.normalizeDescription(description);
+
+        job.areaId = areaId;
+        job.sectorId = sectorId;
+        job.districtId = districtId;
+        job.disabilityFriendly = disabilityFriendly;
+
+        job.employmentTypeId = employmentTypeId;
+        job.workModeId = workModeId;
+        job.salaryText = salaryText;
+
+        job.status = Status.OPEN;
+        job.publishedAt = (publishedAt != null) ? publishedAt : Instant.now();
+        job.suspended = false;
+
+        return job;
+    }
 
     /**
      * Editar una oferta de empleo.
@@ -48,8 +87,9 @@ public class JobOffer {
     ) {
         if (this.status == Status.CLOSED) throw new IllegalStateException("JOB_CLOSED");
 
-        this.title = title;
-        this.description = desc;
+        this.title = JobTextNormalizer.normalizeTitle(title);
+        this.description = JobTextNormalizer.normalizeDescription(desc);
+
         this.areaId = areaId;
         this.sectorId = sectorId;
         this.districtId = districtId;

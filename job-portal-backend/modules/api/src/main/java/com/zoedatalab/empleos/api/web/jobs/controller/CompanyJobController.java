@@ -76,7 +76,8 @@ public class CompanyJobController {
                 .disabilityFriendly(body.disabilityFriendly())
                 .employmentTypeId(body.employmentTypeId())
                 .workModeId(body.workModeId())
-                .salaryText(body.salaryText())
+                .salaryMin(body.salaryMin())
+                .salaryMax(body.salaryMax())
                 .build());
 
         return ResponseEntity.ok(JobDetailResponse.from(v));
@@ -98,7 +99,8 @@ public class CompanyJobController {
                 .disabilityFriendly(body.disabilityFriendly())
                 .employmentTypeId(body.employmentTypeId())
                 .workModeId(body.workModeId())
-                .salaryText(body.salaryText())
+                .salaryMin(body.salaryMin())
+                .salaryMax(body.salaryMax())
                 .build());
 
         return ResponseEntity.ok(JobDetailResponse.from(v));

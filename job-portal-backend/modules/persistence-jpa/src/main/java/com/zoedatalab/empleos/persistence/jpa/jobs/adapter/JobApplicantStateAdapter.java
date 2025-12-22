@@ -52,8 +52,6 @@ public class JobApplicantStateAdapter implements JobApplicantStatePort {
                             .build()
             );
         } catch (DataIntegrityViolationException ex) {
-            // Aquí podrías filtrar por código SQL de duplicado (23505 en Postgres) si quieres tratar
-            // solo ese caso como race condition y relanzar el resto.
             log.warn("No se pudo registrar vista de oferta (posible duplicado): applicantId={} jobId={}", applicantId, jobId);
         }
     }

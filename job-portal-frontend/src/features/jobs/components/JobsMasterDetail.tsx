@@ -284,7 +284,6 @@ export default function JobsMasterDetail({
             </footer>
           </div>
 
-          {/* Panel de detalle */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
               {selectedJob ? (

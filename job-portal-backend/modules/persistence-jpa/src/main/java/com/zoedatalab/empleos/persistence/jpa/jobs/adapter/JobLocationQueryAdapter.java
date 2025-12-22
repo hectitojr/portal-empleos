@@ -41,7 +41,7 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
         params.addValue("offset", safePage * safeSize);
         params.addValue("limit", safeSize);
     }
-    
+
     private static StringBuilder baseSummarySql(boolean onlyNotSuspended) {
         var sql = new StringBuilder("""
                 select
@@ -61,9 +61,9 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
                   jo.published_at,
                   jo.suspended
                 from job_offers jo
-                left join catalog_district d on d.id = jo.district_id
-                left join catalog_province p on p.id = d.province_id
-                left join catalog_department dep on dep.id = d.department_id
+                join catalog_district d on d.id = jo.district_id
+                join catalog_province p on p.id = d.province_id
+                join catalog_department dep on dep.id = d.department_id
                 where 1=1
                 """);
 
@@ -74,13 +74,13 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
         return sql;
     }
 
-    // -------------------------
-    // Queries
-    // -------------------------
-
     private static Instant toInstant(Timestamp ts) {
         return ts == null ? null : ts.toInstant();
     }
+
+    // -------------------------
+    // Queries
+    // -------------------------
 
     @Override
     @Transactional(readOnly = true)
@@ -96,7 +96,7 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
             int size
     ) {
         int safePage = Math.max(page, 0);
-        int safeSize = Math.max(size, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
 
         var sql = baseSummarySql(true);
         var params = new MapSqlParameterSource();
@@ -110,15 +110,28 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
             params.addValue("sectorId", sectorId);
         }
 
-        // Geo determinista: district > province > department
         if (districtId != null) {
             sql.append(" and jo.district_id = :districtId ");
             params.addValue("districtId", districtId);
         } else if (provinceId != null) {
-            sql.append(" and d.province_id = :provinceId ");
+            sql.append("""
+                    and exists (
+                      select 1
+                      from catalog_district dx
+                      where dx.id = jo.district_id
+                        and dx.province_id = :provinceId
+                    )
+                    """);
             params.addValue("provinceId", provinceId);
         } else if (departmentId != null) {
-            sql.append(" and d.department_id = :departmentId ");
+            sql.append("""
+                    and exists (
+                      select 1
+                      from catalog_district dx
+                      where dx.id = jo.district_id
+                        and dx.department_id = :departmentId
+                    )
+                    """);
             params.addValue("departmentId", departmentId);
         }
 
@@ -144,7 +157,7 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
             int size
     ) {
         int safePage = Math.max(page, 0);
-        int safeSize = Math.max(size, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
 
         var sql = baseSummarySql(false);
         var params = new MapSqlParameterSource();
@@ -167,10 +180,6 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
 
         return jdbc.query(sql.toString(), params, (rs, rowNum) -> mapSummary(rs));
     }
-
-    // -------------------------
-    // Mappers
-    // -------------------------
 
     @Override
     @Transactional(readOnly = true)
@@ -195,15 +204,19 @@ public class JobLocationQueryAdapter implements JobLocationQueryPort {
                   jo.published_at,
                   jo.suspended
                 from job_offers jo
-                left join catalog_district d on d.id = jo.district_id
-                left join catalog_province p on p.id = d.province_id
-                left join catalog_department dep on dep.id = d.department_id
+                join catalog_district d on d.id = jo.district_id
+                join catalog_province p on p.id = d.province_id
+                join catalog_department dep on dep.id = d.department_id
                 where jo.id = :jobId
                 """;
 
         var rows = jdbc.query(sql, new MapSqlParameterSource("jobId", jobId), (rs, rowNum) -> mapDetail(rs));
         return rows.stream().findFirst();
     }
+
+    // -------------------------
+    // Mappers
+    // -------------------------
 
     private JobSummaryRow mapSummary(ResultSet rs) throws java.sql.SQLException {
         return new JobSummaryRow(

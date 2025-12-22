@@ -16,6 +16,11 @@ public class TestDataSeeder {
         this.jdbc = jdbc;
     }
 
+    @SuppressWarnings("unused")
+    private static Timestamp ts(Instant i) {
+        return Timestamp.from(i);
+    }
+
     public UUID seedUser(String email) {
         UUID id = UUID.randomUUID();
         jdbc.update("""
@@ -52,36 +57,50 @@ public class TestDataSeeder {
         return id;
     }
 
-    /**
-     * Inserta un job OPEN con published_at = now(UTC).
-     */
     public UUID seedOpenJob(UUID companyId) {
         return seedOpenJob(companyId, Instant.now());
     }
 
-    /**
-     * Inserta un job OPEN con un published_at controlado (útil si algún test necesita un tiempo específico).
-     */
     public UUID seedOpenJob(UUID companyId, Instant publishedAt) {
         UUID id = UUID.randomUUID();
+
+        UUID districtId = jdbc.queryForObject("""
+                select d.id
+                from job_portal.catalog_district d
+                order by d.id
+                limit 1
+                """, UUID.class);
+
+        if (districtId == null) {
+            throw new IllegalStateException("""
+                    No se pudo obtener un district_id desde job_portal.catalog_district.
+                    La tabla existe pero parece estar vacía (seed de ubicación no cargó datos).
+                    """);
+        }
+
         String sql = """
-                insert into job_portal.job_offers(id, company_id, title, description, status, published_at, suspended)
-                values (?, ?, 'Dev', 'Role', 'OPEN', ?, false)
+                insert into job_portal.job_offers(
+                    id,
+                    company_id,
+                    title,
+                    description,
+                    district_id,
+                    status,
+                    published_at,
+                    suspended
+                )
+                values (?, ?, 'Dev', 'Role', ?, 'OPEN', ?, false)
                 """;
 
         jdbc.update(con -> {
             var ps = con.prepareStatement(sql);
-            ps.setObject(1, id);                         // UUID OK
-            ps.setObject(2, companyId);                  // UUID OK
-            ps.setObject(3, OffsetDateTime.ofInstant(publishedAt, ZoneOffset.UTC));
+            ps.setObject(1, id);
+            ps.setObject(2, companyId);
+            ps.setObject(3, districtId);
+            ps.setObject(4, OffsetDateTime.ofInstant(publishedAt, ZoneOffset.UTC));
             return ps;
         });
 
         return id;
-    }
-
-    @SuppressWarnings("unused")
-    private static Timestamp ts(Instant i) {
-        return Timestamp.from(i);
     }
 }

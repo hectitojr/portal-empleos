@@ -32,6 +32,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static com.zoedatalab.empleos.jobs.application.util.SalaryTextFormatter.toPenText;
+
 @Slf4j
 @RequiredArgsConstructor
 public class JobServiceImpl implements JobCommandService, JobQueryService {
@@ -63,27 +65,27 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
 
         validateCatalogs(cmd.areaId(), cmd.sectorId(), cmd.districtId(), cmd.employmentTypeId(), cmd.workModeId());
 
+        String salaryText = toPenText(cmd.salaryMin(), cmd.salaryMax());
+
         var now = Instant.now();
-        var job = JobOffer.builder()
-                .id(UUID.randomUUID())
-                .companyId(own.companyId())
-                .title(cmd.title())
-                .description(cmd.description())
-                .areaId(cmd.areaId())
-                .sectorId(cmd.sectorId())
-                .districtId(cmd.districtId())
-                .disabilityFriendly(cmd.disabilityFriendly())
-                .employmentTypeId(cmd.employmentTypeId())
-                .workModeId(cmd.workModeId())
-                .salaryText(cmd.salaryText())
-                .status(Status.OPEN)
-                .publishedAt(now)
-                .suspended(false)
-                .build();
+
+        var job = JobOffer.create(
+                UUID.randomUUID(),
+                own.companyId(),
+                cmd.title(),
+                cmd.description(),
+                cmd.areaId(),
+                cmd.sectorId(),
+                cmd.districtId(),
+                cmd.disabilityFriendly(),
+                cmd.employmentTypeId(),
+                cmd.workModeId(),
+                salaryText,
+                now
+        );
 
         job = repo.save(job);
         repo.flush();
-
         return getById(job.getId());
     }
 
@@ -105,6 +107,8 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
 
         validateCatalogs(cmd.areaId(), cmd.sectorId(), cmd.districtId(), cmd.employmentTypeId(), cmd.workModeId());
 
+        String salaryText = toPenText(cmd.salaryMin(), cmd.salaryMax());
+
         job.edit(
                 cmd.title(),
                 cmd.description(),
@@ -114,7 +118,7 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                 cmd.disabilityFriendly(),
                 cmd.employmentTypeId(),
                 cmd.workModeId(),
-                cmd.salaryText()
+                salaryText
         );
 
         repo.save(job);
