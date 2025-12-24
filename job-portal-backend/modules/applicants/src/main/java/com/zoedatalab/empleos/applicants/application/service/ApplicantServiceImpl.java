@@ -10,15 +10,22 @@ import com.zoedatalab.empleos.applicants.domain.Education;
 import com.zoedatalab.empleos.applicants.domain.Experience;
 import com.zoedatalab.empleos.applicants.domain.Skill;
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
+import com.zoedatalab.empleos.applicants.domain.exception.InvalidDisabilityTypeIdsException;
+import com.zoedatalab.empleos.catalogs.application.ports.out.CatalogQueryPort;
+import com.zoedatalab.empleos.catalogs.domain.CatalogItem;
 import com.zoedatalab.empleos.common.catalogs.DistrictLookupPort;
 import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import lombok.RequiredArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQueryService {
@@ -27,7 +34,8 @@ public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQ
     private final ClockPort clock;
     private final DistrictLookupPort districtLookup;
 
-    // --- mapping helpers ---
+    private final CatalogQueryPort catalogQuery;
+
     private static Applicant toDomainDraft(UpsertMyApplicantCommand c) {
         return Applicant.builder()
                 .fullName(c.fullName())
@@ -102,6 +110,10 @@ public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQ
         return cand == null ? base : trimLower(cand);
     }
 
+    private static String keySkillName(String s) {
+        return s == null ? null : s.trim().toLowerCase();
+    }
+
     private static List<Experience> normalizeExperiences(List<Experience> list) {
         if (list == null) return List.of();
         return list.stream().map(e -> Experience.builder()
@@ -125,7 +137,7 @@ public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQ
                 .description(trim(e.getDescription()))
                 .build()).toList();
     }
-
+    
     private static List<Skill> normalizeSkills(List<Skill> list) {
         if (list == null) return List.of();
         return list.stream().map(s -> Skill.builder()
@@ -133,6 +145,82 @@ public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQ
                 .name(trim(s.getName()))
                 .level(trim(s.getLevel()))
                 .build()).toList();
+    }
+
+    private static void validateNoDuplicateSkills(List<Skill> requested) {
+        if (requested == null || requested.isEmpty()) return;
+
+        Set<String> seen = new HashSet<>();
+        for (Skill s : requested) {
+            String k = keySkillName(s.getName());
+            if (k == null || k.isBlank()) continue;
+
+            if (!seen.add(k)) {
+                throw new IllegalArgumentException("Skill duplicada en el request: '" + s.getName().trim() + "'");
+            }
+        }
+    }
+
+    private static List<Skill> mergeSkills(List<Skill> existing, List<Skill> requested) {
+        List<Skill> req = (requested == null) ? List.of() : requested.stream()
+                .map(s -> Skill.builder()
+                        .id(null)
+                        .name(trim(s.getName()))
+                        .level(trim(s.getLevel()))
+                        .build())
+                .toList();
+
+        validateNoDuplicateSkills(req);
+
+        Map<String, Skill> byName = new LinkedHashMap<>();
+        if (existing != null) {
+            for (Skill s : existing) {
+                String k = keySkillName(s.getName());
+                if (k != null && !k.isBlank()) {
+                    byName.put(k, s);
+                }
+            }
+        }
+
+        List<Skill> merged = new ArrayList<>();
+        for (Skill r : req) {
+            String k = keySkillName(r.getName());
+            if (k == null || k.isBlank()) continue;
+
+            Skill prev = byName.get(k);
+            if (prev != null) {
+                merged.add(Skill.builder()
+                        .id(prev.getId())
+                        .name(r.getName())
+                        .level(r.getLevel())
+                        .build());
+            } else {
+                merged.add(Skill.builder()
+                        .id(UUID.randomUUID())
+                        .name(r.getName())
+                        .level(r.getLevel())
+                        .build());
+            }
+        }
+
+        return merged;
+    }
+
+    private void validateDisabilityIds(Set<UUID> requestedIds) {
+        if (requestedIds == null || requestedIds.isEmpty()) return;
+
+        Set<UUID> activeIds = catalogQuery.findActiveDisabilityTypes()
+                .stream()
+                .map(CatalogItem::getId)
+                .collect(Collectors.toSet());
+
+        Set<UUID> invalid = requestedIds.stream()
+                .filter(id -> id == null || !activeIds.contains(id))
+                .collect(Collectors.toSet());
+
+        if (!invalid.isEmpty()) {
+            throw new InvalidDisabilityTypeIdsException(invalid);
+        }
     }
 
     @Override
@@ -146,6 +234,9 @@ public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQ
         if (cmd.districtId() != null && !districtLookup.existsById(cmd.districtId())) {
             throw new DistrictNotFoundException();
         }
+
+        Set<UUID> reqDisabilityIds = (cmd.disabilityIds() == null) ? Set.of() : new HashSet<>(cmd.disabilityIds());
+        validateDisabilityIds(reqDisabilityIds);
 
         var draft = toDomainDraft(cmd);
         var existing = repo.findByUserId(userId).orElse(null);
@@ -185,7 +276,7 @@ public class ApplicantServiceImpl implements ApplicantCommandService, ApplicantQ
                 .profileSummary(trimOr(existing.getProfileSummary(), draft.getProfileSummary()))
                 .experiences(normalizeExperiences(draft.getExperiences()))
                 .educations(normalizeEducations(draft.getEducations()))
-                .skills(normalizeSkills(draft.getSkills()))
+                .skills(mergeSkills(existing.getSkills(), draft.getSkills()))
                 .disabilityIds(draft.getDisabilityIds() == null ? existing.getDisabilityIds() : new HashSet<>(draft.getDisabilityIds()))
                 .profileComplete(profileComplete)
                 .active(existing.isActive())

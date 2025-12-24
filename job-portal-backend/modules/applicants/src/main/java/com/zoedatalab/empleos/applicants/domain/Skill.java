@@ -16,5 +16,5 @@ import java.util.UUID;
 public class Skill {
     private UUID id;
     private String name;
-    private String level; // opcional (Beginner/Intermediate/Advanced)
+    private String level;
 }

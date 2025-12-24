@@ -2,6 +2,7 @@ package com.zoedatalab.empleos.api.config.applicants;
 
 import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantRepositoryPort;
 import com.zoedatalab.empleos.applicants.application.service.ApplicantServiceImpl;
+import com.zoedatalab.empleos.catalogs.application.ports.out.CatalogQueryPort;
 import com.zoedatalab.empleos.common.catalogs.DistrictLookupPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import org.springframework.context.annotation.Bean;
@@ -15,9 +16,10 @@ public class ApplicantsBeansConfig {
     ApplicantServiceImpl applicantServiceCore(
             ApplicantRepositoryPort repo,
             ClockPort clock,
-            DistrictLookupPort districtLookup
+            DistrictLookupPort districtLookup,
+            CatalogQueryPort catalogQuery
     ) {
-        return new ApplicantServiceImpl(repo, clock, districtLookup);
+        return new ApplicantServiceImpl(repo, clock, districtLookup, catalogQuery);
     }
 
     @Bean

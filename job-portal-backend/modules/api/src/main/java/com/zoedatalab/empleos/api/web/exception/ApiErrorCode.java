@@ -41,6 +41,7 @@ public enum ApiErrorCode {
     // Applicants
     // =========================================================
     APPLICANT_NOT_FOUND(HttpStatus.NOT_FOUND, "El postulante no existe."),
+    APPLICANT_SKILL_ALREADY_EXISTS(HttpStatus.CONFLICT, "Ya existe una Skill con ese nombre en tu perfil."),
 
     // =========================================================
     // Jobs

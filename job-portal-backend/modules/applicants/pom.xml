@@ -24,6 +24,11 @@
             <artifactId>job-portal-common</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.zoedatalab.empleos</groupId>
+            <artifactId>job-portal-catalogs</artifactId>
+        </dependency>
+
         <!-- Utilidades -->
         <dependency>
             <groupId>org.mapstruct</groupId>

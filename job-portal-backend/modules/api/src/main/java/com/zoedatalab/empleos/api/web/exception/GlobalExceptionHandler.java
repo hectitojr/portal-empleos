@@ -1,6 +1,7 @@
 package com.zoedatalab.empleos.api.web.exception;
 
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
+import com.zoedatalab.empleos.applicants.domain.exception.InvalidDisabilityTypeIdsException;
 import com.zoedatalab.empleos.applications.domain.exception.ApplicantProfileIncompleteException;
 import com.zoedatalab.empleos.applications.domain.exception.ApplicationNotFoundException;
 import com.zoedatalab.empleos.applications.domain.exception.DuplicateApplicationException;
@@ -62,10 +63,10 @@ public class GlobalExceptionHandler {
         EX_MAP.put(UserSuspendedException.class, ApiErrorCode.USER_SUSPENDED);
         EX_MAP.put(TokenInvalidException.class, ApiErrorCode.TOKEN_INVALID);
         EX_MAP.put(TokenExpiredException.class, ApiErrorCode.TOKEN_EXPIRED);
-        EX_MAP.put(ResetTokenInvalidException.class, ApiErrorCode.RESET_TOKEN_INVALID);
-        EX_MAP.put(ResetTokenExpiredException.class, ApiErrorCode.RESET_TOKEN_EXPIRED);
         EX_MAP.put(AuthenticationCredentialsNotFoundException.class, ApiErrorCode.UNAUTHENTICATED);
         EX_MAP.put(AuthenticationException.class, ApiErrorCode.UNAUTHENTICATED);
+        EX_MAP.put(ResetTokenInvalidException.class, ApiErrorCode.RESET_TOKEN_INVALID);
+        EX_MAP.put(ResetTokenExpiredException.class, ApiErrorCode.RESET_TOKEN_EXPIRED);
 
         // Autorización
         EX_MAP.put(AccessDeniedException.class, ApiErrorCode.FORBIDDEN);
@@ -91,6 +92,14 @@ public class GlobalExceptionHandler {
         EX_MAP.put(DuplicateApplicationException.class, ApiErrorCode.DUPLICATE_APPLICATION);
         EX_MAP.put(ApplicantProfileIncompleteException.class, ApiErrorCode.APPLICANT_INCOMPLETE);
         EX_MAP.put(ApplicationNotFoundException.class, ApiErrorCode.APPLICATION_NOT_FOUND);
+        EX_MAP.put(InvalidDisabilityTypeIdsException.class, ApiErrorCode.VALIDATION_ERROR);
+    }
+
+    private static String extractDuplicateSkillName(String msg) {
+        var p = java.util.regex.Pattern.compile("Key \\(applicant_id, name\\)=\\(([^,]+),\\s*([^\\)]+)\\)");
+        var m = p.matcher(msg);
+        if (!m.find()) return null;
+        return m.group(2).trim();
     }
 
     // ===== Excepciones mapeadas de dominio / seguridad =====
@@ -127,6 +136,24 @@ public class GlobalExceptionHandler {
         logByStatus(code, ex);
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, null));
+    }
+
+    // disabilityIds inválidos o inactivos
+    @ExceptionHandler(InvalidDisabilityTypeIdsException.class)
+    public ResponseEntity<ApiErrorResponse> invalidDisabilityIds(HttpServletRequest req, InvalidDisabilityTypeIdsException ex) {
+        var code = ApiErrorCode.VALIDATION_ERROR;
+
+        var fields = List.of(
+                new FieldErrorItem(
+                        "disabilityIds",
+                        "InvalidCatalogId",
+                        "Contiene IDs inválidos o inactivos."
+                )
+        );
+
+        log.warn("Invalid disabilityIds: {}", ex.getInvalidIds());
+        return ResponseEntity.status(code.status)
+                .body(ApiErrorFactory.build(req, code, fields, null));
     }
 
     // ===== IllegalArgumentException => 400 =====
@@ -218,7 +245,30 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> dataIntegrity(HttpServletRequest req, DataIntegrityViolationException ex) {
+        String rootMsg = Optional.of(ex.getMostSpecificCause())
+                .map(Throwable::getMessage)
+                .orElse("");
+
+        if (rootMsg.contains("uq_applicant_skill__applicant_name")) {
+            var code = ApiErrorCode.APPLICANT_SKILL_ALREADY_EXISTS;
+
+            String rejected = extractDuplicateSkillName(rootMsg);
+
+            var fields = List.of(new FieldErrorItem(
+                    "skills",
+                    "DuplicateSkillName",
+                    rejected != null
+                            ? ("La habilidad '" + rejected + "' ya existe en tu perfil.")
+                            : "La habilidad ya existe en tu perfil."
+            ));
+
+            log.warn("Duplicate applicant skill detected. {}", rootMsg);
+            return ResponseEntity.status(code.status)
+                    .body(ApiErrorFactory.build(req, code, fields, null));
+        }
+
         var code = ApiErrorCode.DATA_INTEGRITY_VIOLATION;
+        log.warn("Data integrity violation: {}", rootMsg);
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, null));
     }

@@ -21,4 +21,5 @@ export const catalogsClient = {
   districts: () => fetchCatalog('districts'),
   employmentTypes: () => fetchCatalog('employment-types'),
   workModes: () => fetchCatalog('work-modes'),
+  disabilityTypes: () => fetchCatalog('disability-types'),
 };

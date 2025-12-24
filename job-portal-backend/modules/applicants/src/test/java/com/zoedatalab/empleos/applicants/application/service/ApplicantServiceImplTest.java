@@ -6,6 +6,8 @@ import com.zoedatalab.empleos.applicants.application.ports.out.ApplicantReposito
 import com.zoedatalab.empleos.applicants.domain.Applicant;
 import com.zoedatalab.empleos.applicants.domain.Skill;
 import com.zoedatalab.empleos.applicants.domain.exception.ApplicantNotFoundException;
+import com.zoedatalab.empleos.catalogs.application.ports.out.CatalogQueryPort;
+import com.zoedatalab.empleos.catalogs.domain.CatalogItem;
 import com.zoedatalab.empleos.common.catalogs.DistrictLookupPort;
 import com.zoedatalab.empleos.common.catalogs.exception.DistrictNotFoundException;
 import com.zoedatalab.empleos.common.time.ClockPort;
@@ -27,6 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -48,6 +51,9 @@ class ApplicantServiceImplTest {
     @Mock
     DistrictLookupPort districtLookup;
 
+    @Mock
+    CatalogQueryPort catalogQuery;
+
     @Captor
     ArgumentCaptor<Applicant> applicantCaptor;
 
@@ -55,7 +61,9 @@ class ApplicantServiceImplTest {
 
     @BeforeEach
     void setup() {
-        service = new ApplicantServiceImpl(repo, clock, districtLookup);
+        lenient().when(catalogQuery.findActiveDisabilityTypes()).thenReturn(List.of());
+
+        service = new ApplicantServiceImpl(repo, clock, districtLookup, catalogQuery);
     }
 
     @Test
@@ -111,7 +119,7 @@ class ApplicantServiceImplTest {
                 "Jane",
                 "jane@mail.com",
                 null,
-                null, // district null
+                null,
                 null,
                 List.of(), List.of(), List.of(),
                 Set.of()
@@ -131,11 +139,15 @@ class ApplicantServiceImplTest {
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(districtLookup.existsById(DISTRICT_ID)).thenReturn(true);
 
+        UUID disabilityId = UUID.fromString("00000000-0000-0000-0000-000000000099");
+        when(catalogQuery.findActiveDisabilityTypes())
+                .thenReturn(List.of(new CatalogItem(disabilityId, "Disability", true)));
+
         var cmd = new UpsertMyApplicantCommand(
-                "  John Doe  ",       // fullName
-                "  JOHN@MAIL.com  ",  // contactEmail
-                "  999999999  ",      // phone
-                DISTRICT_ID,          // district
+                "  John Doe  ",
+                "  JOHN@MAIL.com  ",
+                "  999999999  ",
+                DISTRICT_ID,
                 "  summary  ",
                 List.of(new UpsertMyApplicantCommand.ExperienceItem(
                         "  Foo Inc ", "  Dev  ",
@@ -148,7 +160,7 @@ class ApplicantServiceImplTest {
                         "  desc  "
                 )),
                 List.of(new UpsertMyApplicantCommand.SkillItem("  Java  ", "  Senior  ")),
-                Set.of(UUID.fromString("00000000-0000-0000-0000-000000000099"))
+                Set.of(disabilityId)
         );
 
         var view = service.upsertMyProfile(USER_ID, cmd);
@@ -156,7 +168,6 @@ class ApplicantServiceImplTest {
         verify(repo).save(applicantCaptor.capture());
         var saved = applicantCaptor.getValue();
 
-        // Normalizaciones
         assertThat(saved.getFullName()).isEqualTo("John Doe");
         assertThat(saved.getContactEmail()).isEqualTo("john@mail.com");
         assertThat(saved.getContactPhone()).isEqualTo("999999999");
@@ -182,10 +193,8 @@ class ApplicantServiceImplTest {
 
         assertThat(saved.getDisabilityIds()).containsExactlyInAnyOrderElementsOf(cmd.disabilityIds());
 
-        // ProfileComplete = (fullName + email) && (experiences || educations)
         assertThat(saved.isProfileComplete()).isTrue();
 
-        // Flags & audit
         assertThat(saved.isActive()).isTrue();
         assertThat(saved.isSuspended()).isFalse();
         assertThat(saved.getCreatedAt()).isEqualTo(FIXED_NOW);
@@ -193,12 +202,12 @@ class ApplicantServiceImplTest {
         assertThat(saved.getCreatedBy()).isEqualTo(USER_ID);
         assertThat(saved.getUpdatedBy()).isEqualTo(USER_ID);
 
-        // View refleja lo guardado
         assertThat(view.id()).isNotNull();
         assertThat(view.fullName()).isEqualTo("John Doe");
         assertThat(view.profileComplete()).isTrue();
 
         verify(districtLookup).existsById(DISTRICT_ID);
+        verify(catalogQuery).findActiveDisabilityTypes();
     }
 
     @Test
@@ -220,6 +229,7 @@ class ApplicantServiceImplTest {
         assertThat(view.profileComplete()).isFalse();
 
         verify(districtLookup, never()).existsById(any());
+        verify(catalogQuery, never()).findActiveDisabilityTypes();
     }
 
     @Test
@@ -244,13 +254,11 @@ class ApplicantServiceImplTest {
         verify(repo).save(applicantCaptor.capture());
         var saved = applicantCaptor.getValue();
 
-        // Conserva identidad y auditoría (created*)
         assertThat(saved.getId()).isEqualTo(existing.getId());
         assertThat(saved.getUserId()).isEqualTo(existing.getUserId());
         assertThat(saved.getCreatedAt()).isEqualTo(existing.getCreatedAt());
         assertThat(saved.getCreatedBy()).isEqualTo(existing.getCreatedBy());
 
-        // Actualiza campos, normaliza y recalcula profileComplete
         assertThat(saved.getFullName()).isEqualTo("New Name");
         assertThat(saved.getContactEmail()).isEqualTo("new@mail.com");
         assertThat(saved.getContactPhone()).isEqualTo("111");
@@ -258,16 +266,15 @@ class ApplicantServiceImplTest {
         assertThat(saved.getDistrictId()).isEqualTo(DISTRICT_ID);
         assertThat(saved.getSkills()).extracting(Skill::getName).containsExactly("Kotlin");
 
-        // Como no hay experiences ni educations -> not complete
         assertThat(saved.isProfileComplete()).isFalse();
         assertThat(saved.getUpdatedAt()).isEqualTo(FIXED_NOW);
         assertThat(saved.getUpdatedBy()).isEqualTo(USER_ID);
 
-        // View consistente
         assertThat(view.profileComplete()).isFalse();
         assertThat(view.skills()).hasSize(1);
 
         verify(districtLookup).existsById(DISTRICT_ID);
+        verify(catalogQuery, never()).findActiveDisabilityTypes();
     }
 
     // ===== helpers =====

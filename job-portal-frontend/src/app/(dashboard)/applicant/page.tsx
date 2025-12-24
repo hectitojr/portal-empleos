@@ -43,7 +43,6 @@ export default function ApplicantHomePage() {
         </div>
       </section>
 
-      {/* Listado + detalle de empleos para applicant */}
       <section className="flex-1 min-h-0 flex flex-col">
         {isLoading && (
           <div className="flex-1 flex items-center justify-center text-sm text-slate-600">

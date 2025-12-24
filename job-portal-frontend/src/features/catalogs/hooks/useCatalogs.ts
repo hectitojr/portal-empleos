@@ -14,11 +14,15 @@ function toMap(items?: CatalogItem[]): CatalogMap {
   }, {});
 }
 
+function byNameAsc(a: CatalogItem, b: CatalogItem) {
+  return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+}
+
 export function useJobCatalogs() {
   const districtsQuery = useQuery<CatalogItem[]>({
     queryKey: ['catalogs', 'districts'],
     queryFn: catalogsClient.districts,
-    staleTime: 60 * 60 * 1000, 
+    staleTime: 60 * 60 * 1000,
   });
 
   const employmentTypesQuery = useQuery<CatalogItem[]>({
@@ -33,28 +37,47 @@ export function useJobCatalogs() {
     staleTime: 60 * 60 * 1000,
   });
 
+  const disabilityTypesQuery = useQuery<CatalogItem[]>({
+    queryKey: ['catalogs', 'disability-types'],
+    queryFn: catalogsClient.disabilityTypes,
+    staleTime: 60 * 60 * 1000,
+  });
+
   const value = useMemo(() => {
-    const districtsById = toMap(districtsQuery.data);
-    const employmentTypesById = toMap(employmentTypesQuery.data);
-    const workModesById = toMap(workModesQuery.data);
+    const districts = (districtsQuery.data ?? []).slice().sort(byNameAsc);
+    const employmentTypes = (employmentTypesQuery.data ?? []).slice().sort(byNameAsc);
+    const workModes = (workModesQuery.data ?? []).slice().sort(byNameAsc);
+    const disabilityTypes = (disabilityTypesQuery.data ?? []).slice().sort(byNameAsc);
+
+    const districtsById = toMap(districts);
+    const employmentTypesById = toMap(employmentTypes);
+    const workModesById = toMap(workModes);
+    const disabilityTypesById = toMap(disabilityTypes);
 
     const isLoading =
       districtsQuery.isLoading ||
       employmentTypesQuery.isLoading ||
-      workModesQuery.isLoading;
+      workModesQuery.isLoading ||
+      disabilityTypesQuery.isLoading;
 
     const error =
       districtsQuery.error ||
       employmentTypesQuery.error ||
       workModesQuery.error ||
+      disabilityTypesQuery.error ||
       null;
 
     return {
       isLoading,
       error,
+      districts,
+      employmentTypes,
+      workModes,
+      disabilityTypes,
       districtsById,
       employmentTypesById,
       workModesById,
+      disabilityTypesById,
     };
   }, [
     districtsQuery.data,
@@ -66,6 +89,9 @@ export function useJobCatalogs() {
     workModesQuery.data,
     workModesQuery.isLoading,
     workModesQuery.error,
+    disabilityTypesQuery.data,
+    disabilityTypesQuery.isLoading,
+    disabilityTypesQuery.error,
   ]);
 
   return value;
