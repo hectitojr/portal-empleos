@@ -45,10 +45,11 @@ spring:
     create-schemas: true
     validate-on-migrate: true
     baseline-on-migrate: false
+    connect-retries: 30
+    connect-retries-interval: 2s
 
 security:
   jwt:
-    # Fallback solo para DEV
     secret: ${JP_JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     issuer: job-portal
     access-ttl-seconds: 900
@@ -103,10 +104,11 @@ spring:
     schemas: job_portal
     create-schemas: true
     validate-on-migrate: true
+    connect-retries: 30
+    connect-retries-interval: 2s
 
 security:
   jwt:
-    # Fallback solo para TEST
     secret: ${JP_JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     issuer: job-portal
     access-ttl-seconds: 900
@@ -168,6 +170,8 @@ spring:
     validate-on-migrate: true
     baseline-on-migrate: false
     clean-disabled: true
+    connect-retries: 30
+    connect-retries-interval: 2s
 
 security:
   jwt:
