@@ -20,28 +20,59 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Optional;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    // =========================
+    // Constantes CORS
+    // =========================
+    private static final List<String> CORS_ALLOWED_METHODS =
+            List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
+
+    private static final List<String> CORS_ALLOWED_HEADERS =
+            List.of(
+                    "Authorization",
+                    "Content-Type",
+                    "X-Requested-With",
+                    "X-Trace-Id"
+            );
+
+    private static final String CORS_MAPPING = "/**";
+
+    // =========================
+    // Password Encoder
+    // =========================
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
     }
 
+    // =========================
+    // JWT Filter
+    // =========================
     @Bean
-    JwtAuthFilter jwtAuthFilter(JwtTokenServiceAdapter jwt, UserRepositoryPort userRepo) {
+    JwtAuthFilter jwtAuthFilter(JwtTokenServiceAdapter jwt,
+                                UserRepositoryPort userRepo) {
         return new JwtAuthFilter(jwt, userRepo);
     }
 
+    // =========================
+    // Security Filter Chain
+    // =========================
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             JwtAuthFilter jwtFilter,
-                                            ApiErrorHttpHandler apiErrorHandler) throws Exception {
+                                            ApiErrorHttpHandler apiErrorHandler)
+            throws Exception {
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(sm ->
+                        sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(apiErrorHandler)
                         .accessDeniedHandler(apiErrorHandler)
@@ -52,13 +83,11 @@ public class SecurityConfig {
                         // -------------------------
                         // PUBLIC: HOME + FILTERS
                         // -------------------------
-                        // Jobs públicos (listado + detalle)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/jobs",
                                 "/api/v1/jobs/*"
                         ).permitAll()
 
-                        // Catálogos públicos usados por el home y filtros
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/catalogs/**"
                         ).permitAll()
@@ -74,8 +103,11 @@ public class SecurityConfig {
                                 "/api/v1/auth/reset-password"
                         ).permitAll()
 
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/actuator/info",
+                                "/error"
+                        ).permitAll()
 
                         // -------------------------
                         // PRIVATE: EVERYTHING ELSE
@@ -89,22 +121,52 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // =========================
+    // CORS: DEV / TEST
+    // =========================
     @Bean
     @Profile({"dev", "test"})
     CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration cfg = new CorsConfiguration();
+        CorsConfiguration cfg = baseCorsConfig();
         cfg.setAllowedOriginPatterns(List.of("*"));
-        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With",
-                "X-Trace-Id"
-        ));
-        cfg.setAllowCredentials(true);
+        return buildCorsSource(cfg);
+    }
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", cfg);
+    // =========================
+    // CORS: PROD
+    // =========================
+    @Bean
+    @Profile("prod")
+    CorsConfigurationSource corsConfigurationSourceProd() {
+        String origin = Optional
+                .ofNullable(System.getenv("JP_CORS_ALLOWED_ORIGIN"))
+                .map(String::trim)
+                .orElse("");
+
+        CorsConfiguration cfg = baseCorsConfig();
+
+        if (!origin.isBlank()) {
+            cfg.setAllowedOrigins(List.of(origin));
+        }
+
+        return buildCorsSource(cfg);
+    }
+
+    // =========================
+    // Helpers privados
+    // =========================
+    private CorsConfiguration baseCorsConfig() {
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedMethods(CORS_ALLOWED_METHODS);
+        cfg.setAllowedHeaders(CORS_ALLOWED_HEADERS);
+        cfg.setAllowCredentials(true);
+        return cfg;
+    }
+
+    private CorsConfigurationSource buildCorsSource(CorsConfiguration cfg) {
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration(CORS_MAPPING, cfg);
         return source;
     }
 }

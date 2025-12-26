@@ -14,7 +14,7 @@ spring:
     encoding: UTF-8
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 ---
 # ============ DEV ============
@@ -66,7 +66,7 @@ maintenance:
 
 logging:
   level:
-    org.springframework.security: DEBUG   # Solo en dev
+    org.springframework.security: DEBUG
     org.hibernate.orm.connections.pooling: WARN
     org.hibernate.SQL: OFF
     org.hibernate.type.descriptor.sql: OFF
@@ -75,13 +75,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,env   # env solo en dev
+        include: health,info,metrics,env
   endpoint:
     health:
       show-details: when_authorized
       probes:
-        enabled: true                      # Liveness/Readiness probes
-  # base-path se queda por defecto (/actuator)
+        enabled: true
 
 ---
 # ============ TEST ============
@@ -116,7 +115,6 @@ security:
     ttl-seconds: 1800
     rate-limit-seconds: 300
 
-# Cleaner deshabilitado en test (no queremos interferir con datos de prueba)
 maintenance:
   refresh-tokens:
     enabled: false
@@ -146,11 +144,12 @@ spring:
       on-profile: prod
   threads:
     virtual:
-      enabled: true              # ← Java 21: virtual threads (opcional pero recomendado)
+      enabled: true
   datasource:
-    url: ${JP_DB_URL}
-    username: ${JP_DB_USER}
-    password: ${JP_DB_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
   jpa:
@@ -168,11 +167,11 @@ spring:
     create-schemas: true
     validate-on-migrate: true
     baseline-on-migrate: false
-    clean-disabled: true         # ← Evita borrado accidental de esquema en prod
+    clean-disabled: true
 
 security:
   jwt:
-    # Sin valor por defecto en PROD (requiere variable de entorno)
+    # Sin valor por defecto en PROD
     secret: ${JP_JWT_SECRET}
     issuer: job-portal
     access-ttl-seconds: 900
@@ -181,7 +180,7 @@ security:
     ttl-seconds: ${JP_RESET_TTL_SECONDS:1800}
     rate-limit-seconds: ${JP_RESET_RATE_LIMIT_SECONDS:300}
 
-# En producción, limpieza nocturna (cada día a las 3 AM)
+# Limpieza nocturna en producción (cada día a las 3 AM)
 maintenance:
   refresh-tokens:
     enabled: true
@@ -196,7 +195,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info     # ← En prod, limitamos exposición
+        include: health,info
   endpoint:
     health:
       show-details: when_authorized
@@ -204,7 +203,6 @@ management:
         enabled: true
 
 server:
-  port: ${PORT:8080}
-  forward-headers-strategy: framework   # ← Detrás de proxy/CDN (X-Forwarded-*)
+  forward-headers-strategy: framework
   compression:
-    enabled: true                       # ← Respuestas comprimidas en prod
+    enabled: true
