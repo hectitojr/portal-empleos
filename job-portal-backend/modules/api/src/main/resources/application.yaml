@@ -171,8 +171,7 @@ spring:
 
 security:
   jwt:
-    # Sin valor por defecto en PROD
-    secret: ${JP_JWT_SECRET}
+    secret: ${JP_JWT_SECRET_BASE64}
     issuer: job-portal
     access-ttl-seconds: 900
     refresh-ttl-seconds: 2592000
