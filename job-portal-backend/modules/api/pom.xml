@@ -18,7 +18,7 @@
 
     <dependencies>
 
-        <!-- Dependencias internas (módulos del monolito) -->
+        <!-- Dependencias internas -->
         <dependency>
             <groupId>com.zoedatalab.empleos</groupId>
             <artifactId>job-portal-common</artifactId>
@@ -78,7 +78,7 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Autenticación y seguridad (JWT, BCrypt) -->
+        <!-- JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -102,6 +102,11 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.cloud.sql</groupId>
+            <artifactId>postgres-socket-factory</artifactId>
         </dependency>
 
         <!-- Utilidades -->
@@ -149,7 +154,6 @@
 
     <build>
         <plugins>
-            <!-- Solo aquí: módulo ejecutable -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

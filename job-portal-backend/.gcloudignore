@@ -1,0 +1,8 @@
+﻿.gcloudignore
+.git
+**/.idea
+**/.vscode
+**/*.iml
+**/.DS_Store
+**/target
+.env
