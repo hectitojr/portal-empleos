@@ -2,6 +2,7 @@ package com.zoedatalab.empleos.api.security;
 
 import com.zoedatalab.empleos.api.web.exception.ApiErrorHttpHandler;
 import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -72,7 +73,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             JwtAuthFilter jwtFilter,
                                             ApiErrorHttpHandler apiErrorHandler,
-                                            CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                            @Qualifier("corsConfigurationSource") CorsConfigurationSource corsSource) throws Exception {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -100,12 +101,12 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource)); // <--- clave
+                .cors(cors -> cors.configurationSource(corsSource));
 
         return http.build();
     }
 
-    @Bean
+    @Bean(name = "corsConfigurationSource")
     @Profile({"dev", "test"})
     CorsConfigurationSource corsConfigurationSourceDev() {
         CorsConfiguration cfg = baseCorsConfig();
@@ -113,7 +114,7 @@ public class SecurityConfig {
         return buildCorsSource(cfg);
     }
 
-    @Bean
+    @Bean(name = "corsConfigurationSource")
     @Profile("prod")
     CorsConfigurationSource corsConfigurationSourceProd() {
         List<String> origins = parseOrigins(corsAllowedOriginsEnv());
