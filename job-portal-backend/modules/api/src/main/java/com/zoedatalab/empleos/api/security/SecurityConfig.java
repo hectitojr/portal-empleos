@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -72,7 +71,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             JwtAuthFilter jwtFilter,
-                                            ApiErrorHttpHandler apiErrorHandler) throws Exception {
+                                            ApiErrorHttpHandler apiErrorHandler,
+                                            CorsConfigurationSource corsConfigurationSource) throws Exception {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -96,12 +96,11 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
-
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults());
+                .cors(cors -> cors.configurationSource(corsConfigurationSource)); // <--- clave
 
         return http.build();
     }
