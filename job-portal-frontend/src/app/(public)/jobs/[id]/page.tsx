@@ -1,15 +1,24 @@
 import type { JobOffer } from '@/lib/types';
 import { headers } from 'next/headers';
 
-export default async function JobDetailPage({ params }: { params: { id: string } }) {
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export default async function JobDetailPage({ params }: PageProps) {
+  const { id } = await params;
+
   const h = await headers();
-  const proto = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? '';
+  const proto = h.get('x-forwarded-proto') ?? 'https';
+  const host = h.get('host');
+  if (!host) {
+    throw new Error('Missing Host header');
+  }
   const base = `${proto}://${host}`;
 
-  const res = await fetch(`${base}/api/jobs/${params.id}`, { cache: 'no-store' });
+  const res = await fetch(`${base}/api/jobs/${id}`, { cache: 'no-store' });
   if (!res.ok) {
-    throw new Error(`Failed to fetch job ${params.id}: ${res.status}`);
+    throw new Error(`Failed to fetch job ${id}: ${res.status}`);
   }
 
   const j: JobOffer = await res.json();
