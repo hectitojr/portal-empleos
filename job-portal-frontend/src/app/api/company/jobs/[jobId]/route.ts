@@ -1,11 +1,12 @@
 import { backendFetch } from '@/app/api/_lib/http';
 
-type Params = { params: { jobId: string } };
+type Ctx = { params: Promise<{ jobId: string }> };
 
-export async function PUT(req: Request, { params }: Params) {
+export async function PUT(req: Request, { params }: Ctx) {
+  const { jobId } = await params;
   const body = await req.text();
 
-  const res = await backendFetch(`/api/v1/company/jobs/${params.jobId}`, {
+  const res = await backendFetch(`/api/v1/company/jobs/${jobId}`, {
     method: 'PUT',
     body,
     retryOn401: true,

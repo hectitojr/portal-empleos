@@ -1,9 +1,11 @@
 import { backendFetch } from '@/app/api/_lib/http';
 
-type Params = { params: { jobId: string } };
+type Ctx = { params: Promise<{ jobId: string }> };
 
-export async function POST(_req: Request, { params }: Params) {
-  const res = await backendFetch(`/api/v1/company/jobs/${params.jobId}/close`, {
+export async function POST(_req: Request, { params }: Ctx) {
+  const { jobId } = await params;
+
+  const res = await backendFetch(`/api/v1/company/jobs/${jobId}/close`, {
     method: 'POST',
     retryOn401: true,
   });

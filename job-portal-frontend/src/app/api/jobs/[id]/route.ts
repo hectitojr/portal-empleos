@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { backendFetch } from '../../_lib/http';
 
-export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
-  const { id } = ctx.params;
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(req: NextRequest, { params }: Ctx) {
+  const { id } = await params;
 
   const res = await backendFetch(`/api/v1/jobs/${id}`);
 
