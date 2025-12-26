@@ -37,6 +37,7 @@ public class SecurityConfig {
             List.of(
                     HttpHeaders.AUTHORIZATION,
                     HttpHeaders.CONTENT_TYPE,
+                    HttpHeaders.ACCEPT,
                     "X-Requested-With",
                     "X-Trace-Id"
             );
