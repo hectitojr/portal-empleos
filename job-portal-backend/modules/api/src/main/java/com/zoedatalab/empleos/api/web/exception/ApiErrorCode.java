@@ -26,7 +26,8 @@ public enum ApiErrorCode {
     // =========================================================
     COMPANY_NOT_FOUND(HttpStatus.NOT_FOUND, "La empresa no existe."),
     COMPANY_TAX_ID_ALREADY_EXISTS(HttpStatus.CONFLICT, "El RUC ya está asociado a otra cuenta."),
-    COMPANY_INCOMPLETE(HttpStatus.BAD_REQUEST, "Completa la ficha de empresa."),
+    COMPANY_INCOMPLETE(HttpStatus.FORBIDDEN, "La empresa está inactiva, suspendida o su ficha está incompleta."),
+    COMPANY_PROFILE_LOCKED(HttpStatus.CONFLICT, "No puedes dejar vacío el perfil porque ya tienes ofertas creadas."),
 
     // =========================================================
     // Catálogos (common)

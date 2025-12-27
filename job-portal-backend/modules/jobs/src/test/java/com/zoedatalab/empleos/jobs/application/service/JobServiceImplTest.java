@@ -84,10 +84,6 @@ class JobServiceImplTest {
         jobId = UUID.randomUUID();
     }
 
-    // -------------------------
-    // Helpers de stubbing
-    // -------------------------
-
     private void stubCatalogsAllExist() {
         when(catalogValidation.areaExists(any())).thenReturn(true);
         when(catalogValidation.sectorExists(any())).thenReturn(true);
@@ -96,14 +92,16 @@ class JobServiceImplTest {
         when(catalogValidation.workModeExists(any())).thenReturn(true);
     }
 
-    // ---------- CREATE ----------
+    private CompanyOwnershipPort.CompanyOwnership own(UUID companyId, boolean active, boolean profileComplete, boolean suspended) {
+        return new CompanyOwnershipPort.CompanyOwnership(companyId, active, profileComplete, suspended);
+    }
 
     @Test
-    void create_ok_whenCompanyActiveAndComplete() {
+    void create_ok_whenCompanyActiveCompleteAndNotSuspended() {
         stubCatalogsAllExist();
 
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -119,14 +117,14 @@ class JobServiceImplTest {
                 )));
 
         var cmd = CreateJobCommand.builder()
-                .title("Backend Sr.")
-                .description("Spring Boot, DDD")
+                .title("Backend Java")
+                .description("Descripción suficientemente larga para pasar validación.")
                 .areaId(UUID.randomUUID())
                 .sectorId(UUID.randomUUID())
                 .districtId(UUID.randomUUID())
                 .employmentTypeId(UUID.randomUUID())
                 .workModeId(UUID.randomUUID())
-                .disabilityFriendly(true)
+                .disabilityFriendly(false)
                 .build();
 
         JobDetailView out = service.create(userId, cmd);
@@ -156,18 +154,96 @@ class JobServiceImplTest {
     }
 
     @Test
-    void create_throws_whenCompanyIncompleteOrInactive() {
+    void create_whenCompanyIncomplete_throwsCompanyIncompleteException() {
+        var userId = UUID.randomUUID();
+
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, false));
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false, false, false));
+
+        var cmd = CreateJobCommand.builder()
+                .title("Backend Java")
+                .description("Descripción suficientemente larga para pasar validación.")
+                .disabilityFriendly(false)
+                .build();
+
+        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, cmd));
+
+        verify(repo, never()).save(any(JobOffer.class));
+        verify(repo, never()).flush();
+        verify(jobLocationQueries, never()).findDetail(any());
+        verifyNoInteractions(catalogValidation);
+    }
+
+    @Test
+    void create_whenOk_persistsJobAndReturnsDetail() {
+        stubCatalogsAllExist();
+
+        var userId = UUID.randomUUID();
+        var companyId = UUID.randomUUID();
+        var jobId = UUID.randomUUID();
+
+        when(ownership.getForUser(userId))
+                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true, false));
+
+        when(repo.save(any(JobOffer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(jobLocationQueries.findDetail(any(UUID.class))).thenAnswer(inv -> {
+            UUID id = inv.getArgument(0, UUID.class);
+            return Optional.of(new JobLocationQueryPort.JobDetailRow(
+                    id,
+                    companyId,
+                    "Backend Java",
+                    "Descripción suficientemente larga para pasar validación.",
+                    null, null, null,
+                    "Lima", "Lima", "San Isidro",
+                    false,
+                    null, null,
+                    null,
+                    "OPEN",
+                    java.time.Instant.parse("2025-01-01T00:00:00Z"),
+                    false
+            ));
+        });
+
+        var cmd = CreateJobCommand.builder()
+                .title("Backend Java")
+                .description("Descripción suficientemente larga para pasar validación.")
+                .areaId(UUID.randomUUID())
+                .sectorId(UUID.randomUUID())
+                .districtId(UUID.randomUUID())
+                .employmentTypeId(UUID.randomUUID())
+                .workModeId(UUID.randomUUID())
+                .disabilityFriendly(false)
+                .build();
+
+        var out = service.create(userId, cmd);
+
+        assertNotNull(out);
+        assertEquals(companyId, out.companyId());
+        assertEquals("Backend Java", out.title());
+        assertEquals("OPEN", out.status());
+
+        verify(repo).save(any(JobOffer.class));
+        verify(repo).flush();
+        verify(jobLocationQueries).findDetail(any(UUID.class));
+    }
+
+    @Test
+    void create_throws_whenCompanyIncompleteInactiveOrSuspended() {
+        when(ownership.getForUser(userId))
+                .thenReturn(own(companyId, true, false, false));
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
 
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, false, true));
+                .thenReturn(own(companyId, false, true, false));
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
 
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false,
-                        false));
+                .thenReturn(own(companyId, true, true, true)); // suspended
+        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
+
+        when(ownership.getForUser(userId))
+                .thenReturn(own(null, false, false, false));
         assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
 
         verify(repo, never()).save(any());
@@ -180,7 +256,7 @@ class JobServiceImplTest {
     @Test
     void create_throws_whenAreaNotFound() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         UUID areaId = UUID.randomUUID();
         when(catalogValidation.areaExists(areaId)).thenReturn(false);
@@ -200,7 +276,7 @@ class JobServiceImplTest {
     @Test
     void create_throws_whenSectorNotFound() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         UUID sectorId = UUID.randomUUID();
         when(catalogValidation.sectorExists(sectorId)).thenReturn(false);
@@ -220,7 +296,7 @@ class JobServiceImplTest {
     @Test
     void create_throws_whenDistrictNotFound() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         UUID districtId = UUID.randomUUID();
         when(catalogValidation.districtExists(districtId)).thenReturn(false);
@@ -240,7 +316,7 @@ class JobServiceImplTest {
     @Test
     void create_throws_whenEmploymentTypeNotFound() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         UUID employmentTypeId = UUID.randomUUID();
         when(catalogValidation.employmentTypeExists(employmentTypeId)).thenReturn(false);
@@ -260,7 +336,7 @@ class JobServiceImplTest {
     @Test
     void create_throws_whenWorkModeNotFound() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         UUID workModeId = UUID.randomUUID();
         when(catalogValidation.workModeExists(workModeId)).thenReturn(false);
@@ -280,11 +356,11 @@ class JobServiceImplTest {
     // ---------- UPDATE ----------
 
     @Test
-    void update_ok_whenOwnerAndOpen() {
+    void update_ok_whenCompanyAllowedOwnerAndOpen() {
         stubCatalogsAllExist();
 
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         var existing = sampleJob(jobId, companyId, Status.OPEN);
         when(repo.findById(jobId)).thenReturn(Optional.of(existing));
@@ -332,9 +408,22 @@ class JobServiceImplTest {
     }
 
     @Test
+    void update_throws_whenCompanySuspendedOrNotAllowed() {
+        when(ownership.getForUser(userId))
+                .thenReturn(own(companyId, true, true, true)); // suspended
+
+        // Debe fallar antes de tocar repo/catálogos
+        assertThrows(CompanyIncompleteException.class, () -> service.update(userId, jobId, UpdateJobCommand.builder().build()));
+
+        verifyNoInteractions(repo);
+        verifyNoInteractions(catalogValidation);
+        verifyNoInteractions(jobLocationQueries);
+    }
+
+    @Test
     void update_throws_whenNotOwner() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, UUID.randomUUID(), Status.OPEN)));
@@ -354,7 +443,7 @@ class JobServiceImplTest {
     @Test
     void update_throws_whenClosed() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, companyId, Status.CLOSED)));
@@ -374,9 +463,9 @@ class JobServiceImplTest {
     // ---------- CLOSE ----------
 
     @Test
-    void close_ok_whenOwner() {
+    void close_ok_whenCompanyAllowedAndOwner() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, companyId, Status.OPEN)));
@@ -406,9 +495,21 @@ class JobServiceImplTest {
     }
 
     @Test
+    void close_throws_whenCompanySuspendedOrNotAllowed() {
+        when(ownership.getForUser(userId))
+                .thenReturn(own(companyId, true, true, true)); // suspended
+
+        assertThrows(CompanyIncompleteException.class, () -> service.close(userId, jobId));
+
+        verifyNoInteractions(repo);
+        verifyNoInteractions(catalogValidation);
+        verifyNoInteractions(jobLocationQueries);
+    }
+
+    @Test
     void close_idempotent_whenAlreadyClosed() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, companyId, Status.CLOSED)));
@@ -440,7 +541,7 @@ class JobServiceImplTest {
     @Test
     void close_throws_whenNotOwner() {
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true));
+                .thenReturn(own(companyId, true, true, false));
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, UUID.randomUUID(), Status.OPEN)));

@@ -14,6 +14,7 @@ import { computeCompanyProfileProgress } from '@/features/companies/lib/profileP
 import { routes } from '@/lib/routes';
 import { applyApiErrorToForm } from '@/lib/apiError';
 import { isValidPeruRuc, normalizeRuc } from '@/lib/ruc';
+import { bffFetchOrThrow } from '@/lib/api/bffClient';
 
 type UUID = string;
 
@@ -47,47 +48,6 @@ const DISTRICT_RESOLVE_ENDPOINT = (id: string) => `/api/catalogs/districts/${id}
 type GeoItem = { id: UUID; name: string };
 type DistrictResolveResponse = { id: UUID; name: string; provinceId: UUID; departmentId: UUID };
 
-async function apiJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, { method: 'GET' });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err: any = new Error('Error consultando catálogos.');
-    err.status = res.status;
-    err.body = text;
-    throw err;
-  }
-  return res.json();
-}
-
-async function apiGetMe(): Promise<CompanyMeResponse> {
-  const res = await fetch(COMPANY_ME_ENDPOINT, { method: 'GET' });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err: any = new Error('No se pudo cargar el perfil de empresa.');
-    err.status = res.status;
-    err.body = text;
-    throw err;
-  }
-  return res.json();
-}
-
-async function apiUpdateMe(payload: CompanyUpdateRequest): Promise<CompanyMeResponse> {
-  const res = await fetch(COMPANY_ME_ENDPOINT, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err: any = new Error('No se pudo guardar el perfil de empresa.');
-    err.status = res.status;
-    err.body = text;
-    throw err;
-  }
-  return res.json();
-}
-
 type FormValues = {
   legalName: string;
   taxId: string;
@@ -111,7 +71,7 @@ export default function CompanyProfileSetupPage() {
 
   const meQuery = useQuery({
     queryKey: ['company', 'me'],
-    queryFn: apiGetMe,
+    queryFn: () => bffFetchOrThrow<CompanyMeResponse>(COMPANY_ME_ENDPOINT, { method: 'GET' }),
     staleTime: 30_000,
   });
 
@@ -137,14 +97,17 @@ export default function CompanyProfileSetupPage() {
 
   const departmentsQuery = useQuery<GeoItem[]>({
     queryKey: ['catalogs', 'geo', 'departments'],
-    queryFn: () => apiJson<GeoItem[]>(DEPARTMENTS_ENDPOINT),
+    queryFn: () => bffFetchOrThrow<GeoItem[]>(DEPARTMENTS_ENDPOINT, { method: 'GET' }),
     staleTime: 24 * 60 * 60 * 1000,
   });
 
   const provincesQuery = useQuery<GeoItem[]>({
     queryKey: ['catalogs', 'geo', 'provinces', departmentId],
     queryFn: () =>
-      apiJson<GeoItem[]>(`${PROVINCES_ENDPOINT}?departmentId=${encodeURIComponent(departmentId)}`),
+      bffFetchOrThrow<GeoItem[]>(
+        `${PROVINCES_ENDPOINT}?departmentId=${encodeURIComponent(departmentId)}`,
+        { method: 'GET' }
+      ),
     enabled: !!departmentId,
     staleTime: 24 * 60 * 60 * 1000,
   });
@@ -152,14 +115,20 @@ export default function CompanyProfileSetupPage() {
   const districtsQuery = useQuery<GeoItem[]>({
     queryKey: ['catalogs', 'geo', 'districts', provinceId],
     queryFn: () =>
-      apiJson<GeoItem[]>(`${DISTRICTS_ENDPOINT}?provinceId=${encodeURIComponent(provinceId)}`),
+      bffFetchOrThrow<GeoItem[]>(
+        `${DISTRICTS_ENDPOINT}?provinceId=${encodeURIComponent(provinceId)}`,
+        { method: 'GET' }
+      ),
     enabled: !!provinceId,
     staleTime: 24 * 60 * 60 * 1000,
   });
 
   const resolveQuery = useQuery<DistrictResolveResponse>({
     queryKey: ['catalogs', 'geo', 'district-resolve', me?.districtId ?? null],
-    queryFn: () => apiJson<DistrictResolveResponse>(DISTRICT_RESOLVE_ENDPOINT(me!.districtId!)),
+    queryFn: () =>
+      bffFetchOrThrow<DistrictResolveResponse>(DISTRICT_RESOLVE_ENDPOINT(me!.districtId!), {
+        method: 'GET',
+      }),
     enabled: !!me?.districtId,
     staleTime: 5 * 60 * 1000,
   });
@@ -192,7 +161,6 @@ export default function CompanyProfileSetupPage() {
     const curDist = form.getValues('districtId');
 
     const needsSync = curDept !== r.departmentId || curProv !== r.provinceId || curDist !== r.id;
-
     if (!needsSync) return;
 
     form.setValue('departmentId', r.departmentId, { shouldDirty: false, shouldTouch: false });
@@ -201,7 +169,12 @@ export default function CompanyProfileSetupPage() {
   }, [resolveQuery.data, form]);
 
   const updateMutation = useMutation({
-    mutationFn: apiUpdateMe,
+    mutationFn: async (payload: CompanyUpdateRequest) =>
+      bffFetchOrThrow<CompanyMeResponse>(COMPANY_ME_ENDPOINT, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
     onMutate: () => {
       setServerError(null);
       setServerOk(null);
@@ -232,17 +205,20 @@ export default function CompanyProfileSetupPage() {
     const legalName = watched.legalName.trim();
     const taxId = watched.taxId.trim();
     const email = watched.contactEmail.trim();
+    const phone = watched.contactPhone.trim();
 
     const department = watched.departmentId.trim();
     const province = watched.provinceId.trim();
     const district = watched.districtId.trim();
 
-    const legalNameOkUx = legalName.length >= 2;
-    const taxIdOkUx = isValidPeruRuc(taxId);
-    const emailOkUx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-    const phone = watched.contactPhone.trim();
+    const legalNameOkUx = legalName.length === 0 || legalName.length >= 2;
+    const taxIdOkUx = taxId.length === 0 || isValidPeruRuc(taxId);
+    const emailOkUx = email.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const phoneOkUx = phone.length === 0 || /^[0-9+()\s-]{6,20}$/.test(phone);
+
+    const geoAllEmpty = department.length === 0 && province.length === 0 && district.length === 0;
+    const geoAllComplete = department.length > 0 && province.length > 0 && district.length > 0;
+    const geoStateOk = geoAllEmpty || geoAllComplete;
 
     const progressState = computeCompanyProfileProgress({
       legalName: watched.legalName,
@@ -256,10 +232,9 @@ export default function CompanyProfileSetupPage() {
       taxIdOk: taxIdOkUx,
       emailOk: emailOkUx,
       phoneOk: phoneOkUx,
-
-      departmentOk: department.length > 0,
-      provinceOk: province.length > 0,
-      districtOk: district.length > 0,
+      geoAllEmpty,
+      geoAllComplete,
+      geoStateOk,
 
       missing: progressState.missing,
       progress: progressState.progress,
@@ -272,9 +247,7 @@ export default function CompanyProfileSetupPage() {
     computed.taxIdOk &&
     computed.emailOk &&
     computed.phoneOk &&
-    computed.departmentOk &&
-    computed.provinceOk &&
-    computed.districtOk &&
+    computed.geoStateOk &&
     !updateMutation.isPending;
 
   useDismissOnDirty({
@@ -290,21 +263,24 @@ export default function CompanyProfileSetupPage() {
     setServerOk(null);
     setOkVisible(false);
 
-    form.setValue('departmentId', values.departmentId, { shouldTouch: true });
-    form.setValue('provinceId', values.provinceId, { shouldTouch: true });
-    form.setValue('districtId', values.districtId, { shouldTouch: true });
+    const dept = values.departmentId.trim();
+    const prov = values.provinceId.trim();
+    const dist = values.districtId.trim();
 
-    if (!values.departmentId || !values.provinceId || !values.districtId) {
-      setServerError('Selecciona departamento, provincia y distrito.');
+    const geoAllEmpty = dept === '' && prov === '' && dist === '';
+    const geoAllComplete = dept !== '' && prov !== '' && dist !== '';
+
+    if (!geoAllEmpty && !geoAllComplete) {
+      setServerError('Completa la ubicación (departamento, provincia y distrito) o déjala vacía.');
       return;
     }
 
     const payload: CompanyUpdateRequest = {
       legalName: values.legalName.trim() ? values.legalName.trim() : null,
-      taxId: values.taxId ? normalizeRuc(values.taxId).slice(0, 11) : null,
+      taxId: values.taxId.trim() ? normalizeRuc(values.taxId).slice(0, 11) : null,
       contactEmail: values.contactEmail.trim() ? values.contactEmail.trim() : null,
       contactPhone: values.contactPhone.trim() ? values.contactPhone.trim() : null,
-      districtId: values.districtId ? values.districtId : null,
+      districtId: geoAllComplete ? values.districtId : null,
     };
 
     await updateMutation.mutateAsync(payload);
@@ -380,7 +356,7 @@ export default function CompanyProfileSetupPage() {
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Progreso del perfil</p>
                   <p className="text-sm text-slate-600">
-                    Completa lo esencial para publicar sin fricción.
+                    Completa lo esencial para publicar sin inconvenientes.
                   </p>
                 </div>
 
@@ -390,8 +366,8 @@ export default function CompanyProfileSetupPage() {
                     tone={me?.profileComplete ? 'ok' : 'warn'}
                     help={
                       me?.profileComplete
-                        ? 'Tu perfil tiene los datos mínimos para publicar sin fricción.'
-                        : 'Te faltan datos requeridos para publicar sin fricción.'
+                        ? 'Tu perfil cumple los requisitos mínimos para postular.'
+                        : 'Completa los datos requeridos para habilitar tus postulaciones.'
                     }
                   />
 
@@ -495,14 +471,18 @@ export default function CompanyProfileSetupPage() {
                     label="Razón social / Nombre legal"
                     required
                     error={
-                      form.formState.touchedFields.legalName && !computed.legalNameOk
+                      form.formState.touchedFields.legalName &&
+                      watched.legalName.trim().length > 0 &&
+                      !computed.legalNameOk
                         ? 'Debe tener al menos 2 caracteres.'
                         : undefined
                     }
                   >
                     <input
                       className={inputClass(
-                        form.formState.touchedFields.legalName && !computed.legalNameOk
+                        form.formState.touchedFields.legalName &&
+                          watched.legalName.trim().length > 0 &&
+                          !computed.legalNameOk
                       )}
                       placeholder="Ej: ACME SAC"
                       {...form.register('legalName')}
@@ -514,14 +494,18 @@ export default function CompanyProfileSetupPage() {
                     required
                     hint="11 dígitos. Solo números."
                     error={
-                      form.formState.touchedFields.taxId && !computed.taxIdOk
+                      form.formState.touchedFields.taxId &&
+                      watched.taxId.trim().length > 0 &&
+                      !computed.taxIdOk
                         ? 'RUC inválido. Verifica que tenga 11 dígitos y sea válido.'
                         : undefined
                     }
                   >
                     <input
                       className={inputClass(
-                        form.formState.touchedFields.taxId && !computed.taxIdOk
+                        form.formState.touchedFields.taxId &&
+                          watched.taxId.trim().length > 0 &&
+                          !computed.taxIdOk
                       )}
                       placeholder="Ej: 20123456789"
                       inputMode="numeric"
@@ -547,7 +531,8 @@ export default function CompanyProfileSetupPage() {
                     required
                     error={
                       form.formState.touchedFields.contactEmail &&
-                      (watched.contactEmail.trim().length === 0 || !computed.emailOk)
+                      watched.contactEmail.trim().length > 0 &&
+                      !computed.emailOk
                         ? 'Ingresa un correo válido.'
                         : undefined
                     }
@@ -555,7 +540,8 @@ export default function CompanyProfileSetupPage() {
                     <input
                       className={inputClass(
                         form.formState.touchedFields.contactEmail &&
-                          (watched.contactEmail.trim().length === 0 || !computed.emailOk)
+                          watched.contactEmail.trim().length > 0 &&
+                          !computed.emailOk
                       )}
                       placeholder="contacto@empresa.com"
                       autoComplete="email"
@@ -567,14 +553,18 @@ export default function CompanyProfileSetupPage() {
                     label="Teléfono"
                     hint="Opcional. Ej: +51 999 999 999"
                     error={
-                      form.formState.touchedFields.contactPhone && !computed.phoneOk
+                      form.formState.touchedFields.contactPhone &&
+                      watched.contactPhone.trim().length > 0 &&
+                      !computed.phoneOk
                         ? 'Teléfono inválido.'
                         : undefined
                     }
                   >
                     <input
                       className={inputClass(
-                        form.formState.touchedFields.contactPhone && !computed.phoneOk
+                        form.formState.touchedFields.contactPhone &&
+                          watched.contactPhone.trim().length > 0 &&
+                          !computed.phoneOk
                       )}
                       placeholder="+51 999 999 999"
                       autoComplete="tel"
@@ -603,16 +593,15 @@ export default function CompanyProfileSetupPage() {
                     label="Departamento"
                     required
                     error={
-                      form.formState.touchedFields.departmentId && !computed.departmentOk
-                        ? 'Selecciona un departamento.'
+                      form.formState.touchedFields.departmentId &&
+                      !computed.geoAllEmpty &&
+                      !computed.geoAllComplete
+                        ? 'Completa la ubicación o déjala vacía.'
                         : undefined
                     }
                   >
                     <select
-                      className={selectClass(
-                        false,
-                        form.formState.touchedFields.departmentId && !computed.departmentOk
-                      )}
+                      className={selectClass(false, false)}
                       value={departmentId}
                       onChange={(e) => {
                         const next = e.target.value;
@@ -650,20 +639,15 @@ export default function CompanyProfileSetupPage() {
                     label="Provincia"
                     required
                     error={
-                      !!departmentId &&
                       form.formState.touchedFields.provinceId &&
-                      !computed.provinceOk
-                        ? 'Selecciona una provincia.'
+                      !computed.geoAllEmpty &&
+                      !computed.geoAllComplete
+                        ? 'Completa la ubicación o déjala vacía.'
                         : undefined
                     }
                   >
                     <select
-                      className={selectClass(
-                        !departmentId,
-                        !!departmentId &&
-                          form.formState.touchedFields.provinceId &&
-                          !computed.provinceOk
-                      )}
+                      className={selectClass(!departmentId, false)}
                       value={provinceId}
                       disabled={!departmentId || provincesQuery.isLoading}
                       onChange={(e) => {
@@ -703,20 +687,15 @@ export default function CompanyProfileSetupPage() {
                     label="Distrito"
                     required
                     error={
-                      !!provinceId &&
                       form.formState.touchedFields.districtId &&
-                      !computed.districtOk
-                        ? 'Selecciona un distrito.'
+                      !computed.geoAllEmpty &&
+                      !computed.geoAllComplete
+                        ? 'Completa la ubicación o déjala vacía.'
                         : undefined
                     }
                   >
                     <select
-                      className={selectClass(
-                        !provinceId,
-                        !!provinceId &&
-                          form.formState.touchedFields.districtId &&
-                          !computed.districtOk
-                      )}
+                      className={selectClass(!provinceId, false)}
                       value={districtId}
                       disabled={!provinceId || districtsQuery.isLoading}
                       onChange={(e) =>

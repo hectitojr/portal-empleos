@@ -55,13 +55,20 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         if (departmentId != null) return new GeoFilter(departmentId, null, null);
         return new GeoFilter(null, null, null);
     }
+    
+    private CompanyOwnershipPort.CompanyOwnership requirePublishableCompany(UUID companyUserId) {
+        var own = ownership.getForUser(companyUserId);
+
+        if (own.companyId() == null || !own.active() || own.suspended() || !own.profileComplete()) {
+            throw new CompanyIncompleteException();
+        }
+
+        return own;
+    }
 
     @Override
     public JobDetailView create(UUID companyUserId, CreateJobCommand cmd) {
-        var own = ownership.getForUser(companyUserId);
-        if (own.companyId() == null || !own.active() || !own.profileComplete()) {
-            throw new CompanyIncompleteException();
-        }
+        var own = requirePublishableCompany(companyUserId);
 
         validateCatalogs(cmd.areaId(), cmd.sectorId(), cmd.districtId(), cmd.employmentTypeId(), cmd.workModeId());
 
@@ -95,7 +102,7 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
 
     @Override
     public JobDetailView update(UUID companyUserId, UUID jobId, UpdateJobCommand cmd) {
-        var own = ownership.getForUser(companyUserId);
+        var own = requirePublishableCompany(companyUserId);
         var job = repo.findById(jobId).orElseThrow(JobNotFoundException::new);
 
         if (!repo.isOwner(jobId, own.companyId())) {
@@ -129,7 +136,7 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
 
     @Override
     public JobDetailView close(UUID companyUserId, UUID jobId) {
-        var own = ownership.getForUser(companyUserId);
+        var own = requirePublishableCompany(companyUserId);
         var job = repo.findById(jobId).orElseThrow(JobNotFoundException::new);
 
         if (!repo.isOwner(jobId, own.companyId())) {
@@ -244,10 +251,7 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                                                  int page,
                                                  int size) {
 
-        var own = ownership.getForUser(companyUserId);
-        if (own.companyId() == null || !own.active() || !own.profileComplete()) {
-            throw new CompanyIncompleteException();
-        }
+        var own = requirePublishableCompany(companyUserId);
 
         var rows = jobLocationQueries.searchCompanySummaries(
                 own.companyId(),

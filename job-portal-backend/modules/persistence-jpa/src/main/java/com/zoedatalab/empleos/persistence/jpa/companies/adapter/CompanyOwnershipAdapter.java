@@ -17,11 +17,13 @@ public class CompanyOwnershipAdapter implements CompanyOwnershipPort {
     @Override
     public CompanyOwnership getForUser(UUID companyUserId) {
         var c = companies.findByUserId(companyUserId).orElse(null);
-        if (c == null) return new CompanyOwnership(null, false, false);
+        if (c == null) return new CompanyOwnership(null, false, false, false);
 
         boolean complete = c.isProfileComplete();
-        boolean active = c.isActive() && !c.isSuspended();
-        return new CompanyOwnership(c.getId(), active, complete);
+        boolean suspended = c.isSuspended();
+        boolean active = c.isActive();
+
+        return new CompanyOwnership(c.getId(), active, complete, suspended);
     }
 
     @Override

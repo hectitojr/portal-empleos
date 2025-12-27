@@ -117,8 +117,7 @@ class ApplicationServiceImplTest {
 
         assertEquals(saved.getId(), view.id());
         assertEquals(Application.Status.APPLIED, view.status());
-
-        // además verificamos los datos enviados al repo
+        
         ArgumentCaptor<Application> captor = ArgumentCaptor.forClass(Application.class);
         verify(repo).save(captor.capture());
         var toSave = captor.getValue();
@@ -198,7 +197,7 @@ class ApplicationServiceImplTest {
 
         when(repo.findById(applicationId)).thenReturn(Optional.of(app));
         // ownership ok
-        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true);
+        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true, false);
         when(ownershipPort.getForUser(any())).thenReturn(ownership);
         when(jobRepo.isOwner(jobId, companyId)).thenReturn(true);
 
@@ -225,7 +224,7 @@ class ApplicationServiceImplTest {
     void updateStatus_falla_siCompanyProfileIncompleto() {
         var app = Application.builder().id(applicationId).jobId(jobId).status(Application.Status.APPLIED).build();
         when(repo.findById(applicationId)).thenReturn(Optional.of(app));
-        when(ownershipPort.getForUser(any())).thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false, false));
+        when(ownershipPort.getForUser(any())).thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false, false, false));
 
         assertThrows(CompanyIncompleteException.class,
                 () -> service.updateStatus(UUID.randomUUID(), applicationId,
@@ -236,7 +235,7 @@ class ApplicationServiceImplTest {
     void updateStatus_falla_siNoEsOwner() {
         var app = Application.builder().id(applicationId).jobId(jobId).status(Application.Status.APPLIED).build();
         when(repo.findById(applicationId)).thenReturn(Optional.of(app));
-        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true);
+        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true, false);
         when(ownershipPort.getForUser(any())).thenReturn(ownership);
         when(jobRepo.isOwner(jobId, companyId)).thenReturn(false);
 
@@ -262,7 +261,7 @@ class ApplicationServiceImplTest {
 
     @Test
     void listForJob_ok_validaOwnerYDevuelveLista() {
-        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true);
+        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true, false);
         when(ownershipPort.getForUser(any())).thenReturn(ownership);
         when(jobRepo.findById(jobId)).thenReturn(Optional.of(job(JobOffer.Status.OPEN)));
         when(jobRepo.isOwner(jobId, companyId)).thenReturn(true);
@@ -281,7 +280,7 @@ class ApplicationServiceImplTest {
     void getByIdAuthorizedForCompany_ok_validaOwner() {
         var app = Application.builder().id(applicationId).jobId(jobId).status(Application.Status.APPLIED).build();
         when(repo.findById(applicationId)).thenReturn(Optional.of(app));
-        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true);
+        var ownership = new CompanyOwnershipPort.CompanyOwnership(companyId, true, true, false);
         when(ownershipPort.getForUser(any())).thenReturn(ownership);
         when(jobRepo.isOwner(jobId, companyId)).thenReturn(true);
 

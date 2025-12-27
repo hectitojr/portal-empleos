@@ -301,7 +301,6 @@ export default function ApplicantProfileSetupPage() {
       await qc.invalidateQueries({ queryKey: ['applicant', 'me'] });
     },
     onError: (err: unknown) => {
-
       const msg = applyApiErrorToForm<FormValues>({
         err,
         setError: form.setError,
@@ -520,7 +519,8 @@ export default function ApplicantProfileSetupPage() {
             Configura tu perfil de postulante
           </h1>
           <p className="mt-2 text-sm sm:text-base text-slate-600">
-            Completa tus datos para postular sin fricción: experiencia, educación y habilidades.
+            Completa tus datos para postular con confianza y sin contratiempos: experiencia,
+            educación y habilidades.
           </p>
         </header>
 
@@ -564,7 +564,7 @@ export default function ApplicantProfileSetupPage() {
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Progreso del perfil</p>
                   <p className="text-sm text-slate-600">
-                    Completa lo esencial para postular sin bloqueos.
+                    Completa lo esencial para postular sin inconvenientes.
                   </p>
                 </div>
 
@@ -574,8 +574,8 @@ export default function ApplicantProfileSetupPage() {
                     tone={me?.profileComplete ? 'ok' : 'warn'}
                     help={
                       me?.profileComplete
-                        ? 'Tu perfil cumple lo mínimo para postular sin fricción.'
-                        : 'Te faltan datos clave para postular sin fricción.'
+                        ? 'Tu perfil cumple los requisitos mínimos para postular.'
+                        : 'Completa los datos requeridos para habilitar tus postulaciones.'
                     }
                   />
 
@@ -1274,7 +1274,9 @@ export default function ApplicantProfileSetupPage() {
                           }
                         >
                           <input
-                            className={inputClass(!!(form.formState.errors.skills as any)?.[idx]?.name)}
+                            className={inputClass(
+                              !!(form.formState.errors.skills as any)?.[idx]?.name
+                            )}
                             placeholder="Ej: Spring Boot"
                             {...form.register(`skills.${idx}.name` as const)}
                           />
@@ -1296,7 +1298,9 @@ export default function ApplicantProfileSetupPage() {
               {/* Acciones */}
               <div className="pt-2 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-slate-100">
                 <div className="text-sm text-slate-600">
-                  {updateMutation.isPending ? 'Guardando cambios…' : 'Asegúrate de guardar tus cambios.'}
+                  {updateMutation.isPending
+                    ? 'Guardando cambios…'
+                    : 'Asegúrate de guardar tus cambios.'}
                 </div>
 
                 <div className="flex gap-3">

@@ -12,6 +12,7 @@ export type ApiErrorCode =
   | 'COMPANY_TAX_ID_ALREADY_EXISTS'
   | 'DISTRICT_NOT_FOUND'
   | 'COMPANY_INCOMPLETE'
+  | 'COMPANY_PROFILE_LOCKED'
   | 'APPLICANT_NOT_FOUND'
   | 'JOB_NOT_FOUND'
   | 'JOB_CLOSED'
@@ -55,6 +56,8 @@ export function humanize(code?: ApiErrorCode | string): string {
       return 'El RUC ya está asociado a otra cuenta.';
     case 'COMPANY_INCOMPLETE':
       return 'Completa la ficha de empresa.';
+    case 'COMPANY_PROFILE_LOCKED':
+      return 'No puedes dejar vacío el perfil porque ya tienes ofertas creadas.';
     case 'DISTRICT_NOT_FOUND':
       return 'El distrito no existe.';
 
@@ -76,15 +79,8 @@ export function humanize(code?: ApiErrorCode | string): string {
   }
 }
 
-export function getErrorCode(
-  err: unknown
-): ApiErrorCode | string | undefined {
+export function getErrorCode(err: unknown): ApiErrorCode | string | undefined {
   const e = err as any;
 
-  return (
-    e?.error?.error ??
-    e?.error?.code ??
-    e?.code ??
-    e?.error
-  );
+  return e?.error?.error ?? e?.error?.code ?? e?.code ?? e?.error;
 }

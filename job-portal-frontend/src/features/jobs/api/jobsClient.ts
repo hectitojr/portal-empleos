@@ -1,17 +1,5 @@
-import type { ApiErrorCode } from '@/lib/errors';
-
-export type ApiErrorResponse = {
-  error?: ApiErrorCode | string;
-  code?: ApiErrorCode | string;
-  message?: string;
-  status?: number;
-  path?: string;
-  timestamp?: string;
-  traceId?: string | null;
-  fieldErrors?: unknown;
-  violations?: unknown;
-  [key: string]: unknown;
-};
+import type { ApiResult, ApiErrorResponse } from '@/lib/api/types';
+import { bffFetchResult } from '@/lib/api/bffClient';
 
 export type PublicJobSummaryResponse = {
   id: string;
@@ -161,25 +149,7 @@ export type CompanyJobSummaryResponse = {
   publishedAt: string;
 };
 
-type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; error: ApiErrorResponse };
-
-async function handleJson<T>(res: Response): Promise<ApiResult<T>> {
-  const status = res.status;
-  const data = (await res.json().catch(() => ({}))) as any;
-
-  if (!res.ok) {
-    return {
-      ok: false,
-      status,
-      error: data as ApiErrorResponse,
-    };
-  }
-
-  return {
-    ok: true,
-    data: data as T,
-  };
-}
+export type { ApiErrorResponse };
 
 function safeNumber(n: unknown): number | null | undefined {
   if (n == null) return n as null | undefined;
@@ -210,29 +180,20 @@ export async function listPublicJobs(params?: {
   if (params?.departmentId) search.set('departmentId', params.departmentId);
   if (params?.provinceId) search.set('provinceId', params.provinceId);
   if (params?.districtId) search.set('districtId', params.districtId);
-  if (params?.disabilityFriendly != null) {
+  if (params?.disabilityFriendly != null)
     search.set('disabilityFriendly', String(params.disabilityFriendly));
-  }
   if (params?.fromDate) search.set('fromDate', params.fromDate);
 
   const qs = search.toString();
-  const res = await fetch(`/api/jobs${qs ? `?${qs}` : ''}`, {
+  return bffFetchResult<PublicJobSummaryResponse[]>(`/api/jobs${qs ? `?${qs}` : ''}`, {
     method: 'GET',
-    cache: 'no-store',
   });
-
-  return handleJson<PublicJobSummaryResponse[]>(res);
 }
 
 export async function getPublicJobDetail(
   jobId: string
 ): Promise<ApiResult<PublicJobDetailResponse>> {
-  const res = await fetch(`/api/jobs/${jobId}`, {
-    method: 'GET',
-    cache: 'no-store',
-  });
-
-  return handleJson<PublicJobDetailResponse>(res);
+  return bffFetchResult<PublicJobDetailResponse>(`/api/jobs/${jobId}`, { method: 'GET' });
 }
 
 // -----------------------
@@ -258,40 +219,31 @@ export async function listApplicantJobs(params?: {
   if (params?.departmentId) search.set('departmentId', params.departmentId);
   if (params?.provinceId) search.set('provinceId', params.provinceId);
   if (params?.districtId) search.set('districtId', params.districtId);
-  if (params?.disabilityFriendly != null) {
+  if (params?.disabilityFriendly != null)
     search.set('disabilityFriendly', String(params.disabilityFriendly));
-  }
   if (params?.fromDate) search.set('fromDate', params.fromDate);
 
   const qs = search.toString();
-  const res = await fetch(`/api/me/applicant/jobs${qs ? `?${qs}` : ''}`, {
-    method: 'GET',
-    cache: 'no-store',
-  });
-
-  return handleJson<ApplicantJobSummaryResponse[]>(res);
+  return bffFetchResult<ApplicantJobSummaryResponse[]>(
+    `/api/me/applicant/jobs${qs ? `?${qs}` : ''}`,
+    { method: 'GET' }
+  );
 }
 
 export async function getApplicantJobDetail(
   jobId: string
 ): Promise<ApiResult<ApplicantJobDetailResponse>> {
-  const res = await fetch(`/api/me/applicant/jobs/${jobId}`, {
+  return bffFetchResult<ApplicantJobDetailResponse>(`/api/me/applicant/jobs/${jobId}`, {
     method: 'GET',
-    cache: 'no-store',
   });
-
-  return handleJson<ApplicantJobDetailResponse>(res);
 }
 
 export async function applyToJob(jobId: string, notes?: string): Promise<ApiResult<ApplyResponse>> {
-  const res = await fetch(`/api/jobs/${jobId}/apply`, {
+  return bffFetchResult<ApplyResponse>(`/api/jobs/${jobId}/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
     body: notes ? JSON.stringify({ notes }) : null,
   });
-
-  return handleJson<ApplyResponse>(res);
 }
 
 // -----------------------
@@ -307,14 +259,11 @@ export async function createCompanyJob(
     salaryMax: safeNumber(payload.salaryMax),
   };
 
-  const res = await fetch('/api/company/jobs', {
+  return bffFetchResult<CompanyJobDetailResponse>('/api/company/jobs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
     body: JSON.stringify(safePayload),
   });
-
-  return handleJson<CompanyJobDetailResponse>(res);
 }
 
 export async function updateCompanyJob(
@@ -327,23 +276,17 @@ export async function updateCompanyJob(
     salaryMax: safeNumber(payload.salaryMax),
   };
 
-  const res = await fetch(`/api/company/jobs/${jobId}`, {
+  return bffFetchResult<CompanyJobDetailResponse>(`/api/company/jobs/${jobId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
     body: JSON.stringify(safePayload),
   });
-
-  return handleJson<CompanyJobDetailResponse>(res);
 }
 
 export async function closeCompanyJob(jobId: string): Promise<ApiResult<CompanyJobDetailResponse>> {
-  const res = await fetch(`/api/company/jobs/${jobId}/close`, {
+  return bffFetchResult<CompanyJobDetailResponse>(`/api/company/jobs/${jobId}/close`, {
     method: 'POST',
-    cache: 'no-store',
   });
-
-  return handleJson<CompanyJobDetailResponse>(res);
 }
 
 export async function listCompanyJobs(params?: {
@@ -361,10 +304,7 @@ export async function listCompanyJobs(params?: {
   if (params?.fromDate) search.set('fromDate', params.fromDate);
 
   const qs = search.toString();
-  const res = await fetch(`/api/company/jobs${qs ? `?${qs}` : ''}`, {
+  return bffFetchResult<CompanyJobSummaryResponse[]>(`/api/company/jobs${qs ? `?${qs}` : ''}`, {
     method: 'GET',
-    cache: 'no-store',
   });
-
-  return handleJson<CompanyJobSummaryResponse[]>(res);
 }

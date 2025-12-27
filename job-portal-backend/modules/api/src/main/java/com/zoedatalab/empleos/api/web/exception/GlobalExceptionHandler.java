@@ -11,6 +11,7 @@ import com.zoedatalab.empleos.common.catalogs.exception.EmploymentTypeNotFoundEx
 import com.zoedatalab.empleos.common.catalogs.exception.SectorNotFoundException;
 import com.zoedatalab.empleos.common.catalogs.exception.WorkModeNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
+import com.zoedatalab.empleos.companies.domain.exception.CompanyProfileLockedException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
 import com.zoedatalab.empleos.iam.application.exception.AuthBadCredentialsException;
 import com.zoedatalab.empleos.iam.application.exception.EmailAlreadyExistsException;
@@ -77,6 +78,7 @@ public class GlobalExceptionHandler {
         EX_MAP.put(CompanyNotFoundException.class, ApiErrorCode.COMPANY_NOT_FOUND);
         EX_MAP.put(TaxIdAlreadyExistsException.class, ApiErrorCode.COMPANY_TAX_ID_ALREADY_EXISTS);
         EX_MAP.put(CompanyIncompleteException.class, ApiErrorCode.COMPANY_INCOMPLETE);
+        EX_MAP.put(CompanyProfileLockedException.class, ApiErrorCode.COMPANY_PROFILE_LOCKED);
 
         // Catálogos
         EX_MAP.put(AreaNotFoundException.class, ApiErrorCode.AREA_NOT_FOUND);
@@ -96,7 +98,7 @@ public class GlobalExceptionHandler {
     }
 
     private static String extractDuplicateSkillName(String msg) {
-        var p = java.util.regex.Pattern.compile("Key \\(applicant_id, name\\)=\\(([^,]+),\\s*([^\\)]+)\\)");
+        var p = java.util.regex.Pattern.compile("Key \\(applicant_id, name\\)=\\(([^,]+),\\s*([^)]*)\\)");
         var m = p.matcher(msg);
         if (!m.find()) return null;
         return m.group(2).trim();
@@ -118,6 +120,7 @@ public class GlobalExceptionHandler {
             CompanyNotFoundException.class,
             TaxIdAlreadyExistsException.class,
             CompanyIncompleteException.class,
+            CompanyProfileLockedException.class,
             AreaNotFoundException.class,
             SectorNotFoundException.class,
             DistrictNotFoundException.class,
@@ -138,7 +141,6 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorFactory.build(req, code, null, null));
     }
 
-    // disabilityIds inválidos o inactivos
     @ExceptionHandler(InvalidDisabilityTypeIdsException.class)
     public ResponseEntity<ApiErrorResponse> invalidDisabilityIds(HttpServletRequest req, InvalidDisabilityTypeIdsException ex) {
         var code = ApiErrorCode.VALIDATION_ERROR;

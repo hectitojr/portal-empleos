@@ -7,9 +7,11 @@ import com.zoedatalab.empleos.companies.application.dto.CompanyView;
 import com.zoedatalab.empleos.companies.application.dto.UpsertMyCompanyCommand;
 import com.zoedatalab.empleos.companies.application.ports.in.CompanyCommandService;
 import com.zoedatalab.empleos.companies.application.ports.in.CompanyQueryService;
+import com.zoedatalab.empleos.companies.application.ports.out.CompanyJobStatsPort;
 import com.zoedatalab.empleos.companies.application.ports.out.CompanyRepositoryPort;
 import com.zoedatalab.empleos.companies.domain.Company;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
+import com.zoedatalab.empleos.companies.domain.exception.CompanyProfileLockedException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
 import lombok.RequiredArgsConstructor;
 
@@ -19,6 +21,7 @@ import java.util.UUID;
 public class CompanyServiceImpl implements CompanyCommandService, CompanyQueryService {
 
     private final CompanyRepositoryPort repo;
+    private final CompanyJobStatsPort jobStats;
     private final ClockPort clock;
     private final DistrictLookupPort districts;
 
@@ -67,26 +70,25 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
     @Override
     public CompanyView upsertMyCompany(UUID userId, UpsertMyCompanyCommand cmd) {
         var existing = repo.findByUserId(userId).orElse(null);
+        
+        var legalName = trimToNull(cmd.legalName());
+        var taxId = digitsOnlyToNull(cmd.taxId());
+        var contactEmail = trimLowerToNull(cmd.contactEmail());
+        var contactPhone = trimToNull(cmd.contactPhone());
+        var districtId = cmd.districtId();
 
-        var legalName = (cmd.legalName() != null)
-                ? trimToNull(cmd.legalName())
-                : (existing != null ? existing.getLegalName() : null);
+        if (existing != null) {
+            boolean wipingProfile =
+                    legalName == null
+                            && taxId == null
+                            && contactEmail == null
+                            && contactPhone == null
+                            && districtId == null;
 
-        var taxId = (cmd.taxId() != null)
-                ? digitsOnlyToNull(cmd.taxId())
-                : (existing != null ? existing.getTaxId() : null);
-
-        var contactEmail = (cmd.contactEmail() != null)
-                ? trimLowerToNull(cmd.contactEmail())
-                : (existing != null ? existing.getContactEmail() : null);
-
-        var contactPhone = (cmd.contactPhone() != null)
-                ? trimToNull(cmd.contactPhone())
-                : (existing != null ? existing.getContactPhone() : null);
-
-        var districtId = (cmd.districtId() != null)
-                ? cmd.districtId()
-                : (existing != null ? existing.getDistrictId() : null);
+            if (wipingProfile && jobStats.hasCreatedJobs(existing.getId())) {
+                throw new CompanyProfileLockedException();
+            }
+        }
 
         if (districtId != null) {
             boolean changed = (existing == null) || !districtId.equals(existing.getDistrictId());
@@ -94,7 +96,7 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
                 throw new DistrictNotFoundException();
             }
         }
-        
+
         if (taxId != null && !taxId.isBlank()) {
             boolean usedByOther = repo.existsByTaxIdIgnoreCaseAndUserIdNot(taxId, userId);
             if (usedByOther) {

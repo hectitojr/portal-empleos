@@ -2,12 +2,15 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { ApiErrorResponse, CompanyJobSummaryResponse } from '@/features/jobs/api/jobsClient';
+import type { ApiErrorResponse } from '@/lib/api/types';
+import type { CompanyJobSummaryResponse } from '@/features/jobs/api/jobsClient';
 import { listCompanyJobs } from '@/features/jobs/api/jobsClient';
 
-type ApiError = {
+export type ApiResultError = {
   status: number;
-  error: ApiErrorResponse;
+  error: ApiErrorResponse | null;
+  bodyText?: string;
+  traceId?: string | null;
 };
 
 export function useCompanyJobs(params?: {
@@ -17,11 +20,18 @@ export function useCompanyJobs(params?: {
   status?: 'OPEN' | 'CLOSED';
   fromDate?: string;
 }) {
-  const query = useQuery<CompanyJobSummaryResponse[], ApiError>({
+  const query = useQuery<CompanyJobSummaryResponse[], ApiResultError>({
     queryKey: ['jobs', 'company', params] as const,
     queryFn: async () => {
       const res = await listCompanyJobs(params);
-      if (!res.ok) throw { status: res.status, error: res.error } satisfies ApiError;
+      if (!res.ok) {
+        throw {
+          status: res.status,
+          error: res.error,
+          bodyText: res.bodyText,
+          traceId: res.traceId,
+        } satisfies ApiResultError;
+      }
       return res.data;
     },
     staleTime: 30_000,

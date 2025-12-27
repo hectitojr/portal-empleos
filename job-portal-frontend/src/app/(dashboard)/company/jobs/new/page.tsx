@@ -12,6 +12,9 @@ import { useDismissOnDirty } from '@/app/components/ui/useDismissOnDirty';
 import { routes } from '@/lib/routes';
 import { createCompanyJob } from '@/features/jobs/api/jobsClient';
 
+import { CompanyPublishGate } from '@/features/companies/components/CompanyPublishGate';
+import type { ApiErrorCode } from '@/lib/errors';
+
 type UUID = string;
 
 type GeoItem = { id: UUID; name: string };
@@ -62,6 +65,8 @@ export default function CompanyJobNewPage() {
   const [okVisible, setOkVisible] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false);
 
+  const [showCompleteProfileCta, setShowCompleteProfileCta] = useState(false);
+
   const submitLockRef = useRef(false);
 
   const okAnimateMs = 900;
@@ -110,6 +115,7 @@ export default function CompanyJobNewPage() {
       departmentId: '',
       provinceId: '',
       districtId: '',
+
       employmentTypeId: '',
       workModeId: '',
     },
@@ -204,6 +210,8 @@ export default function CompanyJobNewPage() {
   });
 
   const showError = (msg: string) => {
+    setShowCompleteProfileCta(false);
+
     redirectOnOkClearRef.current = false;
 
     setServerOk(null);
@@ -214,6 +222,8 @@ export default function CompanyJobNewPage() {
   };
 
   const showOk = (msg: string) => {
+    setShowCompleteProfileCta(false);
+
     setServerError(null);
     setErrorVisible(false);
 
@@ -331,10 +341,19 @@ export default function CompanyJobNewPage() {
       });
 
       if (!res.ok) {
+        const code = (res.error?.error ?? res.error?.code) as ApiErrorCode | string | undefined;
+
+        if (code === 'COMPANY_INCOMPLETE') {
+          setShowCompleteProfileCta(true);
+          showError('Completa la ficha de empresa antes de publicar ofertas.');
+          return;
+        }
+
         const msg =
           (typeof res.error?.message === 'string' && res.error.message) ||
           (typeof res.error?.error === 'string' && res.error.error) ||
           'No se pudo publicar la oferta.';
+
         showError(msg);
         return;
       }
@@ -398,370 +417,402 @@ export default function CompanyJobNewPage() {
           }}
         />
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
-          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
-            <section>
-              <h2 className="text-lg font-semibold text-slate-900">Información de la oferta</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Un título claro y una descripción detallada mejoran la calidad de las postulaciones.
-              </p>
+        {showCompleteProfileCta && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-900 font-semibold">Acción requerida</p>
+            <p className="mt-1 text-sm text-slate-700">
+              Completa tu perfil de empresa para habilitar la publicación.
+            </p>
 
-              <div className="mt-4 grid gap-4">
-                <Field
-                  label="Título"
-                  required
-                  hint="Ejemplo: Backend Java (Spring Boot) Senior — Remoto"
-                  error={
-                    form.formState.touchedFields.title && !computed.titleOk
-                      ? 'Ingresa un título con al menos 4 caracteres.'
-                      : undefined
-                  }
-                >
-                  <input
-                    className={inputClass(form.formState.touchedFields.title && !computed.titleOk)}
-                    placeholder="Ej: Backend Java (Spring Boot) Senior — Remoto"
-                    {...form.register('title')}
-                  />
-                </Field>
+            <div className="mt-3 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => router.push('/me/company/profile/setup')}
+                className="inline-flex items-center justify-center rounded-2xl bg-blue-700 px-4 py-2.5 text-white text-sm font-semibold hover:bg-blue-800 transition"
+              >
+                Ir a completar perfil
+              </button>
 
-                <Field
-                  label="Descripción"
-                  required
-                  hint="Incluye responsabilidades, requisitos, beneficios y rango salarial si aplica (mínimo 20 caracteres)."
-                  error={
-                    form.formState.touchedFields.description && !computed.descOk
-                      ? 'Describe mejor la vacante (mínimo 20 caracteres).'
-                      : undefined
-                  }
-                >
-                  <textarea
-                    rows={7}
-                    className={inputClass(
+              <button
+                type="button"
+                onClick={() => router.push(routes.dashboard.company.home)}
+                className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
+              >
+                Volver al panel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <CompanyPublishGate>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
+              <section>
+                <h2 className="text-lg font-semibold text-slate-900">Información de la oferta</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Un título claro y una descripción detallada mejoran la calidad de las
+                  postulaciones.
+                </p>
+
+                <div className="mt-4 grid gap-4">
+                  <Field
+                    label="Título"
+                    required
+                    hint="Ejemplo: Backend Java (Spring Boot) Senior — Remoto"
+                    error={
+                      form.formState.touchedFields.title && !computed.titleOk
+                        ? 'Ingresa un título con al menos 4 caracteres.'
+                        : undefined
+                    }
+                  >
+                    <input
+                      className={inputClass(
+                        form.formState.touchedFields.title && !computed.titleOk
+                      )}
+                      placeholder="Ej: Backend Java (Spring Boot) Senior — Remoto"
+                      {...form.register('title')}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Descripción"
+                    required
+                    hint="Incluye responsabilidades, requisitos, beneficios y rango salarial si aplica (mínimo 20 caracteres)."
+                    error={
                       form.formState.touchedFields.description && !computed.descOk
-                    )}
-                    placeholder="Responsabilidades, requisitos, beneficios, detalles del proceso, etc."
-                    {...form.register('description')}
-                  />
-                </Field>
+                        ? 'Describe mejor la vacante (mínimo 20 caracteres).'
+                        : undefined
+                    }
+                  >
+                    <textarea
+                      rows={7}
+                      className={inputClass(
+                        form.formState.touchedFields.description && !computed.descOk
+                      )}
+                      placeholder="Responsabilidades, requisitos, beneficios, detalles del proceso, etc."
+                      {...form.register('description')}
+                    />
+                  </Field>
 
-                <div className="flex items-center gap-3">
-                  <input
-                    id="disabilityFriendly"
-                    type="checkbox"
-                    className="h-4 w-4"
-                    {...form.register('disabilityFriendly')}
-                  />
-                  <label htmlFor="disabilityFriendly" className="text-sm text-slate-700">
-                    Oferta inclusiva para personas con discapacidad
-                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="disabilityFriendly"
+                      type="checkbox"
+                      className="h-4 w-4"
+                      {...form.register('disabilityFriendly')}
+                    />
+                    <label htmlFor="disabilityFriendly" className="text-sm text-slate-700">
+                      Oferta inclusiva para personas con discapacidad
+                    </label>
+                  </div>
+
+                  <section className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">Salario</h3>
+                        <p className="mt-1 text-xs text-slate-600">
+                          Opcional. Puedes indicar un monto (mínimo) o un rango (mínimo y máximo).
+                          Solo números.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <Field
+                        label="Mínimo (S/)"
+                        hint="Opcional. Si ingresas un máximo, el mínimo es obligatorio."
+                        error={form.formState.errors.salaryMin?.message as string | undefined}
+                      >
+                        <input
+                          className={inputClass(!!form.formState.errors.salaryMin)}
+                          inputMode="decimal"
+                          placeholder="Ej: 4500 o 4500.50"
+                          maxLength={12}
+                          {...form.register('salaryMin', {
+                            setValueAs: (v) => normalizeSalaryInput(String(v ?? '')),
+                            validate: (v) => {
+                              const raw = String(v ?? '').trim();
+                              if (!raw) return true;
+
+                              const n = toFiniteNumberOrNull(raw);
+                              if (n == null) return 'Solo números, con hasta 2 decimales.';
+                              if (n < 0) return 'No puede ser negativo.';
+                              if (n > SALARY_MAX) return 'El salario mínimo es demasiado alto.';
+                              return true;
+                            },
+                            onChange: async (e) => {
+                              const next = normalizeSalaryInput(e.target.value);
+
+                              form.setValue('salaryMin', next, {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                                shouldValidate: true,
+                              });
+
+                              await form.trigger('salaryMax');
+
+                              const min = toFiniteNumberOrNull(next);
+                              const maxRaw = form.getValues('salaryMax');
+                              const max = toFiniteNumberOrNull(maxRaw);
+
+                              if (min != null && max != null && max >= min) {
+                                form.clearErrors('salaryMax');
+                              }
+                            },
+                          })}
+                          onBlur={() => form.trigger(['salaryMin', 'salaryMax'])}
+                        />
+                      </Field>
+
+                      <Field
+                        label="Máximo (S/)"
+                        hint="Opcional."
+                        error={form.formState.errors.salaryMax?.message as string | undefined}
+                      >
+                        <input
+                          className={inputClass(!!form.formState.errors.salaryMax)}
+                          inputMode="decimal"
+                          placeholder="Ej: 6500 o 6500.50"
+                          maxLength={12}
+                          {...form.register('salaryMax', {
+                            setValueAs: (v) => normalizeSalaryInput(String(v ?? '')),
+                            validate: (v) => {
+                              const raw = String(v ?? '').trim();
+                              if (!raw) return true;
+
+                              const max = toFiniteNumberOrNull(raw);
+                              if (max == null) return 'Solo números, con hasta 2 decimales.';
+                              if (max < 0) return 'No puede ser negativo.';
+                              if (max > SALARY_MAX) return 'El salario máximo es demasiado alto.';
+
+                              const minRaw = form.getValues('salaryMin');
+                              const min = toFiniteNumberOrNull(minRaw);
+
+                              if (min == null) return 'Ingresa el salario mínimo.';
+                              if (max < min) return 'El máximo no puede ser menor que el mínimo.';
+
+                              return true;
+                            },
+                            onChange: (e) => {
+                              const next = normalizeSalaryInput(e.target.value);
+
+                              form.setValue('salaryMax', next, {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                                shouldValidate: true,
+                              });
+
+                              const minRaw = form.getValues('salaryMin');
+                              const min = toFiniteNumberOrNull(minRaw);
+                              const max = toFiniteNumberOrNull(next);
+                              if (min != null && max != null && max >= min) {
+                                form.clearErrors('salaryMax');
+                              }
+                            },
+                          })}
+                          onBlur={() => form.trigger(['salaryMin', 'salaryMax'])}
+                        />
+                      </Field>
+                    </div>
+                  </section>
+                </div>
+              </section>
+
+              <section>
+                <h2 className="text-lg font-semibold text-slate-900">Ubicación</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Los campos marcados con <span className="text-red-600 font-semibold">*</span> son
+                  obligatorios. Completa la ubicación en orden: departamento, provincia y distrito.
+                </p>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <Field
+                    label="Departamento"
+                    required
+                    error={form.formState.errors.departmentId?.message as string | undefined}
+                  >
+                    <select
+                      className={selectClass(false, !!form.formState.errors.departmentId)}
+                      value={departmentId}
+                      onChange={(e) => {
+                        const next = e.target.value;
+
+                        if (next !== departmentId) {
+                          form.setValue('departmentId', next, {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          });
+
+                          form.setValue('provinceId', '', {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          });
+                          form.setValue('districtId', '', {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          });
+
+                          form.clearErrors(['departmentId', 'provinceId', 'districtId']);
+                        }
+                      }}
+                      onBlur={() => {
+                        form.trigger(['departmentId', 'provinceId', 'districtId']);
+                      }}
+                    >
+                      <option value="">Selecciona…</option>
+                      {(departmentsQuery.data ?? []).map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field
+                    label="Provincia"
+                    required
+                    error={form.formState.errors.provinceId?.message as string | undefined}
+                  >
+                    <select
+                      className={selectClass(!departmentId, !!form.formState.errors.provinceId)}
+                      value={provinceId}
+                      disabled={!departmentId || provincesQuery.isLoading}
+                      onChange={(e) => {
+                        const next = e.target.value;
+
+                        if (next !== provinceId) {
+                          form.setValue('provinceId', next, {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          });
+
+                          form.setValue('districtId', '', {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          });
+
+                          form.clearErrors(['provinceId', 'districtId']);
+                        }
+                      }}
+                      onBlur={() => {
+                        form.trigger(['provinceId', 'districtId']);
+                      }}
+                    >
+                      <option value="">
+                        {!departmentId
+                          ? 'Selecciona departamento…'
+                          : provincesQuery.isLoading
+                            ? 'Cargando…'
+                            : 'Selecciona…'}
+                      </option>
+                      {(provincesQuery.data ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field
+                    label="Distrito"
+                    required
+                    error={form.formState.errors.districtId?.message as string | undefined}
+                  >
+                    <select
+                      className={selectClass(!provinceId, !!form.formState.errors.districtId)}
+                      value={districtId}
+                      disabled={!provinceId || districtsQuery.isLoading}
+                      onChange={(e) =>
+                        form.setValue('districtId', e.target.value, {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      onBlur={() => form.trigger('districtId')}
+                    >
+                      <option value="">
+                        {!provinceId
+                          ? 'Selecciona provincia…'
+                          : districtsQuery.isLoading
+                            ? 'Cargando…'
+                            : 'Selecciona…'}
+                      </option>
+                      {(districtsQuery.data ?? []).map((dd) => (
+                        <option key={dd.id} value={dd.id}>
+                          {dd.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </section>
+
+              <section>
+                <h2 className="text-lg font-semibold text-slate-900">Tipo de empleo</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Opcional. Mejora la calidad de los filtros para postulantes.
+                </p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <Field label="Tipo de empleo" hint="Ej: Tiempo completo, Part-time, Freelance.">
+                    <select className={selectClass(false)} {...form.register('employmentTypeId')}>
+                      <option value="">Selecciona…</option>
+                      {(employmentTypesQuery.data ?? []).map((it) => (
+                        <option key={it.id} value={it.id}>
+                          {it.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Modalidad" hint="Ej: Remoto, Híbrido, Presencial.">
+                    <select className={selectClass(false)} {...form.register('workModeId')}>
+                      <option value="">Selecciona…</option>
+                      {(workModesQuery.data ?? []).map((it) => (
+                        <option key={it.id} value={it.id}>
+                          {it.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </section>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-slate-100">
+                <div className="text-sm text-slate-600">
+                  {isSaving ? 'Publicando…' : 'Revisa antes de publicar.'}
                 </div>
 
-                <section className="rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">Salario</h3>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Opcional. Puedes indicar un monto (mínimo) o un rango (mínimo y máximo).
-                        Solo números.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="Mínimo (S/)"
-                      hint="Opcional. Si ingresas un máximo, el mínimo es obligatorio."
-                      error={form.formState.errors.salaryMin?.message as string | undefined}
-                    >
-                      <input
-                        className={inputClass(!!form.formState.errors.salaryMin)}
-                        inputMode="decimal"
-                        placeholder="Ej: 4500 o 4500.50"
-                        maxLength={12}
-                        {...form.register('salaryMin', {
-                          setValueAs: (v) => normalizeSalaryInput(String(v ?? '')),
-                          validate: (v) => {
-                            const raw = String(v ?? '').trim();
-                            if (!raw) return true;
-
-                            const n = toFiniteNumberOrNull(raw);
-                            if (n == null) return 'Solo números, con hasta 2 decimales.';
-                            if (n < 0) return 'No puede ser negativo.';
-                            if (n > SALARY_MAX) return 'El salario mínimo es demasiado alto.';
-                            return true;
-                          },
-                          onChange: async (e) => {
-                            const next = normalizeSalaryInput(e.target.value);
-
-                            form.setValue('salaryMin', next, {
-                              shouldDirty: true,
-                              shouldTouch: true,
-                              shouldValidate: true,
-                            });
-
-                            await form.trigger('salaryMax');
-
-                            const min = toFiniteNumberOrNull(next);
-                            const maxRaw = form.getValues('salaryMax');
-                            const max = toFiniteNumberOrNull(maxRaw);
-
-                            if (min != null && max != null && max >= min) {
-                              form.clearErrors('salaryMax');
-                            }
-                          },
-                        })}
-                        onBlur={() => form.trigger(['salaryMin', 'salaryMax'])}
-                      />
-                    </Field>
-
-                    <Field
-                      label="Máximo (S/)"
-                      hint="Opcional."
-                      error={form.formState.errors.salaryMax?.message as string | undefined}
-                    >
-                      <input
-                        className={inputClass(!!form.formState.errors.salaryMax)}
-                        inputMode="decimal"
-                        placeholder="Ej: 6500 o 6500.50"
-                        maxLength={12}
-                        {...form.register('salaryMax', {
-                          setValueAs: (v) => normalizeSalaryInput(String(v ?? '')),
-                          validate: (v) => {
-                            const raw = String(v ?? '').trim();
-                            if (!raw) return true;
-
-                            const max = toFiniteNumberOrNull(raw);
-                            if (max == null) return 'Solo números, con hasta 2 decimales.';
-                            if (max < 0) return 'No puede ser negativo.';
-                            if (max > SALARY_MAX) return 'El salario máximo es demasiado alto.';
-
-                            const minRaw = form.getValues('salaryMin');
-                            const min = toFiniteNumberOrNull(minRaw);
-
-                            if (min == null) return 'Ingresa el salario mínimo.';
-                            if (max < min) return 'El máximo no puede ser menor que el mínimo.';
-
-                            return true;
-                          },
-                          onChange: (e) => {
-                            const next = normalizeSalaryInput(e.target.value);
-
-                            form.setValue('salaryMax', next, {
-                              shouldDirty: true,
-                              shouldTouch: true,
-                              shouldValidate: true,
-                            });
-
-                            const minRaw = form.getValues('salaryMin');
-                            const min = toFiniteNumberOrNull(minRaw);
-                            const max = toFiniteNumberOrNull(next);
-                            if (min != null && max != null && max >= min) {
-                              form.clearErrors('salaryMax');
-                            }
-                          },
-                        })}
-                        onBlur={() => form.trigger(['salaryMin', 'salaryMax'])}
-                      />
-                    </Field>
-                  </div>
-                </section>
-              </div>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-slate-900">Ubicación</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Los campos marcados con <span className="text-red-600 font-semibold">*</span> son
-                obligatorios. Completa la ubicación en orden: departamento, provincia y distrito.
-              </p>
-
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <Field
-                  label="Departamento"
-                  required
-                  error={form.formState.errors.departmentId?.message as string | undefined}
-                >
-                  <select
-                    className={selectClass(false, !!form.formState.errors.departmentId)}
-                    value={departmentId}
-                    onChange={(e) => {
-                      const next = e.target.value;
-
-                      if (next !== departmentId) {
-                        form.setValue('departmentId', next, {
-                          shouldDirty: true,
-                          shouldTouch: true,
-                          shouldValidate: true,
-                        });
-
-                        form.setValue('provinceId', '', {
-                          shouldDirty: true,
-                          shouldTouch: true,
-                          shouldValidate: true,
-                        });
-                        form.setValue('districtId', '', {
-                          shouldDirty: true,
-                          shouldTouch: true,
-                          shouldValidate: true,
-                        });
-
-                        form.clearErrors(['departmentId', 'provinceId', 'districtId']);
-                      }
-                    }}
-                    onBlur={() => {
-                      form.trigger(['departmentId', 'provinceId', 'districtId']);
-                    }}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => router.push(routes.dashboard.company.home as Route)}
+                    className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
                   >
-                    <option value="">Selecciona…</option>
-                    {(departmentsQuery.data ?? []).map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                    Cancelar
+                  </button>
 
-                <Field
-                  label="Provincia"
-                  required
-                  error={form.formState.errors.provinceId?.message as string | undefined}
-                >
-                  <select
-                    className={selectClass(!departmentId, !!form.formState.errors.provinceId)}
-                    value={provinceId}
-                    disabled={!departmentId || provincesQuery.isLoading}
-                    onChange={(e) => {
-                      const next = e.target.value;
-
-                      if (next !== provinceId) {
-                        form.setValue('provinceId', next, {
-                          shouldDirty: true,
-                          shouldTouch: true,
-                          shouldValidate: true,
-                        });
-
-                        form.setValue('districtId', '', {
-                          shouldDirty: true,
-                          shouldTouch: true,
-                          shouldValidate: true,
-                        });
-
-                        form.clearErrors(['provinceId', 'districtId']);
-                      }
-                    }}
-                    onBlur={() => {
-                      form.trigger(['provinceId', 'districtId']);
-                    }}
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    className={`inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+                      canSubmit
+                        ? 'bg-blue-700 text-white hover:bg-blue-800'
+                        : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                    }`}
                   >
-                    <option value="">
-                      {!departmentId
-                        ? 'Selecciona departamento…'
-                        : provincesQuery.isLoading
-                          ? 'Cargando…'
-                          : 'Selecciona…'}
-                    </option>
-                    {(provincesQuery.data ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field
-                  label="Distrito"
-                  required
-                  error={form.formState.errors.districtId?.message as string | undefined}
-                >
-                  <select
-                    className={selectClass(!provinceId, !!form.formState.errors.districtId)}
-                    value={districtId}
-                    disabled={!provinceId || districtsQuery.isLoading}
-                    onChange={(e) =>
-                      form.setValue('districtId', e.target.value, {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                        shouldValidate: true,
-                      })
-                    }
-                    onBlur={() => form.trigger('districtId')}
-                  >
-                    <option value="">
-                      {!provinceId
-                        ? 'Selecciona provincia…'
-                        : districtsQuery.isLoading
-                          ? 'Cargando…'
-                          : 'Selecciona…'}
-                    </option>
-                    {(districtsQuery.data ?? []).map((dd) => (
-                      <option key={dd.id} value={dd.id}>
-                        {dd.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                    Publicar oferta
+                  </button>
+                </div>
               </div>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold text-slate-900">Tipo de empleo</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Opcional. Mejora la calidad de los filtros para postulantes.
-              </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="Tipo de empleo" hint="Ej: Tiempo completo, Part-time, Freelance.">
-                  <select className={selectClass(false)} {...form.register('employmentTypeId')}>
-                    <option value="">Selecciona…</option>
-                    {(employmentTypesQuery.data ?? []).map((it) => (
-                      <option key={it.id} value={it.id}>
-                        {it.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="Modalidad" hint="Ej: Remoto, Híbrido, Presencial.">
-                  <select className={selectClass(false)} {...form.register('workModeId')}>
-                    <option value="">Selecciona…</option>
-                    {(workModesQuery.data ?? []).map((it) => (
-                      <option key={it.id} value={it.id}>
-                        {it.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-            </section>
-
-            <div className="pt-2 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-slate-100">
-              <div className="text-sm text-slate-600">
-                {isSaving ? 'Publicando…' : 'Revisa antes de publicar.'}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => router.push(routes.dashboard.company.home as Route)}
-                  className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className={`inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
-                    canSubmit
-                      ? 'bg-blue-700 text-white hover:bg-blue-800'
-                      : 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  Publicar oferta
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
+            </form>
+          </div>
+        </CompanyPublishGate>
       </div>
     </section>
   );

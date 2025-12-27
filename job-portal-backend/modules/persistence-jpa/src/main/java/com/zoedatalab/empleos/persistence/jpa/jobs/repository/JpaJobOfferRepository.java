@@ -11,4 +11,6 @@ public interface JpaJobOfferRepository
         JpaSpecificationExecutor<JobOfferEntity> {
 
     boolean existsByIdAndCompanyId(UUID id, UUID companyId);
+
+    boolean existsByCompanyId(UUID companyId);
 }
