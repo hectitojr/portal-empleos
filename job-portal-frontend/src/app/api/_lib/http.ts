@@ -14,20 +14,29 @@ const BACKEND = env.BACKEND_BASE_URL;
 async function backendFetchRaw(path: string, init?: RequestInit) {
   const url = path.startsWith('http') ? path : `${BACKEND}${path}`;
 
-  return fetch(url, {
+  const res = await fetch(url, {
     ...init,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers || {}),
     },
   });
+
+  console.log('[BFF] upstream', {
+    method: init?.method ?? 'GET',
+    path,
+    status: res.status,
+    traceId: res.headers.get('x-trace-id') ?? null,
+  });
+
+  return res;
 }
 
 export async function backendFetch(
   path: string,
   init?: RequestInit & { retryOn401?: boolean },
 ): Promise<Response> {
-
   const { retryOn401, ...fetchInit } = init ?? {};
 
   const { access } = await readTokens();
@@ -89,8 +98,11 @@ export function json(data: unknown, init?: number | ResponseInit) {
       ? init
       : (init as ResponseInit)?.status ?? 200;
 
-  return NextResponse.json(data, {
+  const res = NextResponse.json(data, {
     status,
     ...(typeof init === 'object' ? init : {}),
   });
+
+  res.headers.set('Cache-Control', 'no-store');
+  return res;
 }

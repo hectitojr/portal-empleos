@@ -8,8 +8,19 @@ export const ROLE_COOKIE = 'jp_role';
 
 const isProd = process.env.NODE_ENV === 'production';
 
-const cookieDomain = env.AUTH_COOKIE_DOMAIN || undefined;
-const cookieSecure = isProd && env.AUTH_COOKIE_SECURE;
+function normalizeCookieDomain(raw?: string) {
+  const v = (raw ?? '').trim();
+  if (!v) return undefined;
+
+  const lower = v.toLowerCase();
+
+  if (lower === '.vercel.app' || lower.endsWith('.vercel.app')) return undefined;
+
+  return v;
+}
+
+const cookieDomain = normalizeCookieDomain(env.AUTH_COOKIE_DOMAIN);
+const cookieSecure = isProd ? true : false; 
 const refreshTtl = Number(process.env.REFRESH_TTL_SECONDS ?? 2592000);
 
 type BaseCookieOptions = {
@@ -69,7 +80,6 @@ export async function clearAuthCookies() {
   const jar = await cookies();
 
   const base = {
-    httpOnly: true,
     secure: cookieSecure,
     sameSite: 'lax' as const,
     path: '/',
@@ -77,9 +87,10 @@ export async function clearAuthCookies() {
     ...(cookieDomain ? { domain: cookieDomain } : {}),
   };
 
-  [ACCESS_COOKIE, ACCESS_EXP_COOKIE, REFRESH_COOKIE, ROLE_COOKIE].forEach((name) => {
-    jar.set(name, '', base);
-  });
+  jar.set(ACCESS_COOKIE, '', { ...base, httpOnly: true });
+  jar.set(REFRESH_COOKIE, '', { ...base, httpOnly: true });
+  jar.set(ROLE_COOKIE, '', { ...base, httpOnly: true });
+  jar.set(ACCESS_EXP_COOKIE, '', { ...base, httpOnly: false });
 }
 
 export async function readTokens() {
