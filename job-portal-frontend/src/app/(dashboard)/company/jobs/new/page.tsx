@@ -341,7 +341,7 @@ export default function CompanyJobNewPage() {
       });
 
       if (!res.ok) {
-        const code = (res.error?.error ?? res.error?.code) as ApiErrorCode | string | undefined;
+        const code = res.error?.error as ApiErrorCode | string | undefined;
 
         if (code === 'COMPANY_INCOMPLETE') {
           setShowCompleteProfileCta(true);
@@ -351,8 +351,7 @@ export default function CompanyJobNewPage() {
 
         const msg =
           (typeof res.error?.message === 'string' && res.error.message) ||
-          (typeof res.error?.error === 'string' && res.error.error) ||
-          'No se pudo publicar la oferta.';
+          'No se pudo publicar la oferta. Intenta nuevamente.';
 
         showError(msg);
         return;

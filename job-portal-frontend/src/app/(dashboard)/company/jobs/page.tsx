@@ -48,7 +48,6 @@ export default function CompanyJobsPage() {
           </Link>
         </header>
 
-        {/* Toolbar */}
         <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <input
@@ -77,34 +76,91 @@ export default function CompanyJobsPage() {
           </div>
         </section>
 
-        {/* Loading */}
         {jobsQuery.isLoading && (
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <p className="text-sm text-slate-600">Cargando ofertas…</p>
           </section>
         )}
 
-        {/* Error */}
-        {jobsQuery.error && !jobsQuery.isLoading && (
-          <section className="bg-white rounded-2xl border border-red-200 shadow-sm p-6">
-            <p className="text-sm text-red-700 font-semibold">No se pudieron cargar tus ofertas.</p>
-            <p className="mt-1 text-sm text-slate-600">
-              Intenta nuevamente. Si persiste, revisa tu sesión o el backend.
-            </p>
+        {jobsQuery.error &&
+          !jobsQuery.isLoading &&
+          (() => {
+            const e = jobsQuery.error;
 
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => jobsQuery.refetch()}
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-white text-sm font-semibold hover:bg-slate-800 transition"
-              >
-                Reintentar
-              </button>
-            </div>
-          </section>
-        )}
+            if (e.status === 401) {
+              return (
+                <section className="bg-white rounded-2xl border border-amber-200 shadow-sm p-6">
+                  <p className="text-sm text-amber-800 font-semibold">Tu sesión expiró.</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Vuelve a intentarlo. Si el problema persiste, inicia sesión nuevamente.
+                  </p>
 
-        {/* Empty */}
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => jobsQuery.refetch()}
+                      className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-white text-sm font-semibold hover:bg-slate-800 transition"
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                </section>
+              );
+            }
+
+            if (e.status === 403) {
+              return (
+                <section className="bg-white rounded-2xl border border-amber-200 shadow-sm p-6">
+                  <p className="text-sm text-amber-800 font-semibold">
+                    No tienes permisos para ver esta sección.
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Verifica que iniciaste sesión como empresa y que tu cuenta esté habilitada. Si
+                    estás configurando tu empresa por primera vez, completa tu perfil.
+                  </p>
+
+                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                    <Link
+                      href={routes.dashboard.company.profileSetup as any}
+                      className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-white font-semibold hover:bg-slate-800 transition"
+                    >
+                      Revisar perfil de empresa
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => jobsQuery.refetch()}
+                      className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 font-semibold border border-slate-200 hover:bg-slate-50 transition"
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                </section>
+              );
+            }
+
+            return (
+              <section className="bg-white rounded-2xl border border-red-200 shadow-sm p-6">
+                <p className="text-sm text-red-700 font-semibold">
+                  No se pudieron cargar tus ofertas.
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Intenta nuevamente. Si persiste, revisa tu sesión o el backend.
+                </p>
+
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => jobsQuery.refetch()}
+                    className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-white text-sm font-semibold hover:bg-slate-800 transition"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              </section>
+            );
+          })()}
+
         {!jobsQuery.isLoading && !jobsQuery.error && jobs.length === 0 && (
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <h2 className="text-lg font-semibold text-slate-900">Lista de ofertas</h2>
@@ -130,7 +186,6 @@ export default function CompanyJobsPage() {
           </section>
         )}
 
-        {/* Table */}
         {!jobsQuery.isLoading && !jobsQuery.error && jobs.length > 0 && (
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <div className="flex items-center justify-between gap-3">
@@ -180,7 +235,6 @@ export default function CompanyJobsPage() {
 
                       <td className="py-3">
                         <div className="flex flex-wrap gap-2">
-                          {/* Ajusta la ruta real a tu detalle/edición si ya existe */}
                           <Link
                             href={`${routes.dashboard.company.jobs}/${j.id}` as any}
                             className="inline-flex items-center justify-center rounded-2xl bg-white px-3 py-2 text-slate-900 text-xs font-semibold border border-slate-200 hover:bg-slate-50 transition"

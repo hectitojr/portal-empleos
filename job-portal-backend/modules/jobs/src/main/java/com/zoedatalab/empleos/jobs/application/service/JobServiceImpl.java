@@ -55,12 +55,23 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
         if (departmentId != null) return new GeoFilter(departmentId, null, null);
         return new GeoFilter(null, null, null);
     }
-    
+
     private CompanyOwnershipPort.CompanyOwnership requirePublishableCompany(UUID companyUserId) {
         var own = ownership.getForUser(companyUserId);
 
         if (own.companyId() == null || !own.active() || own.suspended() || !own.profileComplete()) {
             throw new CompanyIncompleteException();
+        }
+
+        return own;
+    }
+    
+    private CompanyOwnershipPort.CompanyOwnership requireCompany(UUID companyUserId) {
+        var own = ownership.getForUser(companyUserId);
+
+        // Si no existe company asociada, no debería estar aquí (aunque tenga rol COMPANY)
+        if (own.companyId() == null) {
+            throw new ForbiddenJobAccessException();
         }
 
         return own;
@@ -251,7 +262,7 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
                                                  int page,
                                                  int size) {
 
-        var own = requirePublishableCompany(companyUserId);
+        var own = requireCompany(companyUserId);
 
         var rows = jobLocationQueries.searchCompanySummaries(
                 own.companyId(),

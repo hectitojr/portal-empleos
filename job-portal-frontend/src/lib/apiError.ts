@@ -46,7 +46,7 @@ export function applyApiErrorToForm<T extends FieldValues>(args: {
 
   const api = (apiFromError ?? tryParseApiError(e?.body)) as any;
 
-  const code = getErrorCode(api ?? e) ?? api?.error ?? e?.code;
+  const code = api?.error ?? getErrorCode(e) ?? e?.code;
   const fallback = humanize(code);
 
   const fieldErrors = api?.fieldErrors ?? [];

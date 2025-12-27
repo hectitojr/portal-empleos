@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SubmitHandler } from 'react-hook-form';
@@ -90,6 +90,34 @@ export default function CompanyProfileSetupPage() {
     },
   });
 
+  const initialRef = useRef<FormValues>(form.getValues());
+
+  form.register('departmentId');
+  form.register('provinceId', {
+    validate: (v, values) => {
+      const dept = (values.departmentId ?? '').trim();
+      const prov = (v ?? '').trim();
+
+      if (!dept) return true;
+
+      return prov ? true : 'Selecciona una provincia.';
+    },
+  });
+
+  form.register('districtId', {
+    validate: (v, values) => {
+      const dept = (values.departmentId ?? '').trim();
+      const prov = (values.provinceId ?? '').trim();
+      const dist = (v ?? '').trim();
+
+      if (!dept) return true;
+
+      if (!prov) return true;
+
+      return dist ? true : 'Selecciona un distrito.';
+    },
+  });
+
   const watched = form.watch();
   const departmentId = watched.departmentId;
   const provinceId = watched.provinceId;
@@ -138,18 +166,19 @@ export default function CompanyProfileSetupPage() {
 
     const r = resolveQuery.data;
 
-    form.reset(
-      {
-        legalName: me.legalName ?? '',
-        taxId: me.taxId ?? '',
-        contactEmail: me.contactEmail ?? '',
-        contactPhone: me.contactPhone ?? '',
-        departmentId: r?.departmentId ?? '',
-        provinceId: r?.provinceId ?? '',
-        districtId: me.districtId ?? '',
-      },
-      { keepTouched: false, keepDirty: false }
-    );
+    const nextValues: FormValues = {
+      legalName: me.legalName ?? '',
+      taxId: me.taxId ?? '',
+      contactEmail: me.contactEmail ?? '',
+      contactPhone: me.contactPhone ?? '',
+      departmentId: r?.departmentId ?? '',
+      provinceId: r?.provinceId ?? '',
+      districtId: me.districtId ?? '',
+    };
+
+    initialRef.current = nextValues;
+
+    form.reset(nextValues, { keepTouched: false, keepDirty: false });
   }, [me, resolveQuery.data, form]);
 
   useEffect(() => {
@@ -181,7 +210,10 @@ export default function CompanyProfileSetupPage() {
       setOkVisible(false);
     },
     onSuccess: async () => {
-      form.reset(form.getValues(), {
+      const current = form.getValues();
+      initialRef.current = current;
+
+      form.reset(current, {
         keepTouched: true,
         keepDirty: false,
       });
@@ -211,14 +243,20 @@ export default function CompanyProfileSetupPage() {
     const province = watched.provinceId.trim();
     const district = watched.districtId.trim();
 
+    const geoAllEmpty = department.length === 0 && province.length === 0 && district.length === 0;
+    const geoAllComplete = department.length > 0 && province.length > 0 && district.length > 0;
+
+    const geoStateOk = geoAllEmpty || geoAllComplete;
+
+    const geoErrors = {
+      province: department && !province ? 'Selecciona una provincia.' : undefined,
+      district: department && province && !district ? 'Selecciona un distrito.' : undefined,
+    };
+
     const legalNameOkUx = legalName.length === 0 || legalName.length >= 2;
     const taxIdOkUx = taxId.length === 0 || isValidPeruRuc(taxId);
     const emailOkUx = email.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const phoneOkUx = phone.length === 0 || /^[0-9+()\s-]{6,20}$/.test(phone);
-
-    const geoAllEmpty = department.length === 0 && province.length === 0 && district.length === 0;
-    const geoAllComplete = department.length > 0 && province.length > 0 && district.length > 0;
-    const geoStateOk = geoAllEmpty || geoAllComplete;
 
     const progressState = computeCompanyProfileProgress({
       legalName: watched.legalName,
@@ -232,9 +270,11 @@ export default function CompanyProfileSetupPage() {
       taxIdOk: taxIdOkUx,
       emailOk: emailOkUx,
       phoneOk: phoneOkUx,
+
       geoAllEmpty,
       geoAllComplete,
       geoStateOk,
+      geoErrors,
 
       missing: progressState.missing,
       progress: progressState.progress,
@@ -270,8 +310,9 @@ export default function CompanyProfileSetupPage() {
     const geoAllEmpty = dept === '' && prov === '' && dist === '';
     const geoAllComplete = dept !== '' && prov !== '' && dist !== '';
 
-    if (!geoAllEmpty && !geoAllComplete) {
-      setServerError('Completa la ubicación (departamento, provincia y distrito) o déjala vacía.');
+    const geoOk = await form.trigger(['provinceId', 'districtId']);
+    if (!geoOk) {
+      setServerError('Completa la ubicación antes de guardar o déjala vacía.');
       return;
     }
 
@@ -407,7 +448,7 @@ export default function CompanyProfileSetupPage() {
 
                 {computed.missing.length > 0 && (
                   <p className="mt-3 text-sm text-slate-600">
-                    Te falta completar datos clave para publicar:{' '}
+                    Te falta completar datos clave para publicar empleos:{' '}
                     <span className="font-semibold text-slate-900">
                       {computed.missing.join(', ')}.
                     </span>
@@ -589,17 +630,7 @@ export default function CompanyProfileSetupPage() {
                 )}
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                  <Field
-                    label="Departamento"
-                    required
-                    error={
-                      form.formState.touchedFields.departmentId &&
-                      !computed.geoAllEmpty &&
-                      !computed.geoAllComplete
-                        ? 'Completa la ubicación o déjala vacía.'
-                        : undefined
-                    }
-                  >
+                  <Field label="Departamento" required>
                     <select
                       className={selectClass(false, false)}
                       value={departmentId}
@@ -610,18 +641,28 @@ export default function CompanyProfileSetupPage() {
                           form.setValue('departmentId', next, {
                             shouldDirty: true,
                             shouldTouch: true,
+                            shouldValidate: true,
                           });
 
                           form.setValue('provinceId', '', {
                             shouldDirty: true,
                             shouldTouch: false,
+                            shouldValidate: true,
                           });
                           form.setValue('districtId', '', {
                             shouldDirty: true,
                             shouldTouch: false,
+                            shouldValidate: true,
                           });
 
                           form.clearErrors(['provinceId', 'districtId']);
+
+                          if (next) {
+                            form.setValue('provinceId', '', {
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            });
+                          }
                         }
                       }}
                       onBlur={() => form.trigger('departmentId')}
@@ -639,11 +680,9 @@ export default function CompanyProfileSetupPage() {
                     label="Provincia"
                     required
                     error={
-                      form.formState.touchedFields.provinceId &&
-                      !computed.geoAllEmpty &&
-                      !computed.geoAllComplete
-                        ? 'Completa la ubicación o déjala vacía.'
-                        : undefined
+                      !computed.geoAllEmpty && computed.geoErrors.province
+                        ? computed.geoErrors.province
+                        : (form.formState.errors.provinceId?.message as string | undefined)
                     }
                   >
                     <select
@@ -652,17 +691,28 @@ export default function CompanyProfileSetupPage() {
                       disabled={!departmentId || provincesQuery.isLoading}
                       onChange={(e) => {
                         const next = e.target.value;
+
                         if (next !== provinceId) {
                           form.setValue('provinceId', next, {
                             shouldDirty: true,
                             shouldTouch: true,
+                            shouldValidate: true,
                           });
 
                           form.setValue('districtId', '', {
                             shouldDirty: true,
                             shouldTouch: false,
+                            shouldValidate: true,
                           });
+
                           form.clearErrors(['districtId']);
+
+                          if (next) {
+                            form.setValue('districtId', '', {
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            });
+                          }
                         }
                       }}
                       onBlur={() => form.trigger('provinceId')}
@@ -687,11 +737,9 @@ export default function CompanyProfileSetupPage() {
                     label="Distrito"
                     required
                     error={
-                      form.formState.touchedFields.districtId &&
-                      !computed.geoAllEmpty &&
-                      !computed.geoAllComplete
-                        ? 'Completa la ubicación o déjala vacía.'
-                        : undefined
+                      !computed.geoAllEmpty && computed.geoErrors.district
+                        ? computed.geoErrors.district
+                        : (form.formState.errors.districtId?.message as string | undefined)
                     }
                   >
                     <select
@@ -702,6 +750,7 @@ export default function CompanyProfileSetupPage() {
                         form.setValue('districtId', e.target.value, {
                           shouldDirty: true,
                           shouldTouch: true,
+                          shouldValidate: true,
                         })
                       }
                       onBlur={() => form.trigger('districtId')}
@@ -735,8 +784,27 @@ export default function CompanyProfileSetupPage() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => form.reset()}
-                    className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
+                    disabled={updateMutation.isPending}
+                    onClick={() => {
+                      if (updateMutation.isPending) return;
+
+                      setServerError(null);
+                      setServerOk(null);
+                      setOkVisible(false);
+
+                      const hasChanges = form.formState.isDirty;
+
+                      if (hasChanges) {
+                        const ok = window.confirm(
+                          'Tienes cambios sin guardar. ¿Deseas descartarlos?'
+                        );
+                        if (!ok) return;
+                      }
+
+                      form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
+                      router.push('/company');
+                    }}
+                    className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Descartar
                   </button>

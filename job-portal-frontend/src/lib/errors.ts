@@ -82,5 +82,10 @@ export function humanize(code?: ApiErrorCode | string): string {
 export function getErrorCode(err: unknown): ApiErrorCode | string | undefined {
   const e = err as any;
 
-  return e?.error?.error ?? e?.error?.code ?? e?.code ?? e?.error;
+  return (
+    e?.error ??      
+    e?.error?.error ?? 
+    e?.code ??         
+    e?.error           
+  );
 }
