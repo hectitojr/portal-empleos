@@ -11,7 +11,7 @@ export type ApiViolationErrorItem = {
 };
 
 export type ApiErrorResponse = {
-  error: string; 
+  error: string;
   message: string;
   status: number;
   path?: string | null;
@@ -23,4 +23,10 @@ export type ApiErrorResponse = {
 
 export type ApiResult<T> =
   | { ok: true; data: T; status: number; traceId?: string | null }
-  | { ok: false; error: ApiErrorResponse | null; status: number; bodyText?: string; traceId?: string | null };
+  | {
+      ok: false;
+      error: ApiErrorResponse;
+      status: number;
+      bodyText?: string;
+      traceId?: string | null;
+    };

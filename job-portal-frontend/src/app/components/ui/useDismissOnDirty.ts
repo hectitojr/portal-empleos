@@ -4,10 +4,10 @@ import { useEffect, useRef } from 'react';
 
 export function useDismissOnDirty(args: {
   isDirty: boolean;
-  active: boolean;     
+  active: boolean;
   animateMs?: number;
-  onHide: () => void;  
-  onClear: () => void; 
+  onHide: () => void;
+  onClear: () => void;
 }) {
   const { isDirty, active, animateMs = 250, onHide, onClear } = args;
   const cleanupRef = useRef<number | null>(null);
@@ -17,6 +17,7 @@ export function useDismissOnDirty(args: {
     if (!isDirty) return;
 
     onHide();
+
     if (cleanupRef.current) window.clearTimeout(cleanupRef.current);
     cleanupRef.current = window.setTimeout(() => onClear(), animateMs);
 

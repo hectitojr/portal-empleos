@@ -9,7 +9,6 @@ export const routes = {
     login: '/auth/login' as Route,
     register: '/auth/register' as Route,
 
-    // Páginas informativas del footer
     help: '/ayuda' as Route,
     contact: '/contacto' as Route,
     about: '/acerca' as Route,
@@ -22,23 +21,27 @@ export const routes = {
 
     applicant: {
       home: '/applicant' as Route,
+
+      jobs: '/applicant/jobs' as Route,
+      messages: '/applicant/messages' as Route,
+      notifications: '/applicant/notifications' as Route,
       profileSetup: '/me/applicant/profile/setup' as Route,
+      publishJobs: '/applicant/publish-jobs' as Route,
+      settings: '/me/applicant/settings' as Route,
+      reviews: '/me/applicant/reviews' as Route,
     },
 
     company: {
       home: '/company' as Route,
       profileSetup: '/me/company/profile/setup' as Route,
-
       jobs: '/company/jobs' as Route,
       jobNew: '/company/jobs/new' as Route,
-
       applications: '/company/applications' as Route,
       notifications: '/company/notifications' as Route,
-
       settings: '/me/company/settings' as Route,
+      reviews: '/me/company/reviews' as Route,
 
-      jobApplications: (id: string) =>
-        `/company/jobs/${id}/applications` as Route,
+      jobApplications: (id: string) => `/company/jobs/${id}/applications` as Route,
     },
   },
 } as const;

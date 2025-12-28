@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { getTimeAgo } from '@/lib/dateUtils';
@@ -34,6 +34,192 @@ function joinLocation(parts: Array<string | null | undefined>): string {
     .join(', ');
 }
 
+type DetailShape = {
+  description?: string;
+  active?: boolean;
+  applied?: boolean;
+  quickApplyText?: string;
+  departmentName?: string;
+  provinceName?: string;
+  districtName?: string;
+};
+
+type JobDetailPaneProps = {
+  selectedJob: Job;
+  variant: Variant;
+  detail: unknown;
+  isDetailLoading: boolean;
+  applicantDetailError: unknown;
+  fullLocation: string;
+
+  onApply: (jobId: string) => void;
+
+  applyPending: boolean;
+  applyError: unknown;
+  appliedErrorLabel: string | null;
+};
+
+function JobDetailPane({
+  selectedJob,
+  variant,
+  detail,
+  isDetailLoading,
+  applicantDetailError,
+  fullLocation,
+  onApply,
+  applyPending,
+  applyError,
+  appliedErrorLabel,
+}: JobDetailPaneProps) {
+  const d = (detail ?? null) as DetailShape | null;
+
+  return (
+    <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex-1">
+            <h3 className="text-2xl font-semibold text-slate-900 mb-2">{selectedJob.title}</h3>
+            <p className="text-base text-slate-700 font-medium mb-1">{selectedJob.company}</p>
+
+            {fullLocation && (
+              <p className="text-sm text-slate-500 flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                </svg>
+                {fullLocation}
+              </p>
+            )}
+
+            <p className="mt-1 text-xs text-slate-400">
+              Publicado {getTimeAgo(selectedJob.postedAt)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3 mb-6">
+          {selectedJob.workMode && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg">
+              <span className="text-xs text-slate-500">Modalidad:</span>
+              <span className="text-sm font-semibold text-slate-900">{selectedJob.workMode}</span>
+            </div>
+          )}
+
+          {selectedJob.employmentType && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg">
+              <span className="text-xs text-slate-500">Tipo:</span>
+              <span className="text-sm font-semibold text-slate-900">
+                {selectedJob.employmentType}
+              </span>
+            </div>
+          )}
+
+          {selectedJob.salary && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
+              <span className="text-xs text-blue-600">Salario:</span>
+              <span className="text-sm font-semibold text-blue-700">{selectedJob.salary}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-6 text-sm text-slate-700 space-y-3">
+        {isDetailLoading ? (
+          <p>Cargando descripción de la oferta...</p>
+        ) : d?.description ? (
+          <p className="whitespace-pre-line">{d.description}</p>
+        ) : (
+          <p>
+            Aquí podrás añadir la descripción completa del puesto: responsabilidades, requisitos,
+            beneficios y cualquier información relevante para el proceso de selección.
+          </p>
+        )}
+
+        {variant === 'applicant' && Boolean(applicantDetailError) && (
+          <p className="text-xs text-red-600">No se pudo cargar el detalle de la oferta.</p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {variant === 'applicant' ? (
+          (() => {
+            const active = d?.active ?? selectedJob.isActive;
+            const applied = d?.applied ?? selectedJob.isApplied;
+            const quickText = d?.quickApplyText ?? selectedJob.quickApply;
+
+            if (!active) {
+              return (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-300 text-slate-500 text-sm font-semibold px-6 py-3 cursor-not-allowed"
+                >
+                  Ya no se aceptan postulaciones
+                </button>
+              );
+            }
+
+            if (applied) {
+              return (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 text-sm font-semibold px-6 py-3 cursor-not-allowed"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Ya te postulaste a esta oferta
+                </button>
+              );
+            }
+
+            return (
+              <button
+                type="button"
+                onClick={() => onApply(selectedJob.id)}
+                disabled={applyPending}
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {applyPending ? 'Postulando...' : quickText}
+              </button>
+            );
+          })()
+        ) : (
+          <Link
+            href={`/auth/login?next=/` as Route}
+            className="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition shadow-sm"
+          >
+            Inicia sesión para postular
+          </Link>
+        )}
+
+        <button
+          type="button"
+          className="inline-flex items-center justify-center rounded-xl border border-slate-300 hover:bg-slate-50 text-sm font-semibold px-5 py-3 text-slate-800 transition"
+        >
+          Guardar oferta
+        </button>
+      </div>
+
+      {variant === 'applicant' && Boolean(applyError) && (
+        <p className="mt-3 text-xs text-red-600">
+          {appliedErrorLabel || 'No se pudo completar la postulación. Intenta nuevamente.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function JobsMasterDetail({
   jobs,
   variant,
@@ -45,6 +231,17 @@ export default function JobsMasterDetail({
 }: Props) {
   const firstId = jobs[0]?.id ?? null;
   const [selectedJobId, setSelectedJobId] = useState<string | null>(initialSelectedId ?? firstId);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => {
+      if (mq.matches) setMobileDetailOpen(false);
+    };
+    sync();
+    mq.addEventListener?.('change', sync);
+    return () => mq.removeEventListener?.('change', sync);
+  }, []);
 
   const selectedJob = useMemo(
     () => jobs.find((j) => j.id === selectedJobId) ?? jobs[0],
@@ -68,6 +265,7 @@ export default function JobsMasterDetail({
 
   const handleSelectJob = (jobId: string) => {
     setSelectedJobId(jobId);
+    setMobileDetailOpen(true);
   };
 
   const handleApply = (jobId: string) => {
@@ -78,8 +276,14 @@ export default function JobsMasterDetail({
 
   const appliedErrorCode = getErrorCode(applyMutation.error);
 
-  const fullLocation = detail
-    ? joinLocation([detail.departmentName, detail.provinceName, detail.districtName])
+  const detailLoc = (detail ?? null) as {
+    departmentName?: string;
+    provinceName?: string;
+    districtName?: string;
+  } | null;
+
+  const fullLocation = detailLoc
+    ? joinLocation([detailLoc.departmentName, detailLoc.provinceName, detailLoc.districtName])
     : '';
 
   return (
@@ -284,176 +488,62 @@ export default function JobsMasterDetail({
             </footer>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
-              {selectedJob ? (
-                <>
-                  <div className="mb-6">
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-semibold text-slate-900 mb-2">
-                          {selectedJob.title}
-                        </h3>
-                        <p className="text-base text-slate-700 font-medium mb-1">
-                          {selectedJob.company}
-                        </p>
-
-                        {fullLocation && (
-                          <p className="text-sm text-slate-500 flex items-center gap-1.5">
-                            <svg
-                              className="w-4 h-4 text-red-500"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-                            </svg>
-                            {fullLocation}
-                          </p>
-                        )}
-
-                        <p className="mt-1 text-xs text-slate-400">
-                          Publicado {getTimeAgo(selectedJob.postedAt)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 mb-6">
-                      {selectedJob.workMode && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg">
-                          <span className="text-xs text-slate-500">Modalidad:</span>
-                          <span className="text-sm font-semibold text-slate-900">
-                            {selectedJob.workMode}
-                          </span>
-                        </div>
-                      )}
-
-                      {selectedJob.employmentType && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg">
-                          <span className="text-xs text-slate-500">Tipo:</span>
-                          <span className="text-sm font-semibold text-slate-900">
-                            {selectedJob.employmentType}
-                          </span>
-                        </div>
-                      )}
-
-                      {selectedJob.salary && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
-                          <span className="text-xs text-blue-600">Salario:</span>
-                          <span className="text-sm font-semibold text-blue-700">
-                            {selectedJob.salary}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mb-6 text-sm text-slate-700 space-y-3">
-                    {isDetailLoading ? (
-                      <p>Cargando descripción de la oferta...</p>
-                    ) : detail?.description ? (
-                      <p className="whitespace-pre-line">{detail.description}</p>
-                    ) : (
-                      <p>
-                        Aquí podrás añadir la descripción completa del puesto: responsabilidades,
-                        requisitos, beneficios y cualquier información relevante para el proceso de
-                        selección.
-                      </p>
-                    )}
-
-                    {variant === 'applicant' && applicantDetailError && (
-                      <p className="text-xs text-red-600">
-                        No se pudo cargar el detalle de la oferta.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    {variant === 'applicant' ? (
-                      (() => {
-                        const active = applicantDetail?.active ?? selectedJob.isActive;
-                        const applied = applicantDetail?.applied ?? selectedJob.isApplied;
-                        const quickText = applicantDetail?.quickApplyText ?? selectedJob.quickApply;
-
-                        if (!active) {
-                          return (
-                            <button
-                              type="button"
-                              disabled
-                              className="inline-flex items-center justify-center rounded-xl bg-slate-300 text-slate-500 text-sm font-semibold px-6 py-3 cursor-not-allowed"
-                            >
-                              Ya no se aceptan postulaciones
-                            </button>
-                          );
-                        }
-
-                        if (applied) {
-                          return (
-                            <button
-                              type="button"
-                              disabled
-                              className="inline-flex items-center justify-center rounded-xl bg-blue-100 text-blue-700 text-sm font-semibold px-6 py-3 cursor-not-allowed"
-                            >
-                              <svg
-                                className="w-4 h-4 mr-2"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                strokeWidth={2}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                              Ya te postulaste a esta oferta
-                            </button>
-                          );
-                        }
-
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => handleApply(selectedJob.id)}
-                            disabled={applyMutation.isPending}
-                            className="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-                          >
-                            {applyMutation.isPending ? 'Postulando...' : quickText}
-                          </button>
-                        );
-                      })()
-                    ) : (
-                      <Link
-                        href={`/auth/login?next=/` as Route}
-                        className="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 transition shadow-sm"
-                      >
-                        Inicia sesión para postular
-                      </Link>
-                    )}
-
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-xl border border-slate-300 hover:bg-slate-50 text-sm font-semibold px-5 py-3 text-slate-800 transition"
-                    >
-                      Guardar oferta
-                    </button>
-                  </div>
-
-                  {variant === 'applicant' && applyMutation.error && (
-                    <p className="mt-3 text-xs text-red-600">
-                      {humanize(appliedErrorCode) ||
-                        'No se pudo completar la postulación. Intenta nuevamente.'}
-                    </p>
-                  )}
-                </>
-              ) : (
+          <div className="hidden lg:flex bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden">
+            {selectedJob ? (
+              <JobDetailPane
+                selectedJob={selectedJob}
+                variant={variant}
+                detail={detail}
+                isDetailLoading={isDetailLoading}
+                applicantDetailError={applicantDetailError}
+                fullLocation={fullLocation}
+                onApply={handleApply}
+                applyPending={applyMutation.isPending}
+                applyError={applyMutation.error}
+                appliedErrorLabel={humanize(appliedErrorCode) || null}
+              />
+            ) : (
+              <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
                 <p className="text-sm text-slate-600">
                   Selecciona una oferta en la lista para ver los detalles.
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {selectedJob && mobileDetailOpen && (
+          <div className="lg:hidden fixed inset-0 z-50 bg-white">
+            <div className="h-16 px-4 flex items-center justify-between border-b border-slate-100">
+              <button
+                type="button"
+                onClick={() => setMobileDetailOpen(false)}
+                className="text-sm font-semibold text-slate-900"
+              >
+                ← Volver
+              </button>
+
+              <span className="text-sm text-slate-600 truncate max-w-[60%]">
+                {selectedJob.title}
+              </span>
+            </div>
+
+            <div className="h-[calc(100vh-4rem)] min-h-0">
+              <JobDetailPane
+                selectedJob={selectedJob}
+                variant={variant}
+                detail={detail}
+                isDetailLoading={isDetailLoading}
+                applicantDetailError={applicantDetailError}
+                fullLocation={fullLocation}
+                onApply={handleApply}
+                applyPending={applyMutation.isPending}
+                applyError={applyMutation.error}
+                appliedErrorLabel={humanize(appliedErrorCode) || null}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

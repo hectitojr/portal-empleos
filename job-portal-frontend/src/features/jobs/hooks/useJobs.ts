@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Job } from '@/features/home/lib/types';
 import type { ApiErrorResponse } from '@/features/jobs/api/jobsClient';
 import {
@@ -40,15 +40,13 @@ function joinLocation(parts: Array<string | null | undefined>): string {
 
 function mapSummaryToJob(
   summary: PublicJobSummaryResponse | ApplicantJobSummaryResponse,
-  catalogs: ReturnType<typeof useJobCatalogs>,
+  catalogs: ReturnType<typeof useJobCatalogs>
 ): Job {
   const employmentType = summary.employmentTypeId
     ? catalogs.employmentTypesById[summary.employmentTypeId]
     : undefined;
 
-  const workMode = summary.workModeId
-    ? catalogs.workModesById[summary.workModeId]
-    : undefined;
+  const workMode = summary.workModeId ? catalogs.workModesById[summary.workModeId] : undefined;
 
   const location = joinLocation([summary.provinceName, summary.districtName]);
 
@@ -86,7 +84,6 @@ export function usePublicJobs(params?: {
   disabilityFriendly?: boolean;
   fromDate?: string;
 }) {
-
   const catalogs = useJobCatalogs();
 
   const query = useQuery<PublicJobSummaryResponse[], ApiError>({
@@ -123,7 +120,6 @@ export function useApplicantJobs(params?: {
   disabilityFriendly?: boolean;
   fromDate?: string;
 }) {
-
   const catalogs = useJobCatalogs();
 
   const query = useQuery<ApplicantJobSummaryResponse[], ApiError>({

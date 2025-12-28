@@ -10,19 +10,44 @@ import { routes } from '@/lib/routes';
 type Mode = 'login' | 'register' | 'select-role';
 type UserType = 'APPLICANT' | 'COMPANY' | null;
 
+function normalizeUserType(v: string | null): UserType {
+  if (!v) return null;
+  const up = v.trim().toUpperCase();
+  if (up === 'APPLICANT' || up === 'COMPANY') return up;
+  return null;
+}
+
+function isPublicNext(next: string | null): boolean {
+  if (!next) return true;
+
+  return (
+    next === routes.public.home ||
+    next.startsWith('/auth') ||
+    next.startsWith('/jobs') ||
+    next.startsWith('/ayuda') ||
+    next.startsWith('/contacto') ||
+    next.startsWith('/acerca') ||
+    next.startsWith('/accesibilidad') ||
+    next.startsWith('/terminos')
+  );
+}
+
 export function useAuthState() {
   const router = useRouter();
   const search = useSearchParams();
 
   const modeParam = search.get('mode');
+  const roleParam = search.get('role');
   const nextParam = search.get('next');
 
   const next: string | null = nextParam && nextParam.startsWith('/') ? nextParam : null;
+  const initialUserType = normalizeUserType(roleParam);
 
-  const [authMode, setAuthMode] = useState<Mode>(
-    modeParam === 'register' ? 'select-role' : 'login'
-  );
-  const [userType, setUserType] = useState<UserType>(null);
+  const initialAuthMode: Mode =
+    modeParam === 'register' ? (initialUserType ? 'register' : 'select-role') : 'login';
+
+  const [authMode, setAuthMode] = useState<Mode>(initialAuthMode);
+  const [userType, setUserType] = useState<UserType>(initialUserType);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -121,18 +146,7 @@ export function useAuthState() {
         setSuccess(true);
 
         setTimeout(() => {
-          const isPublicNext =
-            !next ||
-            next === routes.public.home ||
-            next.startsWith('/auth') ||
-            next.startsWith('/jobs') ||
-            next.startsWith('/ayuda') ||
-            next.startsWith('/contacto') ||
-            next.startsWith('/acerca') ||
-            next.startsWith('/accesibilidad') ||
-            next.startsWith('/terminos');
-
-          if (!isPublicNext) {
+          if (!isPublicNext(next)) {
             router.push(next as any);
           } else {
             router.push(routes.dashboard.me);
@@ -142,7 +156,6 @@ export function useAuthState() {
         return;
       }
 
-      // REGISTER
       const payload = {
         email: formData.email,
         password: formData.password,
@@ -167,10 +180,15 @@ export function useAuthState() {
         return;
       }
 
-      const target =
+      if (!isPublicNext(next)) {
+        router.push(next as any);
+        return;
+      }
+
+      const fallback =
         userType === 'APPLICANT' ? routes.dashboard.applicant.home : routes.dashboard.company.home;
 
-      router.push(target);
+      router.push(fallback);
     } finally {
       setLoading(false);
     }

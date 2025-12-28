@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import {
   Bookmark,
   MessageSquare,
@@ -20,7 +21,14 @@ import { logoutReq } from '@/features/iam/api/authClient';
 import { routes } from '@/lib/routes';
 
 type RoleVariant = 'APPLICANT' | 'COMPANY' | 'ADMIN';
-type MenuKey = 'jobs' | 'applications' | 'messages' | 'notifications' | 'account';
+type MenuKey =
+  | 'jobs'
+  | 'applications'
+  | 'messages'
+  | 'notifications'
+  | 'account'
+  | 'reviews'
+  | 'settings';
 
 type Props = {
   email: string;
@@ -33,6 +41,7 @@ type Props = {
   notificationsHref?: Route;
   accountHref?: Route;
   settingsHref?: Route;
+  reviewsHref?: Route;
 
   showPublishCta?: boolean;
   publishHref?: Route;
@@ -51,11 +60,11 @@ function HeaderIconButton({
   active?: boolean;
   showTooltip?: boolean;
 }) {
-  return (
+  const content = (
     <div
       aria-label={label}
       className={`
-        group relative h-16 px-2 flex items-center justify-center
+        relative h-16 px-2 flex items-center justify-center
         transition-colors text-slate-700 hover:text-[#2d2d2d] hover:bg-slate-50
         ${active ? 'text-blue-700' : ''}
         after:content-[''] after:absolute after:left-0 after:bottom-0
@@ -64,24 +73,29 @@ function HeaderIconButton({
         hover:after:scale-x-100 ${active ? 'after:scale-x-100' : ''}
       `}
     >
-      <div className="w-10 h-10 flex items-center justify-center rounded-full">
-        {children}
-      </div>
-
-      {showTooltip && (
-        <div
-          role="tooltip"
-          className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-3 z-[80]"
-        >
-          <div className="will-change-[opacity,transform] opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:delay-150 transition-[opacity,transform] duration-350 ease-smooth">
-            <div className="mx-auto w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-slate-900/95 drop-shadow-sm" />
-            <div className="mt-1 px-4 py-2 rounded-2xl bg-slate-900/95 text-white text-xs sm:text-sm font-semibold shadow-xl whitespace-nowrap">
-              {label}
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="w-10 h-10 flex items-center justify-center rounded-full">{children}</div>
     </div>
+  );
+
+  if (!showTooltip) return content;
+
+  return (
+    <Tooltip.Root delayDuration={150}>
+      <Tooltip.Trigger asChild>{content}</Tooltip.Trigger>
+
+      <Tooltip.Portal>
+        <Tooltip.Content
+          side="bottom"
+          sideOffset={12}
+          className="z-[80] pointer-events-none select-none"
+        >
+          <Tooltip.Arrow className="fill-slate-900/95 drop-shadow-sm" />
+          <div className="mt-1 px-4 py-2 rounded-2xl bg-slate-900/95 text-white text-xs sm:text-sm font-semibold shadow-xl whitespace-nowrap">
+            {label}
+          </div>
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
   );
 }
 
@@ -96,6 +110,7 @@ export default function AccountMenu({
   notificationsHref,
   accountHref,
   settingsHref,
+  reviewsHref,
 
   showPublishCta,
   publishHref,
@@ -110,19 +125,18 @@ export default function AccountMenu({
     setOpen(false);
   }, [pathname]);
 
-  const isApplicant = variant === 'APPLICANT';
   const isCompany = variant === 'COMPANY';
 
   const computedJobsHref =
-    jobsHref ??
-    (isCompany ? routes.dashboard.company.jobs : routes.dashboard.applicant.home);
+    jobsHref ?? (isCompany ? routes.dashboard.company.jobs : routes.dashboard.applicant.jobs);
 
   const computedApplicationsHref = applicationsHref;
 
-  const computedMessagesHref = messagesHref ?? ('/applicant#mensajes' as Route);
+  const computedMessagesHref = messagesHref ?? routes.dashboard.applicant.messages;
+
   const computedNotificationsHref =
     notificationsHref ??
-    (isCompany ? ('/company/notifications' as Route) : ('/applicant#notificaciones' as Route));
+    (isCompany ? routes.dashboard.company.notifications : routes.dashboard.applicant.notifications);
 
   const computedAccountHref =
     accountHref ??
@@ -130,9 +144,11 @@ export default function AccountMenu({
 
   const computedSettingsHref =
     settingsHref ??
-    (isCompany
-      ? ('/me/company/settings' as Route)
-      : ('/me/applicant/settings' as Route));
+    (isCompany ? routes.dashboard.company.settings : routes.dashboard.applicant.settings);
+
+  const computedReviewsHref =
+    reviewsHref ??
+    (isCompany ? routes.dashboard.company.reviews : routes.dashboard.applicant.reviews);
 
   const computedShowPublishCta = showPublishCta ?? isCompany;
   const computedPublishHref = publishHref ?? ('/company/jobs/new' as Route);
@@ -147,58 +163,46 @@ export default function AccountMenu({
     }
   }
 
-  const itemBase =
-    'inline-flex h-16 items-center border-b-2 transition-colors px-1';
-  const itemIdle =
-    'border-transparent text-[#595959] hover:text-[#2d2d2d] hover:border-[#2557a7]';
+  const itemBase = 'inline-flex h-16 items-center border-b-2 transition-colors px-1';
+  const itemIdle = 'border-transparent text-[#595959] hover:text-[#2d2d2d] hover:border-[#2557a7]';
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex items-stretch gap-1">
-
-        <Link href={computedJobsHref} className="inline-flex items-stretch">
-          <HeaderIconButton
-            label={isCompany ? 'Mis ofertas' : 'Mis empleos'}
-            active={activeKey === 'jobs'}
-          >
-            <Bookmark className="w-5 h-5" />
-          </HeaderIconButton>
-        </Link>
-
-        {isCompany && computedApplicationsHref && (
-          <Link href={computedApplicationsHref} className="inline-flex items-stretch">
+    <Tooltip.Provider>
+      <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-stretch gap-1 flex-nowrap overflow-x-auto max-w-full overscroll-x-contain scrollbar-none">
+          <Link href={computedJobsHref} className="inline-flex items-stretch">
             <HeaderIconButton
-              label="Postulaciones"
-              active={activeKey === 'applications'}
+              label={isCompany ? 'Mis ofertas' : 'Mis empleos'}
+              active={activeKey === 'jobs'}
             >
-              <Users className="w-5 h-5" />
+              <Bookmark className="w-5 h-5" />
             </HeaderIconButton>
           </Link>
-        )}
 
-        {isApplicant && (
-          <Link href={computedMessagesHref} className="inline-flex items-stretch">
-            <HeaderIconButton
-              label="Mensajes"
-              active={activeKey === 'messages'}
-            >
-              <MessageSquare className="w-5 h-5" />
+          {isCompany && computedApplicationsHref && (
+            <Link href={computedApplicationsHref} className="inline-flex items-stretch">
+              <HeaderIconButton label="Postulaciones" active={activeKey === 'applications'}>
+                <Users className="w-5 h-5" />
+              </HeaderIconButton>
+            </Link>
+          )}
+
+          {!isCompany && (
+            <Link href={computedMessagesHref} className="inline-flex items-stretch">
+              <HeaderIconButton label="Mensajes" active={activeKey === 'messages'}>
+                <MessageSquare className="w-5 h-5" />
+              </HeaderIconButton>
+            </Link>
+          )}
+
+          <Link href={computedNotificationsHref} className="inline-flex items-stretch">
+            <HeaderIconButton label="Notificaciones" active={activeKey === 'notifications'}>
+              <Bell className="w-5 h-5" />
             </HeaderIconButton>
           </Link>
-        )}
+        </div>
 
-        {/* Notificaciones */}
-        <Link href={computedNotificationsHref} className="inline-flex items-stretch">
-          <HeaderIconButton
-            label="Notificaciones"
-            active={activeKey === 'notifications'}
-          >
-            <Bell className="w-5 h-5" />
-          </HeaderIconButton>
-        </Link>
-
-        {/* Cuenta */}
-        <div className="relative flex items-stretch">
+        <div className="relative flex items-stretch shrink-0">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -216,10 +220,7 @@ export default function AccountMenu({
           </button>
 
           {open && (
-            <div
-              className="absolute right-0 top-full mt-4 w-72 z-[60]"
-              role="menu"
-            >
+            <div className="absolute right-0 top-full mt-4 w-72 z-[60]" role="menu">
               <div
                 className="
                   absolute right-7 -top-3
@@ -242,9 +243,7 @@ export default function AccountMenu({
 
               <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
                 <div className="px-4 pt-3 pb-2 border-b border-slate-100">
-                  <p className="text-sm font-semibold text-slate-900 truncate">
-                    {email}
-                  </p>
+                  <p className="text-sm font-semibold text-slate-900 truncate">{email}</p>
                 </div>
 
                 <nav className="py-2 text-sm text-slate-700">
@@ -257,13 +256,14 @@ export default function AccountMenu({
                     <span>Perfil</span>
                   </Link>
 
-                  <button
-                    type="button"
+                  <Link
+                    href={computedReviewsHref}
                     className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
                   >
                     <Star className="w-4 h-4 text-slate-500" />
                     <span>Mis evaluaciones</span>
-                  </button>
+                  </Link>
 
                   <Link
                     href={computedSettingsHref}
@@ -305,19 +305,23 @@ export default function AccountMenu({
             </div>
           )}
         </div>
+
+        {computedShowPublishCta && (
+          <>
+            <span
+              aria-hidden
+              className="hidden md:inline-block mx-2 self-center w-0.5 h-9 bg-slate-300 rounded"
+            />
+
+            <Link
+              href={computedPublishHref}
+              className={`${itemBase} ${itemIdle} hidden md:inline-flex`}
+            >
+              Publicar empleos
+            </Link>
+          </>
+        )}
       </div>
-
-      {computedShowPublishCta && (
-        <>
-          <span className="hidden md:inline-flex items-center h-16 text-slate-300">
-            |
-          </span>
-
-          <Link href={computedPublishHref} className={`${itemBase} ${itemIdle}`}>
-            Publicar empleos
-          </Link>
-        </>
-      )}
-    </div>
+    </Tooltip.Provider>
   );
 }

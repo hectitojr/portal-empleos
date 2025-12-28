@@ -13,14 +13,13 @@ function normalizeCookieDomain(raw?: string) {
   if (!v) return undefined;
 
   const lower = v.toLowerCase();
-
   if (lower === '.vercel.app' || lower.endsWith('.vercel.app')) return undefined;
 
   return v;
 }
 
 const cookieDomain = normalizeCookieDomain(env.AUTH_COOKIE_DOMAIN);
-const cookieSecure = isProd ? true : false; 
+const cookieSecure = isProd ? true : false;
 const refreshTtl = Number(process.env.REFRESH_TTL_SECONDS ?? 2592000);
 
 type BaseCookieOptions = {
@@ -38,10 +37,46 @@ function buildCookieOptions(base: BaseCookieOptions) {
   };
 }
 
+function normalizeRole(r?: string | null): string | null {
+  if (!r) return null;
+  let up = r.trim().toUpperCase();
+  if (up.startsWith('ROLE_')) up = up.substring(5);
+  if (up === 'APPLICANT' || up === 'COMPANY' || up === 'ADMIN') return up;
+  return null;
+}
+
+function decodeJwtPayload(token: string): any | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '=');
+    const json = Buffer.from(padded, 'base64').toString('utf8');
+
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function extractRoleFromAccessToken(accessToken: string): string | null {
+  const p = decodeJwtPayload(accessToken);
+  const role =
+    normalizeRole(p?.role) ||
+    normalizeRole(Array.isArray(p?.roles) ? p.roles[0] : null) ||
+    normalizeRole(Array.isArray(p?.authorities) ? p.authorities[0] : null) ||
+    normalizeRole(Array.isArray(p?.realm_access?.roles) ? p.realm_access.roles[0] : null);
+
+  return role;
+}
+
 export async function setAuthCookies(params: {
   accessToken: string;
   expiresIn: number;
   refreshToken?: string;
+
+  role?: string | null;
 }) {
   const jar = await cookies();
 
@@ -51,7 +86,7 @@ export async function setAuthCookies(params: {
     buildCookieOptions({
       httpOnly: true,
       maxAge: params.expiresIn,
-    }),
+    })
   );
 
   const expEpoch = Math.floor(Date.now() / 1000) + params.expiresIn - 5;
@@ -61,7 +96,7 @@ export async function setAuthCookies(params: {
     buildCookieOptions({
       httpOnly: false,
       maxAge: params.expiresIn,
-    }),
+    })
   );
 
   if (params.refreshToken) {
@@ -71,7 +106,20 @@ export async function setAuthCookies(params: {
       buildCookieOptions({
         httpOnly: true,
         maxAge: refreshTtl,
-      }),
+      })
+    );
+  }
+
+  const role = normalizeRole(params.role) || extractRoleFromAccessToken(params.accessToken);
+
+  if (role) {
+    jar.set(
+      ROLE_COOKIE,
+      role,
+      buildCookieOptions({
+        httpOnly: true,
+        maxAge: refreshTtl,
+      })
     );
   }
 }

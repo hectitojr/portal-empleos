@@ -6,6 +6,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SubmitHandler } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { Info } from 'lucide-react';
+import type { Route } from 'next';
+
+import ConfirmDialog from '@/app/components/ui/ConfirmDialog';
+import { useUnsavedChangesGuard } from '@/app/components/navigation/useUnsavedChangesGuard';
+import { useNavigationGuard } from '@/app/components/navigation/NavigationGuardProvider';
 
 import FlashBanner from '@/app/components/ui/FlashBanner';
 import { useDismissOnDirty } from '@/app/components/ui/useDismissOnDirty';
@@ -68,6 +73,24 @@ export default function CompanyProfileSetupPage() {
 
   const [okVisible, setOkVisible] = useState(false);
   const okAnimateMs = 900;
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const guard = useNavigationGuard();
+
+  function openConfirm() {
+    setConfirmOpen(true);
+  }
+
+  function closeConfirm() {
+    setConfirmOpen(false);
+    guard.cancelLeave();
+  }
+
+  function confirmLeave() {
+    setConfirmOpen(false);
+    guard.confirmLeave();
+  }
 
   const meQuery = useQuery({
     queryKey: ['company', 'me'],
@@ -335,6 +358,42 @@ export default function CompanyProfileSetupPage() {
 
   const geoError = (departmentsQuery.error as any) || (resolveQuery.error as any) || null;
 
+  const hasUnsavedChanges = form.formState.isDirty && !updateMutation.isPending;
+
+  useUnsavedChangesGuard({
+    enabled: hasUnsavedChanges,
+    message: 'Tienes cambios sin guardar.',
+    onOpenConfirm: () => openConfirm(),
+    onConfirmLeave: () => {
+      form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
+    },
+    onCancelLeave: () => {
+      setConfirmOpen(false);
+    },
+  });
+
+  function guardedNavigate(path: Route) {
+    if (!hasUnsavedChanges) {
+      router.push(path);
+      return;
+    }
+
+    guard.setGuard({
+      enabled: true,
+      message: 'Tienes cambios sin guardar.',
+      onOpenConfirm: openConfirm,
+      onConfirmLeave: () => {
+        form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
+      },
+      onCancelLeave: () => {
+        setConfirmOpen(false);
+      },
+    });
+
+    guard.setPendingNavigate(() => router.push(path));
+    guard.pingOpenConfirm();
+  }
+
   return (
     <section className="flex-1 min-h-0 bg-slate-50 px-4 py-8">
       <div className="max-w-4xl mx-auto">
@@ -342,7 +401,7 @@ export default function CompanyProfileSetupPage() {
           <div className="mb-3">
             <button
               type="button"
-              onClick={() => router.push('/company')}
+              onClick={() => guardedNavigate('/company')}
               className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
             >
               ← Volver al panel
@@ -497,6 +556,19 @@ export default function CompanyProfileSetupPage() {
                 setServerOk(null);
                 setOkVisible(false);
               }}
+            />
+
+            {/* ✅ BLOQUE 6 — RENDER DEL MODAL */}
+            <ConfirmDialog
+              open={confirmOpen}
+              title="Tienes cambios sin guardar"
+              description="Si sales ahora, perderás los cambios realizados en este formulario."
+              confirmText="Descartar cambios"
+              cancelText="Seguir editando"
+              destructive
+              busy={updateMutation.isPending}
+              onCancel={closeConfirm}
+              onConfirm={confirmLeave}
             />
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -785,25 +857,7 @@ export default function CompanyProfileSetupPage() {
                   <button
                     type="button"
                     disabled={updateMutation.isPending}
-                    onClick={() => {
-                      if (updateMutation.isPending) return;
-
-                      setServerError(null);
-                      setServerOk(null);
-                      setOkVisible(false);
-
-                      const hasChanges = form.formState.isDirty;
-
-                      if (hasChanges) {
-                        const ok = window.confirm(
-                          'Tienes cambios sin guardar. ¿Deseas descartarlos?'
-                        );
-                        if (!ok) return;
-                      }
-
-                      form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
-                      router.push('/company');
-                    }}
+                    onClick={() => guardedNavigate('/company')}
                     className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Descartar

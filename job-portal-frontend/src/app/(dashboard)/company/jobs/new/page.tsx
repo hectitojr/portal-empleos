@@ -9,6 +9,10 @@ import type { Route } from 'next';
 import FlashBanner from '@/app/components/ui/FlashBanner';
 import { useDismissOnDirty } from '@/app/components/ui/useDismissOnDirty';
 
+import ConfirmDialog from '@/app/components/ui/ConfirmDialog';
+import { useUnsavedChangesGuard } from '@/app/components/navigation/useUnsavedChangesGuard';
+import { useNavigationGuard } from '@/app/components/navigation/NavigationGuardProvider';
+
 import { routes } from '@/lib/routes';
 import { createCompanyJob } from '@/features/jobs/api/jobsClient';
 
@@ -122,8 +126,29 @@ export default function CompanyJobNewPage() {
   });
 
   form.register('departmentId', { required: 'Selecciona un departamento.' });
-  form.register('provinceId', { required: 'Selecciona una provincia.' });
-  form.register('districtId', { required: 'Selecciona un distrito.' });
+
+  form.register('provinceId', {
+    validate: (v, values) => {
+      const dept = (values.departmentId ?? '').trim();
+      const prov = (v ?? '').trim();
+
+      if (!dept) return true;
+      return prov ? true : 'Selecciona una provincia.';
+    },
+  });
+
+  form.register('districtId', {
+    validate: (v, values) => {
+      const dept = (values.departmentId ?? '').trim();
+      const prov = (values.provinceId ?? '').trim();
+      const dist = (v ?? '').trim();
+
+      if (!dept) return true;
+      if (!prov) return true;
+
+      return dist ? true : 'Selecciona un distrito.';
+    },
+  });
 
   const watched = form.watch();
   const departmentId = watched.departmentId;
@@ -168,30 +193,32 @@ export default function CompanyJobNewPage() {
     const titleOk = watched.title.trim().length >= 4;
     const descOk = watched.description.trim().length >= 20;
 
-    const departmentSelected = watched.departmentId.trim().length > 0;
-    const provinceSelected = watched.provinceId.trim().length > 0;
-    const districtSelected = watched.districtId.trim().length > 0;
+    const department = watched.departmentId.trim();
+    const province = watched.provinceId.trim();
+    const district = watched.districtId.trim();
 
-    const locationOk = departmentSelected && provinceSelected && districtSelected;
+    const geoAllEmpty = department.length === 0 && province.length === 0 && district.length === 0;
+    const geoAllComplete = department.length > 0 && province.length > 0 && district.length > 0;
 
-    const locationErrors = {
-      department: !departmentSelected ? 'Selecciona un departamento.' : undefined,
-      province: departmentSelected && !provinceSelected ? 'Selecciona una provincia.' : undefined,
-      district: provinceSelected && !districtSelected ? 'Selecciona un distrito.' : undefined,
+    const geoStateOk = geoAllComplete;
+
+    const geoErrors = {
+      province: department && !province ? 'Selecciona una provincia.' : undefined,
+      district: department && province && !district ? 'Selecciona un distrito.' : undefined,
     };
 
     return {
       titleOk,
       descOk,
-      locationOk,
-      departmentSelected,
-      provinceSelected,
-      districtSelected,
-      locationErrors,
+
+      geoAllEmpty,
+      geoAllComplete,
+      geoStateOk,
+      geoErrors,
     };
   }, [watched]);
 
-  const canSubmit = computed.titleOk && computed.descOk && computed.locationOk && !isSaving;
+  const canSubmit = computed.titleOk && computed.descOk && computed.geoStateOk && !isSaving;
 
   useDismissOnDirty({
     isDirty: form.formState.isDirty,
@@ -236,6 +263,61 @@ export default function CompanyJobNewPage() {
     showError('Revisa los campos marcados antes de publicar.');
   };
 
+  const initialRef = useRef<FormValues>(form.getValues());
+
+  const hasUnsavedChanges = form.formState.isDirty && !isSaving;
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const guard = useNavigationGuard();
+
+  function openConfirm() {
+    setConfirmOpen(true);
+  }
+
+  function closeConfirm() {
+    setConfirmOpen(false);
+    guard.cancelLeave();
+  }
+
+  function confirmLeave() {
+    setConfirmOpen(false);
+    guard.confirmLeave();
+  }
+
+  useUnsavedChangesGuard({
+    enabled: hasUnsavedChanges,
+    message: 'Tienes cambios sin guardar.',
+    onOpenConfirm: () => openConfirm(),
+    onConfirmLeave: () => {
+      form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
+    },
+    onCancelLeave: () => {
+      setConfirmOpen(false);
+    },
+  });
+
+  function guardedNavigate(path: Route) {
+    if (!hasUnsavedChanges) {
+      router.push(path);
+      return;
+    }
+
+    guard.setGuard({
+      enabled: true,
+      message: 'Tienes cambios sin guardar.',
+      onOpenConfirm: openConfirm,
+      onConfirmLeave: () => {
+        form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
+      },
+      onCancelLeave: () => {
+        setConfirmOpen(false);
+      },
+    });
+
+    guard.setPendingNavigate(() => router.push(path));
+    guard.pingOpenConfirm();
+  }
+
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
     if (submitLockRef.current) return;
     submitLockRef.current = true;
@@ -254,24 +336,14 @@ export default function CompanyJobNewPage() {
         return;
       }
 
-      if (!computed.locationOk) {
-        if (!computed.departmentSelected) {
+      const geoOk = await form.trigger(['provinceId', 'districtId', 'departmentId']);
+      if (!geoOk || !computed.geoStateOk) {
+        if (!values.departmentId.trim()) {
           form.setError('departmentId', {
             type: 'required',
             message: 'Selecciona un departamento.',
           });
         }
-        if (!computed.provinceSelected) {
-          form.setError('provinceId', { type: 'required', message: 'Selecciona una provincia.' });
-        }
-        if (!computed.districtSelected) {
-          form.setError('districtId', { type: 'required', message: 'Selecciona un distrito.' });
-        }
-
-        form.setValue('departmentId', values.departmentId, { shouldTouch: true });
-        form.setValue('provinceId', values.provinceId, { shouldTouch: true });
-        form.setValue('districtId', values.districtId, { shouldTouch: true });
-
         showError('Revisa los campos marcados antes de publicar.');
         return;
       }
@@ -359,6 +431,7 @@ export default function CompanyJobNewPage() {
 
       const current = form.getValues();
       form.reset(current, { keepErrors: false, keepTouched: false, keepDirty: false });
+      initialRef.current = current;
 
       redirectOnOkClearRef.current = true;
       showOk('Oferta publicada correctamente.');
@@ -375,7 +448,7 @@ export default function CompanyJobNewPage() {
           <div className="mb-3">
             <button
               type="button"
-              onClick={() => router.push(routes.dashboard.company.home)}
+              onClick={() => guardedNavigate(routes.dashboard.company.home as Route)}
               className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
             >
               ← Volver al panel
@@ -416,6 +489,18 @@ export default function CompanyJobNewPage() {
           }}
         />
 
+        <ConfirmDialog
+          open={confirmOpen}
+          title="Tienes cambios sin guardar"
+          description="Si sales ahora, perderás los cambios realizados en este formulario."
+          confirmText="Descartar cambios"
+          cancelText="Seguir editando"
+          destructive
+          busy={isSaving}
+          onCancel={closeConfirm}
+          onConfirm={confirmLeave}
+        />
+
         {showCompleteProfileCta && (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-900 font-semibold">Acción requerida</p>
@@ -426,7 +511,7 @@ export default function CompanyJobNewPage() {
             <div className="mt-3 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
-                onClick={() => router.push('/me/company/profile/setup')}
+                onClick={() => guardedNavigate('/me/company/profile/setup' as Route)}
                 className="inline-flex items-center justify-center rounded-2xl bg-blue-700 px-4 py-2.5 text-white text-sm font-semibold hover:bg-blue-800 transition"
               >
                 Ir a completar perfil
@@ -434,7 +519,7 @@ export default function CompanyJobNewPage() {
 
               <button
                 type="button"
-                onClick={() => router.push(routes.dashboard.company.home)}
+                onClick={() => guardedNavigate(routes.dashboard.company.home as Route)}
                 className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
               >
                 Volver al panel
@@ -620,8 +705,8 @@ export default function CompanyJobNewPage() {
               <section>
                 <h2 className="text-lg font-semibold text-slate-900">Ubicación</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Los campos marcados con <span className="text-red-600 font-semibold">*</span> son
-                  obligatorios. Completa la ubicación en orden: departamento, provincia y distrito.
+                  Indicar la ubicación mejora la visibilidad de tu oferta y facilita que los
+                  postulantes encuentren tu vacante.
                 </p>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
@@ -645,21 +730,26 @@ export default function CompanyJobNewPage() {
 
                           form.setValue('provinceId', '', {
                             shouldDirty: true,
-                            shouldTouch: true,
+                            shouldTouch: false,
                             shouldValidate: true,
                           });
                           form.setValue('districtId', '', {
                             shouldDirty: true,
-                            shouldTouch: true,
+                            shouldTouch: false,
                             shouldValidate: true,
                           });
 
-                          form.clearErrors(['departmentId', 'provinceId', 'districtId']);
+                          form.clearErrors(['provinceId', 'districtId']);
+
+                          if (next) {
+                            form.setValue('provinceId', '', {
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            });
+                          }
                         }
                       }}
-                      onBlur={() => {
-                        form.trigger(['departmentId', 'provinceId', 'districtId']);
-                      }}
+                      onBlur={() => form.trigger('departmentId')}
                     >
                       <option value="">Selecciona…</option>
                       {(departmentsQuery.data ?? []).map((d) => (
@@ -673,7 +763,11 @@ export default function CompanyJobNewPage() {
                   <Field
                     label="Provincia"
                     required
-                    error={form.formState.errors.provinceId?.message as string | undefined}
+                    error={
+                      computed.geoErrors.province
+                        ? computed.geoErrors.province
+                        : (form.formState.errors.provinceId?.message as string | undefined)
+                    }
                   >
                     <select
                       className={selectClass(!departmentId, !!form.formState.errors.provinceId)}
@@ -691,16 +785,21 @@ export default function CompanyJobNewPage() {
 
                           form.setValue('districtId', '', {
                             shouldDirty: true,
-                            shouldTouch: true,
+                            shouldTouch: false,
                             shouldValidate: true,
                           });
 
-                          form.clearErrors(['provinceId', 'districtId']);
+                          form.clearErrors(['districtId']);
+
+                          if (next) {
+                            form.setValue('districtId', '', {
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            });
+                          }
                         }
                       }}
-                      onBlur={() => {
-                        form.trigger(['provinceId', 'districtId']);
-                      }}
+                      onBlur={() => form.trigger('provinceId')}
                     >
                       <option value="">
                         {!departmentId
@@ -720,7 +819,11 @@ export default function CompanyJobNewPage() {
                   <Field
                     label="Distrito"
                     required
-                    error={form.formState.errors.districtId?.message as string | undefined}
+                    error={
+                      computed.geoErrors.district
+                        ? computed.geoErrors.district
+                        : (form.formState.errors.districtId?.message as string | undefined)
+                    }
                   >
                     <select
                       className={selectClass(!provinceId, !!form.formState.errors.districtId)}
@@ -790,8 +893,9 @@ export default function CompanyJobNewPage() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => router.push(routes.dashboard.company.home as Route)}
-                    className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
+                    disabled={isSaving}
+                    onClick={() => guardedNavigate(routes.dashboard.company.home as Route)}
+                    className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Cancelar
                   </button>

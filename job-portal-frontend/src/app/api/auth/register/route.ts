@@ -8,6 +8,7 @@ type AuthResp = {
   accessToken: string;
   expiresIn: number;
   refreshToken: string;
+  role?: string;
 };
 
 const BACKEND = env.BACKEND_BASE_URL;
@@ -25,10 +26,12 @@ export async function POST(req: NextRequest) {
   if (!res.ok) return json(data, res.status);
 
   const a = data as AuthResp;
+
   await setAuthCookies({
     accessToken: a.accessToken,
     expiresIn: a.expiresIn,
     refreshToken: a.refreshToken,
+    role: a.role ?? null,
   });
 
   return json({ ok: true }, 201);

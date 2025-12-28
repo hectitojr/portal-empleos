@@ -1,4 +1,4 @@
-import { json, tryRefresh } from '../../_lib/http';
+import { json, tryRefresh } from '@/app/api/_lib/http';
 
 export async function POST() {
   const ok = await tryRefresh();

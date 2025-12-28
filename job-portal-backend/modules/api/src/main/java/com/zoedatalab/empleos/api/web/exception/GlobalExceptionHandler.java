@@ -142,7 +142,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidDisabilityTypeIdsException.class)
-    public ResponseEntity<ApiErrorResponse> invalidDisabilityIds(HttpServletRequest req, InvalidDisabilityTypeIdsException ex) {
+    public ResponseEntity<ApiErrorResponse> invalidDisabilityIds(HttpServletRequest req,
+                                                                 InvalidDisabilityTypeIdsException ex) {
         var code = ApiErrorCode.VALIDATION_ERROR;
 
         var fields = List.of(
@@ -174,7 +175,8 @@ public class GlobalExceptionHandler {
 
     // ===== Validaciones =====
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiErrorResponse> validationBody(HttpServletRequest req, MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiErrorResponse> validationBody(HttpServletRequest req,
+                                                           MethodArgumentNotValidException ex) {
         var fieldItems = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> new FieldErrorItem(
                         fe.getField(),
@@ -194,7 +196,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiErrorResponse> constraintViolation(HttpServletRequest req, ConstraintViolationException ex) {
+    public ResponseEntity<ApiErrorResponse> constraintViolation(HttpServletRequest req,
+                                                                ConstraintViolationException ex) {
         var violations = ex.getConstraintViolations().stream()
                 .map(this::toViolation)
                 .toList();
@@ -216,22 +219,26 @@ public class GlobalExceptionHandler {
 
     // ===== Infra / request =====
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiErrorResponse> malformedJson(HttpServletRequest req, HttpMessageNotReadableException ex) {
+    public ResponseEntity<ApiErrorResponse> malformedJson(HttpServletRequest req,
+                                                          HttpMessageNotReadableException ex) {
         var code = ApiErrorCode.MALFORMED_JSON;
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, null));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiErrorResponse> missingParam(HttpServletRequest req, MissingServletRequestParameterException ex) {
+    public ResponseEntity<ApiErrorResponse> missingParam(HttpServletRequest req,
+                                                         MissingServletRequestParameterException ex) {
         var code = ApiErrorCode.MISSING_PARAMETER;
-        var v = List.of(new ViolationErrorItem(ex.getParameterName(), "MissingParameter", "El parámetro es obligatorio."));
+        var v = List.of(new ViolationErrorItem(ex.getParameterName(), "MissingParameter",
+                "El parámetro es obligatorio."));
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, v));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiErrorResponse> typeMismatch(HttpServletRequest req, MethodArgumentTypeMismatchException ex) {
+    public ResponseEntity<ApiErrorResponse> typeMismatch(HttpServletRequest req,
+                                                         MethodArgumentTypeMismatchException ex) {
         var code = ApiErrorCode.TYPE_MISMATCH;
         var v = List.of(new ViolationErrorItem(ex.getName(), "TypeMismatch", "Tipo de dato inválido."));
         return ResponseEntity.status(code.status)
@@ -239,14 +246,16 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-    public ResponseEntity<ApiErrorResponse> unsupportedMedia(HttpServletRequest req, HttpMediaTypeNotSupportedException ex) {
+    public ResponseEntity<ApiErrorResponse> unsupportedMedia(HttpServletRequest req,
+                                                             HttpMediaTypeNotSupportedException ex) {
         var code = ApiErrorCode.UNSUPPORTED_MEDIA_TYPE;
         return ResponseEntity.status(code.status)
                 .body(ApiErrorFactory.build(req, code, null, null));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiErrorResponse> dataIntegrity(HttpServletRequest req, DataIntegrityViolationException ex) {
+    public ResponseEntity<ApiErrorResponse> dataIntegrity(HttpServletRequest req,
+                                                          DataIntegrityViolationException ex) {
         String rootMsg = Optional.of(ex.getMostSpecificCause())
                 .map(Throwable::getMessage)
                 .orElse("");

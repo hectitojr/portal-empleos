@@ -4,9 +4,12 @@ export class BffHttpError extends Error {
   status: number;
   body: string;
   traceId: string | null;
-  error: ApiErrorResponse | null;
+  error: ApiErrorResponse;
 
-  constructor(message: string, args: { status: number; body: string; traceId: string | null; error: ApiErrorResponse | null }) {
+  constructor(
+    message: string,
+    args: { status: number; body: string; traceId: string | null; error: ApiErrorResponse }
+  ) {
     super(message);
     this.name = 'BffHttpError';
     this.status = args.status;
@@ -40,6 +43,23 @@ function buildInit(init?: RequestInit): RequestInit {
   };
 }
 
+function buildFallbackApiError(args: {
+  status: number;
+  traceId: string | null;
+  bodyText?: string;
+}): ApiErrorResponse {
+  return {
+    error: 'INTERNAL_ERROR',
+    message: 'Ocurrió un error inesperado.',
+    status: args.status,
+    path: null,
+    traceId: args.traceId,
+    timestamp: new Date().toISOString(),
+    fieldErrors: [],
+    violations: [],
+  };
+}
+
 export async function bffFetchResult<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
   const res = await fetch(path, buildInit(init));
 
@@ -47,12 +67,14 @@ export async function bffFetchResult<T>(path: string, init?: RequestInit): Promi
   const text = await res.text().catch(() => '');
 
   if (!res.ok) {
+    const parsed = tryParseApiError(text);
+
     return {
       ok: false,
       status: res.status,
       traceId,
       bodyText: text,
-      error: tryParseApiError(text),
+      error: parsed ?? buildFallbackApiError({ status: res.status, traceId, bodyText: text }),
     };
   }
 
@@ -64,7 +86,6 @@ export async function bffFetchResult<T>(path: string, init?: RequestInit): Promi
     const data = JSON.parse(text) as T;
     return { ok: true, data, status: res.status, traceId };
   } catch {
-
     return {
       ok: false,
       status: 500,
@@ -74,7 +95,11 @@ export async function bffFetchResult<T>(path: string, init?: RequestInit): Promi
         error: 'INTERNAL_ERROR',
         message: 'Respuesta inválida del servidor.',
         status: 500,
+        path: null,
         traceId,
+        timestamp: new Date().toISOString(),
+        fieldErrors: [],
+        violations: [],
       },
     };
   }
@@ -84,12 +109,13 @@ export async function bffFetchOrThrow<T>(path: string, init?: RequestInit): Prom
   const result = await bffFetchResult<T>(path, init);
 
   if (!result.ok) {
-    const apiMessage = result.error?.message;
+    const apiMessage = result.error.message;
+
     throw new BffHttpError(apiMessage || 'Error de servidor.', {
       status: result.status,
       body: result.bodyText ?? '',
       traceId: result.traceId ?? null,
-      error: result.error ?? null,
+      error: result.error,
     });
   }
 
