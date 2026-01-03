@@ -1,14 +1,16 @@
 -- File: V1_70__moderation.sql
 -- Title: Moderation actions
 -- Purpose: Historial de acciones de moderación.
--- Author: ZOEDATA_LAB | Date: 2025-10-19
+-- Author: ZOEDATA_LAB
+
+SET search_path TO job_portal, public;
 
 CREATE TABLE moderation_actions (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   target_type TEXT NOT NULL CHECK (target_type IN ('JOB','USER')),
   target_id   UUID NOT NULL,
   reason      TEXT NOT NULL,
-  created_by  UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT, -- admin
+  created_by  UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

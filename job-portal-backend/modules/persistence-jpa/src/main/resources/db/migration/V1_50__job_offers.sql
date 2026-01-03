@@ -1,7 +1,9 @@
 -- File: V1_50__job_offers.sql
 -- Title: Job offers
 -- Purpose: Publicaciones de empleo asociadas a company.
--- Author: ZOEDATA_LAB | Date: 2025-10-19
+-- Author: ZOEDATA_LAB
+
+SET search_path TO job_portal, public;
 
 CREATE TABLE job_offers (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -23,16 +25,11 @@ CREATE TABLE job_offers (
   created_by          UUID NULL,
   updated_by          UUID NULL,
 
-  -- hardening title/description
   CONSTRAINT chk_job_offers_title_len CHECK (char_length(title) BETWEEN 1 AND 120),
   CONSTRAINT chk_job_offers_desc_len  CHECK (char_length(description) BETWEEN 1 AND 8000),
   CONSTRAINT chk_job_offers_title_not_blank CHECK (btrim(title) <> ''),
   CONSTRAINT chk_job_offers_desc_not_blank  CHECK (btrim(description) <> '')
 );
-
--------------------------
--- Índices base
--------------------------
 
 CREATE INDEX ix_job_offers__company_pub_id
   ON job_offers(company_id, published_at DESC, id DESC);
@@ -68,13 +65,11 @@ CREATE INDEX ix_job_offers__work_mode
 CREATE INDEX ix_job_offers__title_lower_trgm
   ON job_offers USING gin ((lower(title)) public.gin_trgm_ops);
 
--------------------------
--- Trigger updated_at
--------------------------
 CREATE TRIGGER trg_job_offers__updated_at
-  BEFORE UPDATE ON job_offers FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  BEFORE UPDATE ON job_offers
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMENT ON TABLE job_offers IS 'Oferta laboral publicada por una empresa.';
 COMMENT ON COLUMN job_offers.employment_type_id IS 'Tipo de empleo (catálogo).';
 COMMENT ON COLUMN job_offers.work_mode_id       IS 'Modalidad de trabajo (catálogo).';
-COMMENT ON COLUMN job_offers.salary_text        IS 'Texto de salario/beneficios mostrado en UI (listado/detalle).';
+COMMENT ON COLUMN job_offers.salary_text        IS 'Texto de salario/beneficios mostrado en UI.';

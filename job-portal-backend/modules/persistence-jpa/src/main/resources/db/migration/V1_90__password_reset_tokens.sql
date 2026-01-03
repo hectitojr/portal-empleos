@@ -1,14 +1,16 @@
 -- File: V1_90__password_reset_tokens.sql
 -- Title: Password Reset Tokens (selector + verifier hash)
--- Purpose: Soporte real para recuperación y restablecimiento de contraseñas (forgot/reset).
--- Author: ZOEDATA_LAB | Date: 2025-11-11
+-- Purpose: Recuperación y restablecimiento de contraseñas.
+-- Author: ZOEDATA_LAB
+
+SET search_path TO job_portal, public;
 
 CREATE TABLE password_reset_tokens (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  selector      TEXT NOT NULL UNIQUE,        -- Parte pública del enlace (no sensible)
-  verifier_hash TEXT NOT NULL,               -- Hash del token de verificación (no se almacena en claro)
-  expires_at    TIMESTAMPTZ NOT NULL,        -- Tiempo de expiración del enlace
+  selector      TEXT NOT NULL UNIQUE,
+  verifier_hash TEXT NOT NULL,
+  expires_at    TIMESTAMPTZ NOT NULL,
   used          BOOLEAN NOT NULL DEFAULT FALSE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -22,4 +24,3 @@ CREATE TRIGGER trg_password_reset_tokens__updated_at
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMENT ON TABLE password_reset_tokens IS 'Tokens de restablecimiento de contraseña (selector/verifier, uso único).';
-

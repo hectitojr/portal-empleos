@@ -1,7 +1,9 @@
 -- File: V1_60__applications.sql
 -- Title: Applications (applicant -> job)
 -- Purpose: Postulaciones de candidatos a ofertas.
--- Author: ZOEDATA_LAB | Date: 2025-10-19
+-- Author: ZOEDATA_LAB
+
+SET search_path TO job_portal, public;
 
 CREATE TABLE applications (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -21,6 +23,7 @@ CREATE INDEX ix_applications__applicant ON applications(applicant_id);
 CREATE INDEX ix_applications__status    ON applications(status);
 
 CREATE TRIGGER trg_applications__updated_at
-  BEFORE UPDATE ON applications FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  BEFORE UPDATE ON applications
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMENT ON TABLE applications IS 'Postulaciones de candidatos a ofertas.';

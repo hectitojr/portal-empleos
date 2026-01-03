@@ -8,6 +8,7 @@
 --   - Determinista (ordenado).
 --   - Normalización a Title Case en español.
 
+SET search_path TO job_portal, public;
 -------------------------
 -- 1) DEPARTAMENTOS
 -------------------------

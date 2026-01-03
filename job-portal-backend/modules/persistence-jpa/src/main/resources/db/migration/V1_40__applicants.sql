@@ -1,7 +1,9 @@
 -- File: V1_40__applicants.sql
 -- Title: Applicant profiles & related info
--- Purpose: CV del postulante y tablas relacionadas (experiencia, educación, skills, discapacidad).
--- Author: ZOEDATA_LAB | Date: 2025-10-19
+-- Purpose: CV del postulante y tablas relacionadas.
+-- Author: ZOEDATA_LAB
+
+SET search_path TO job_portal, public;
 
 CREATE TABLE applicants (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,8 +21,10 @@ CREATE TABLE applicants (
   created_by       UUID NULL,
   updated_by       UUID NULL
 );
+
 CREATE TRIGGER trg_applicants__updated_at
-  BEFORE UPDATE ON applicants FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  BEFORE UPDATE ON applicants
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE applicant_experience (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

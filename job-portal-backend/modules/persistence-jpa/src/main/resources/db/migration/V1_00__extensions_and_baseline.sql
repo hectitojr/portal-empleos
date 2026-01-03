@@ -1,7 +1,7 @@
 -- File: V1_00__extensions_and_baseline.sql
--- Title: Extensions & Baseline (pgcrypto, citext) + updated_at helper
--- Purpose: Habilitar extensiones requeridas y función/trigger base de updated_at.
--- Author: ZOEDATA_LAB | Date: 2025-10-19
+-- Title: Extensions & Baseline (pgcrypto, citext, pg_trgm) + updated_at helper
+-- Purpose: Habilitar extensiones requeridas y función base de updated_at.
+-- Author: ZOEDATA_LAB
 
 SET search_path TO job_portal, public;
 
