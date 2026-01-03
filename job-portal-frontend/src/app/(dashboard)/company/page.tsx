@@ -6,14 +6,23 @@ import { routes } from '@/lib/routes';
 import { useCompanyMe } from '@/features/companies/hooks/useCompanyMe';
 import { computeCompanyProfileProgress } from '@/features/companies/lib/profileProgress';
 
+function employerTypeLabel(t?: string | null) {
+  if (t === 'COMPANY') return 'Empresa';
+  if (t === 'FREELANCE') return 'Reclutador independiente';
+  return null;
+}
+
 export default function CompanyHomePage() {
   const meQuery = useCompanyMe();
   const me = meQuery.data;
 
+  const employerTypeText = employerTypeLabel(me?.employerType ?? null);
+
   const progressState = me
     ? computeCompanyProfileProgress({
+        employerType: me.employerType ?? null,
         legalName: me.legalName,
-        taxId: me.taxId,
+        taxId: me.employerType === 'FREELANCE' ? null : me.taxId,
         contactEmail: me.contactEmail,
         districtId: me.districtId,
       })
@@ -69,10 +78,8 @@ export default function CompanyHomePage() {
         </div>
       </section>
 
-      {/* Contenido principal */}
       <section className="flex-1 min-h-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 space-y-6">
-          {/* Estado / Progreso perfil */}
           <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -80,6 +87,21 @@ export default function CompanyHomePage() {
                 <p className="text-sm text-slate-600 mt-1">
                   Completa los datos de tu empresa para publicar ofertas laborales.
                 </p>
+
+                {!meQuery.isLoading && !meQuery.error && (
+                  <div className="mt-3">
+                    {employerTypeText ? (
+                      <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                        Tipo de empleador:{' '}
+                        <span className="ml-1 text-slate-900">{employerTypeText}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">
+                        Tipo de empleador: <span className="ml-1">Pendiente</span>
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {!meQuery.isLoading && !meQuery.error && me && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -93,7 +115,7 @@ export default function CompanyHomePage() {
                       }
                     />
                     <StatusPill
-                      label={me.active ? 'Activa' : 'Inactiva'}
+                      label={me.active ? 'Activo' : 'Inactiva'}
                       tone={me.active ? 'ok' : 'neutral'}
                       help={
                         me.active

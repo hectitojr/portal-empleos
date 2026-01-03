@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { routes } from '@/lib/routes';
 import { useCompanyJobs } from '@/features/jobs/hooks/useCompanyJobs';
 
@@ -17,19 +17,97 @@ function fmtDate(iso: string) {
   }
 }
 
+type EmptyStateCta =
+  | { kind: 'clear'; label: string }
+  | { kind: 'link'; label: string; href: string };
+
+type EmptyStateModel = {
+  title: string;
+  description: string;
+  primaryCta: EmptyStateCta;
+  secondaryCta: { label: string; href: string };
+};
+
 export default function CompanyJobsPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'OPEN' | 'CLOSED' | ''>('');
-  const [page] = useState(0);
+  const [page, setPage] = useState(0);
+
+  const qTrimmed = q.trim();
 
   const jobsQuery = useCompanyJobs({
     page,
     size: 20,
-    q: q.trim() ? q.trim() : undefined,
+    q: qTrimmed ? qTrimmed : undefined,
     status: status ? status : undefined,
   });
 
   const jobs = jobsQuery.data;
+
+  function clearFilters() {
+    setQ('');
+    setStatus('');
+    setPage(0);
+  }
+
+  const emptyState: EmptyStateModel = useMemo(() => {
+    const hasQuery = qTrimmed.length > 0;
+    const hasStatus = status === 'OPEN' || status === 'CLOSED';
+    const hasFilters = hasQuery || hasStatus;
+
+    if (!hasFilters) {
+      return {
+        title: 'Lista de ofertas',
+        description:
+          'Aún no tienes ofertas publicadas. Crea tu primera oferta para empezar a recibir postulaciones.',
+        primaryCta: {
+          kind: 'link',
+          label: 'Publicar mi primera oferta',
+          href: routes.dashboard.company.jobNew,
+        },
+        secondaryCta: {
+          label: 'Revisar perfil de empresa',
+          href: routes.dashboard.company.profileSetup,
+        },
+      };
+    }
+
+    const statusLabel = status === 'OPEN' ? 'abiertas' : status === 'CLOSED' ? 'cerradas' : null;
+
+    if (hasQuery && statusLabel) {
+      return {
+        title: 'Sin resultados',
+        description: `No se encontraron ofertas ${statusLabel} que coincidan con “${qTrimmed}”.`,
+        primaryCta: { kind: 'clear', label: 'Quitar filtros' },
+        secondaryCta: { label: 'Publicar oferta', href: routes.dashboard.company.jobNew },
+      };
+    }
+
+    if (hasQuery) {
+      return {
+        title: 'Sin resultados',
+        description: `No se encontraron ofertas que coincidan con “${qTrimmed}”.`,
+        primaryCta: { kind: 'clear', label: 'Quitar filtros' },
+        secondaryCta: { label: 'Publicar oferta', href: routes.dashboard.company.jobNew },
+      };
+    }
+
+    if (statusLabel) {
+      return {
+        title: 'Sin ofertas',
+        description: `No tienes ofertas ${statusLabel} por el momento.`,
+        primaryCta: { kind: 'clear', label: 'Ver todas' },
+        secondaryCta: { label: 'Publicar oferta', href: routes.dashboard.company.jobNew },
+      };
+    }
+
+    return {
+      title: 'Sin resultados',
+      description: 'No hay ofertas para los filtros seleccionados.',
+      primaryCta: { kind: 'clear', label: 'Quitar filtros' },
+      secondaryCta: { label: 'Publicar oferta', href: routes.dashboard.company.jobNew },
+    };
+  }, [qTrimmed, status]);
 
   return (
     <section className="flex flex-col flex-1 min-h-0">
@@ -54,13 +132,19 @@ export default function CompanyJobsPage() {
               className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
               placeholder="Buscar por título…"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(0);
+              }}
             />
 
             <select
               className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm bg-white"
               value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
+              onChange={(e) => {
+                setStatus(e.target.value as any);
+                setPage(0);
+              }}
             >
               <option value="">Todos los estados</option>
               <option value="OPEN">Abiertas</option>
@@ -163,24 +247,32 @@ export default function CompanyJobsPage() {
 
         {!jobsQuery.isLoading && !jobsQuery.error && jobs.length === 0 && (
           <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-slate-900">Lista de ofertas</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Aún no tienes ofertas publicadas. Crea tu primera oferta para empezar a recibir
-              postulaciones.
-            </p>
+            <h2 className="text-lg font-semibold text-slate-900">{emptyState.title}</h2>
+            <p className="mt-2 text-sm text-slate-600">{emptyState.description}</p>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              {emptyState.primaryCta.kind === 'clear' ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-white font-semibold hover:bg-slate-800 transition"
+                >
+                  {emptyState.primaryCta.label}
+                </button>
+              ) : (
+                <Link
+                  href={emptyState.primaryCta.href as any}
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-white font-semibold hover:bg-slate-800 transition"
+                >
+                  {emptyState.primaryCta.label}
+                </Link>
+              )}
+
               <Link
-                href={routes.dashboard.company.jobNew as any}
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-white font-semibold hover:bg-slate-800 transition"
-              >
-                Publicar mi primera oferta
-              </Link>
-              <Link
-                href={routes.dashboard.company.profileSetup as any}
+                href={emptyState.secondaryCta.href as any}
                 className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 font-semibold border border-slate-200 hover:bg-slate-50 transition"
               >
-                Revisar perfil de empresa
+                {emptyState.secondaryCta.label}
               </Link>
             </div>
           </section>

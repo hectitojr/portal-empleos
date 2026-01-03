@@ -14,13 +14,22 @@ const BACKEND = env.BACKEND_BASE_URL;
 async function backendFetchRaw(path: string, init?: RequestInit) {
   const url = path.startsWith('http') ? path : `${BACKEND}${path}`;
 
+  const headers = new Headers(init?.headers);
+
+  const hasBody = init?.body !== undefined && init?.body !== null;
+
+  if (hasBody && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+
   const res = await fetch(url, {
     ...init,
     cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
+    headers,
   });
 
   console.log('[BFF] upstream', {
@@ -44,7 +53,9 @@ export async function backendFetch(
   const res = await backendFetchRaw(path, {
     ...fetchInit,
     headers: {
-      ...(fetchInit.headers || {}),
+      ...(fetchInit?.headers instanceof Headers
+        ? Object.fromEntries(fetchInit.headers.entries())
+        : fetchInit?.headers),
       ...(access ? { Authorization: `Bearer ${access}` } : {}),
     },
   });
@@ -56,7 +67,9 @@ export async function backendFetch(
       return backendFetchRaw(path, {
         ...fetchInit,
         headers: {
-          ...(fetchInit.headers || {}),
+          ...(fetchInit?.headers instanceof Headers
+            ? Object.fromEntries(fetchInit.headers.entries())
+            : fetchInit?.headers),
           ...(newAccess ? { Authorization: `Bearer ${newAccess}` } : {}),
         },
       });
@@ -73,7 +86,10 @@ export async function tryRefresh(): Promise<boolean> {
   const res = await backendFetchRaw('/api/v1/auth/refresh', {
     method: 'POST',
     body: JSON.stringify({ refreshToken: refresh }),
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
   });
 
   if (!res.ok) {

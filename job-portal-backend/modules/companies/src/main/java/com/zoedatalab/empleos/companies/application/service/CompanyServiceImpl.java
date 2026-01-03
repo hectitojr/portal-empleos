@@ -10,6 +10,7 @@ import com.zoedatalab.empleos.companies.application.ports.in.CompanyQueryService
 import com.zoedatalab.empleos.companies.application.ports.out.CompanyJobStatsPort;
 import com.zoedatalab.empleos.companies.application.ports.out.CompanyRepositoryPort;
 import com.zoedatalab.empleos.companies.domain.Company;
+import com.zoedatalab.empleos.companies.domain.EmployerType;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyNotFoundException;
 import com.zoedatalab.empleos.companies.domain.exception.CompanyProfileLockedException;
 import com.zoedatalab.empleos.companies.domain.exception.TaxIdAlreadyExistsException;
@@ -50,6 +51,7 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
     private static CompanyView toView(Company c) {
         return CompanyView.builder()
                 .id(c.getId())
+                .employerType(c.getEmployerType())
                 .legalName(c.getLegalName())
                 .taxId(c.getTaxId())
                 .contactEmail(c.getContactEmail())
@@ -60,7 +62,7 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
                 .suspended(c.isSuspended())
                 .build();
     }
-
+    
     @Override
     public CompanyView getMyCompany(UUID currentUserId) {
         var c = repo.findByUserId(currentUserId).orElseThrow(CompanyNotFoundException::new);
@@ -70,12 +72,21 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
     @Override
     public CompanyView upsertMyCompany(UUID userId, UpsertMyCompanyCommand cmd) {
         var existing = repo.findByUserId(userId).orElse(null);
-        
+
+        EmployerType employerType =
+                (cmd.employerType() != null) ? cmd.employerType()
+                        : (existing != null && existing.getEmployerType() != null) ? existing.getEmployerType()
+                        : EmployerType.COMPANY;
+
         var legalName = trimToNull(cmd.legalName());
-        var taxId = digitsOnlyToNull(cmd.taxId());
         var contactEmail = trimLowerToNull(cmd.contactEmail());
         var contactPhone = trimToNull(cmd.contactPhone());
         var districtId = cmd.districtId();
+
+        var taxId = digitsOnlyToNull(cmd.taxId());
+        if (employerType == EmployerType.FREELANCE) {
+            taxId = null;
+        }
 
         if (existing != null) {
             boolean wipingProfile =
@@ -97,18 +108,17 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
             }
         }
 
-        if (taxId != null && !taxId.isBlank()) {
+        if (employerType == EmployerType.COMPANY && isFilled(taxId)) {
             boolean usedByOther = repo.existsByTaxIdIgnoreCaseAndUserIdNot(taxId, userId);
             if (usedByOther) {
                 throw new TaxIdAlreadyExistsException();
             }
         }
 
-        var profileComplete =
-                isFilled(legalName)
-                        && isFilled(taxId)
-                        && isFilled(contactEmail)
-                        && (districtId != null);
+        boolean profileComplete =
+                (employerType == EmployerType.COMPANY)
+                        ? (isFilled(legalName) && isFilled(taxId) && isFilled(contactEmail) && districtId != null)
+                        : (isFilled(legalName) && isFilled(contactEmail) && districtId != null);
 
         var now = clock.now();
 
@@ -116,6 +126,7 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
                 ? Company.builder()
                 .id(UUID.randomUUID())
                 .userId(userId)
+                .employerType(employerType)
                 .legalName(legalName)
                 .taxId(taxId)
                 .contactEmail(contactEmail)
@@ -130,6 +141,7 @@ public class CompanyServiceImpl implements CompanyCommandService, CompanyQuerySe
                 : Company.builder()
                 .id(existing.getId())
                 .userId(existing.getUserId())
+                .employerType(employerType)
                 .legalName(legalName)
                 .taxId(taxId)
                 .contactEmail(contactEmail)

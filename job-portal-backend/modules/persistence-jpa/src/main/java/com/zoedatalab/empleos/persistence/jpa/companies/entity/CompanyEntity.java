@@ -1,8 +1,11 @@
 package com.zoedatalab.empleos.persistence.jpa.companies.entity;
 
 import com.vladmihalcea.hibernate.type.basic.PostgreSQLCITextType;
+import com.zoedatalab.empleos.companies.domain.EmployerType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -31,6 +34,10 @@ public class CompanyEntity {
 
     @Column(name = "user_id", nullable = false, columnDefinition = "uuid", unique = true)
     private UUID userId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "employer_type", nullable = false)
+    private EmployerType employerType;
 
     @Column(name = "legal_name")
     private String legalName;
@@ -72,5 +79,6 @@ public class CompanyEntity {
     @PrePersist
     void prePersist() {
         if (this.id == null) this.id = UUID.randomUUID();
+        if (this.employerType == null) this.employerType = EmployerType.COMPANY;
     }
 }

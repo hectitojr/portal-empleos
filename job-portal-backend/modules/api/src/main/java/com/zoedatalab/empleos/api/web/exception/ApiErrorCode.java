@@ -15,6 +15,7 @@ public enum ApiErrorCode {
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "No autenticado."),
     RESET_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "El enlace de restablecimiento no es válido."),
     RESET_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "El enlace de restablecimiento ha expirado."),
+    IDENTITY_DOCUMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "El documento ya está asociado a otra cuenta."),
 
     // =========================================================
     // Autorización
@@ -49,6 +50,7 @@ public enum ApiErrorCode {
     // =========================================================
     JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "La oferta no existe."),
     JOB_CLOSED(HttpStatus.CONFLICT, "La oferta está cerrada."),
+    EMPLOYER_IDENTITY_INCOMPLETE(HttpStatus.CONFLICT, "Completa tu identidad antes de publicar ofertas."),
 
     // =========================================================
     // Applications

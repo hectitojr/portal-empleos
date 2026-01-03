@@ -28,8 +28,18 @@ public class CompanyController {
     }
 
     private static CompanyMeResponse toResp(com.zoedatalab.empleos.companies.application.dto.CompanyView v) {
-        return new CompanyMeResponse(v.id(), v.legalName(), v.taxId(), v.contactEmail(), v.contactPhone(),
-                v.districtId(), v.profileComplete(), v.active(), v.suspended());
+        return new CompanyMeResponse(
+                v.id(),
+                v.employerType(),
+                v.legalName(),
+                v.taxId(),
+                v.contactEmail(),
+                v.contactPhone(),
+                v.districtId(),
+                v.profileComplete(),
+                v.active(),
+                v.suspended()
+        );
     }
 
     @GetMapping
@@ -44,13 +54,16 @@ public class CompanyController {
     @PreAuthorize("hasRole('COMPANY')")
     public ResponseEntity<CompanyMeResponse> upsert(@Valid @RequestBody CompanyUpsertRequest body) {
         var u = CurrentUser.idOrThrow();
+
         var cmd = UpsertMyCompanyCommand.builder()
+                .employerType(body.employerType())
                 .legalName(body.legalName())
                 .taxId(body.taxId())
                 .contactEmail(body.contactEmail())
                 .contactPhone(body.contactPhone())
                 .districtId(body.districtId())
                 .build();
+
         var v = command.upsertMyCompany(u, cmd);
         return ResponseEntity.ok(toResp(v));
     }

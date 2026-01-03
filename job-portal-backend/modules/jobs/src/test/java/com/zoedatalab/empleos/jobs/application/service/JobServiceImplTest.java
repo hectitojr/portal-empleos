@@ -10,6 +10,7 @@ import com.zoedatalab.empleos.jobs.application.dto.JobDetailView;
 import com.zoedatalab.empleos.jobs.application.dto.UpdateJobCommand;
 import com.zoedatalab.empleos.jobs.application.ports.out.ApplicantLookupPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
+import com.zoedatalab.empleos.jobs.application.ports.out.IdentityStatusPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobApplicantStatePort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobCatalogValidationPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobLocationQueryPort;
@@ -17,6 +18,7 @@ import com.zoedatalab.empleos.jobs.application.ports.out.JobRepositoryPort;
 import com.zoedatalab.empleos.jobs.domain.JobOffer;
 import com.zoedatalab.empleos.jobs.domain.JobOffer.Status;
 import com.zoedatalab.empleos.jobs.domain.exception.CompanyIncompleteException;
+import com.zoedatalab.empleos.jobs.domain.exception.EmployerIdentityIncompleteException;
 import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
@@ -38,7 +40,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,21 +55,18 @@ class JobServiceImplTest {
 
     @Mock
     JobRepositoryPort repo;
-
     @Mock
     CompanyOwnershipPort ownership;
-
     @Mock
     JobLocationQueryPort jobLocationQueries;
-
     @Mock
     ApplicantLookupPort applicantLookup;
-
     @Mock
     JobApplicantStatePort applicantState;
-
     @Mock
     JobCatalogValidationPort catalogValidation;
+    @Mock
+    IdentityStatusPort identityStatus;
 
     @InjectMocks
     JobServiceImpl service;
@@ -92,16 +90,23 @@ class JobServiceImplTest {
         when(catalogValidation.workModeExists(any())).thenReturn(true);
     }
 
-    private CompanyOwnershipPort.CompanyOwnership own(UUID companyId, boolean active, boolean profileComplete, boolean suspended) {
+    private CompanyOwnershipPort.CompanyOwnership own(UUID companyId, boolean active,
+                                                      boolean profileComplete, boolean suspended) {
         return new CompanyOwnershipPort.CompanyOwnership(companyId, active, profileComplete, suspended);
     }
 
-    @Test
-    void create_ok_whenCompanyActiveCompleteAndNotSuspended() {
-        stubCatalogsAllExist();
+    private void stubPublishableCompanyOk(UUID companyUserId, UUID companyId) {
+        when(ownership.getForUser(companyUserId)).thenReturn(own(companyId, true,
+                true, false));
+        when(identityStatus.isIdentityCompleted(companyUserId)).thenReturn(true);
+    }
 
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+    // ---------- CREATE ----------
+
+    @Test
+    void create_ok_whenCompanyPublishable_andIdentityCompleted() {
+        stubCatalogsAllExist();
+        stubPublishableCompanyOk(userId, companyId);
 
         when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -113,7 +118,7 @@ class JobServiceImplTest {
                         "Spring Boot, DDD",
                         "OPEN",
                         false,
-                        true
+                        false
                 )));
 
         var cmd = CreateJobCommand.builder()
@@ -132,7 +137,7 @@ class JobServiceImplTest {
         assertNotNull(out.id());
         assertEquals("Backend Sr.", out.title());
         assertEquals("OPEN", out.status());
-        assertTrue(out.disabilityFriendly());
+        assertFalse(out.disabilityFriendly());
         assertEquals(companyId, out.companyId());
 
         ArgumentCaptor<JobOffer> cap = ArgumentCaptor.forClass(JobOffer.class);
@@ -155,10 +160,8 @@ class JobServiceImplTest {
 
     @Test
     void create_whenCompanyIncomplete_throwsCompanyIncompleteException() {
-        var userId = UUID.randomUUID();
-
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(null, false, false, false));
+                .thenReturn(own(null, false, false, false));
 
         var cmd = CreateJobCommand.builder()
                 .title("Backend Java")
@@ -172,91 +175,56 @@ class JobServiceImplTest {
         verify(repo, never()).flush();
         verify(jobLocationQueries, never()).findDetail(any());
         verifyNoInteractions(catalogValidation);
+        verifyNoInteractions(identityStatus);
     }
 
     @Test
-    void create_whenOk_persistsJobAndReturnsDetail() {
-        stubCatalogsAllExist();
-
-        var userId = UUID.randomUUID();
-        var companyId = UUID.randomUUID();
-        var jobId = UUID.randomUUID();
-
+    void create_whenIdentityIncomplete_throwsEmployerIdentityIncompleteException() {
+        // NO stubs de catálogos: debe fallar antes de validateCatalogs(...)
         when(ownership.getForUser(userId))
-                .thenReturn(new CompanyOwnershipPort.CompanyOwnership(companyId, true, true, false));
-
-        when(repo.save(any(JobOffer.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        when(jobLocationQueries.findDetail(any(UUID.class))).thenAnswer(inv -> {
-            UUID id = inv.getArgument(0, UUID.class);
-            return Optional.of(new JobLocationQueryPort.JobDetailRow(
-                    id,
-                    companyId,
-                    "Backend Java",
-                    "Descripción suficientemente larga para pasar validación.",
-                    null, null, null,
-                    "Lima", "Lima", "San Isidro",
-                    false,
-                    null, null,
-                    null,
-                    "OPEN",
-                    java.time.Instant.parse("2025-01-01T00:00:00Z"),
-                    false
-            ));
-        });
+                .thenReturn(own(companyId, true, true, false));
+        when(identityStatus.isIdentityCompleted(userId)).thenReturn(false);
 
         var cmd = CreateJobCommand.builder()
                 .title("Backend Java")
                 .description("Descripción suficientemente larga para pasar validación.")
-                .areaId(UUID.randomUUID())
-                .sectorId(UUID.randomUUID())
-                .districtId(UUID.randomUUID())
-                .employmentTypeId(UUID.randomUUID())
-                .workModeId(UUID.randomUUID())
                 .disabilityFriendly(false)
                 .build();
 
-        var out = service.create(userId, cmd);
+        assertThrows(EmployerIdentityIncompleteException.class, () -> service.create(userId, cmd));
 
-        assertNotNull(out);
-        assertEquals(companyId, out.companyId());
-        assertEquals("Backend Java", out.title());
-        assertEquals("OPEN", out.status());
-
-        verify(repo).save(any(JobOffer.class));
-        verify(repo).flush();
-        verify(jobLocationQueries).findDetail(any(UUID.class));
-    }
-
-    @Test
-    void create_throws_whenCompanyIncompleteInactiveOrSuspended() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, false, false));
-        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
-
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, false, true, false));
-        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
-
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, true)); // suspended
-        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
-
-        when(ownership.getForUser(userId))
-                .thenReturn(own(null, false, false, false));
-        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
-
-        verify(repo, never()).save(any());
-        verify(repo, never()).flush();
-        verify(jobLocationQueries, never()).findDetail(any());
-
+        verifyNoInteractions(repo);
+        verifyNoInteractions(jobLocationQueries);
         verifyNoInteractions(catalogValidation);
     }
 
     @Test
+    void create_throws_whenCompanyNotPublishable() {
+        when(ownership.getForUser(userId)).thenReturn(own(companyId,
+                true, false, false));
+        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
+
+        when(ownership.getForUser(userId)).thenReturn(own(companyId, false,
+                true, false));
+        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
+
+        when(ownership.getForUser(userId)).thenReturn(own(companyId, true,
+                true, true));
+        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
+
+        when(ownership.getForUser(userId)).thenReturn(own(null, true,
+                true, false));
+        assertThrows(CompanyIncompleteException.class, () -> service.create(userId, minimalCreate()));
+
+        verifyNoInteractions(repo);
+        verifyNoInteractions(jobLocationQueries);
+        verifyNoInteractions(catalogValidation);
+        verifyNoInteractions(identityStatus);
+    }
+
+    @Test
     void create_throws_whenAreaNotFound() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         UUID areaId = UUID.randomUUID();
         when(catalogValidation.areaExists(areaId)).thenReturn(false);
@@ -275,8 +243,7 @@ class JobServiceImplTest {
 
     @Test
     void create_throws_whenSectorNotFound() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         UUID sectorId = UUID.randomUUID();
         when(catalogValidation.sectorExists(sectorId)).thenReturn(false);
@@ -295,8 +262,7 @@ class JobServiceImplTest {
 
     @Test
     void create_throws_whenDistrictNotFound() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         UUID districtId = UUID.randomUUID();
         when(catalogValidation.districtExists(districtId)).thenReturn(false);
@@ -315,8 +281,7 @@ class JobServiceImplTest {
 
     @Test
     void create_throws_whenEmploymentTypeNotFound() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         UUID employmentTypeId = UUID.randomUUID();
         when(catalogValidation.employmentTypeExists(employmentTypeId)).thenReturn(false);
@@ -335,8 +300,7 @@ class JobServiceImplTest {
 
     @Test
     void create_throws_whenWorkModeNotFound() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         UUID workModeId = UUID.randomUUID();
         when(catalogValidation.workModeExists(workModeId)).thenReturn(false);
@@ -358,9 +322,7 @@ class JobServiceImplTest {
     @Test
     void update_ok_whenCompanyAllowedOwnerAndOpen() {
         stubCatalogsAllExist();
-
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         var existing = sampleJob(jobId, companyId, Status.OPEN);
         when(repo.findById(jobId)).thenReturn(Optional.of(existing));
@@ -410,20 +372,20 @@ class JobServiceImplTest {
     @Test
     void update_throws_whenCompanySuspendedOrNotAllowed() {
         when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, true)); // suspended
+                .thenReturn(own(companyId, true, true, true));
 
-        // Debe fallar antes de tocar repo/catálogos
-        assertThrows(CompanyIncompleteException.class, () -> service.update(userId, jobId, UpdateJobCommand.builder().build()));
+        assertThrows(CompanyIncompleteException.class, () -> service.update(userId, jobId,
+                UpdateJobCommand.builder().build()));
 
         verifyNoInteractions(repo);
         verifyNoInteractions(catalogValidation);
         verifyNoInteractions(jobLocationQueries);
+        verifyNoInteractions(identityStatus);
     }
 
     @Test
     void update_throws_whenNotOwner() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, UUID.randomUUID(), Status.OPEN)));
@@ -436,14 +398,12 @@ class JobServiceImplTest {
         verify(repo, never()).save(any());
         verify(repo, never()).flush();
         verify(jobLocationQueries, never()).findDetail(any());
-
         verifyNoInteractions(catalogValidation);
     }
 
     @Test
     void update_throws_whenClosed() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, companyId, Status.CLOSED)));
@@ -456,7 +416,6 @@ class JobServiceImplTest {
         verify(repo, never()).save(any());
         verify(repo, never()).flush();
         verify(jobLocationQueries, never()).findDetail(any());
-
         verifyNoInteractions(catalogValidation);
     }
 
@@ -464,8 +423,7 @@ class JobServiceImplTest {
 
     @Test
     void close_ok_whenCompanyAllowedAndOwner() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, companyId, Status.OPEN)));
@@ -497,19 +455,19 @@ class JobServiceImplTest {
     @Test
     void close_throws_whenCompanySuspendedOrNotAllowed() {
         when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, true)); // suspended
+                .thenReturn(own(companyId, true, true, true));
 
         assertThrows(CompanyIncompleteException.class, () -> service.close(userId, jobId));
 
         verifyNoInteractions(repo);
         verifyNoInteractions(catalogValidation);
         verifyNoInteractions(jobLocationQueries);
+        verifyNoInteractions(identityStatus);
     }
 
     @Test
     void close_idempotent_whenAlreadyClosed() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, companyId, Status.CLOSED)));
@@ -540,8 +498,7 @@ class JobServiceImplTest {
 
     @Test
     void close_throws_whenNotOwner() {
-        when(ownership.getForUser(userId))
-                .thenReturn(own(companyId, true, true, false));
+        stubPublishableCompanyOk(userId, companyId);
 
         when(repo.findById(jobId))
                 .thenReturn(Optional.of(sampleJob(jobId, UUID.randomUUID(), Status.OPEN)));
@@ -553,7 +510,6 @@ class JobServiceImplTest {
         verify(repo, never()).save(any());
         verify(repo, never()).flush();
         verify(jobLocationQueries, never()).findDetail(any());
-
         verifyNoInteractions(catalogValidation);
     }
 
@@ -600,12 +556,13 @@ class JobServiceImplTest {
                 isNull(), isNull(), eq(distId),
                 any(), any(),
                 eq(0), eq(10)
-        )).thenReturn(List.of(sampleSummaryRow(UUID.randomUUID(), companyId, "OPEN", false)));
+        )).thenReturn(List.of(sampleSummaryRow(UUID.randomUUID(), companyId, "OPEN",
+                false)));
 
         when(ownership.publicName(companyId)).thenReturn("ACME");
 
-        service.search(null, null, depId, provId, distId, null, null,
-                0, 10);
+        service.search(null, null, depId, provId, distId, null,
+                null, 0, 10);
 
         verify(jobLocationQueries).searchSummaries(
                 isNull(), isNull(),
@@ -629,8 +586,8 @@ class JobServiceImplTest {
 
         when(ownership.publicName(companyId)).thenReturn("ACME");
 
-        service.search(null, null, depId, provId, null, null, null,
-                0, 10);
+        service.search(null, null, depId, provId, null, null,
+                null, 0, 10);
 
         verify(jobLocationQueries).searchSummaries(
                 isNull(), isNull(),
@@ -653,7 +610,8 @@ class JobServiceImplTest {
 
         when(ownership.publicName(companyId)).thenReturn("ACME");
 
-        service.search(null, null, depId, null, null, null, null, 0, 10);
+        service.search(null, null, depId, null, null, null,
+                null, 0, 10);
 
         verify(jobLocationQueries).searchSummaries(
                 isNull(), isNull(),
@@ -683,7 +641,8 @@ class JobServiceImplTest {
         when(applicantState.findViewedJobIds(any(), anyList())).thenReturn(Set.of());
         when(ownership.publicName(companyId)).thenReturn("ACME");
 
-        service.searchForApplicant(userId, null, null, depId, provId, distId, null, null, 0, 10);
+        service.searchForApplicant(userId, null, null, depId, provId, distId,
+                null, null, 0, 10);
 
         verify(jobLocationQueries).searchSummaries(
                 isNull(), isNull(),
@@ -741,16 +700,16 @@ class JobServiceImplTest {
                 companyId,
                 title,
                 description,
-                UUID.randomUUID(), // areaId
-                UUID.randomUUID(), // sectorId
-                UUID.randomUUID(), // districtId
-                "Lima",            // departmentName
-                "Lima",            // provinceName
-                "Miraflores",      // districtName
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Lima",
+                "Lima",
+                "Miraflores",
                 disabilityFriendly,
-                UUID.randomUUID(), // employmentTypeId
-                UUID.randomUUID(), // workModeId
-                "S/ 6000",         // salaryText
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "S/ 6000",
                 status,
                 Instant.now(),
                 suspended
@@ -764,14 +723,14 @@ class JobServiceImplTest {
                 id,
                 "Backend Sr.",
                 companyId,
-                UUID.randomUUID(), // sectorId
-                UUID.randomUUID(), // districtId
+                UUID.randomUUID(),
+                UUID.randomUUID(),
                 "Lima",
                 "Lima",
                 "Miraflores",
                 true,
-                UUID.randomUUID(), // employmentTypeId
-                UUID.randomUUID(), // workModeId
+                UUID.randomUUID(),
+                UUID.randomUUID(),
                 "S/ 6000",
                 status,
                 Instant.now(),

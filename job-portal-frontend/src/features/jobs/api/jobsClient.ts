@@ -117,9 +117,9 @@ export type CompanyJobDetailResponse = {
 export type CompanyCreateJobRequest = {
   title: string;
   description: string;
+  districtId: string; 
   areaId?: string | null;
   sectorId?: string | null;
-  districtId?: string | null;
   disabilityFriendly: boolean;
   employmentTypeId?: string | null;
   workModeId?: string | null;

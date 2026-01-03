@@ -14,20 +14,34 @@ type GuardState = {
   enabled: boolean;
   message: string;
 
-  onConfirmLeave: () => void;
-  onCancelLeave: () => void;
+  onConfirmLeave: () => void | Promise<void>;
+  onCancelLeave: () => void | Promise<void>;
   onOpenConfirm: () => void;
 };
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function settleUi(): Promise<void> {
+  await Promise.resolve();
+
+  await nextFrame();
+  await nextFrame();
+}
 
 type NavigationGuardApi = {
   setGuard: (next: GuardState) => void;
   clearGuard: () => void;
+
   pingOpenConfirm: () => void;
-  consumePendingNavigate: () => void;
-  clearPendingNavigate: () => void;
+
   setPendingNavigate: (fn: () => void) => void;
+  clearPendingNavigate: () => void;
+
   isDirty: () => boolean;
   getMessage: () => string;
+
   confirmLeave: () => void;
   cancelLeave: () => void;
 };
@@ -40,6 +54,12 @@ export function useNavigationGuard() {
   return ctx;
 }
 
+const GUARD_STATE_KEY = '__jp_guard';
+
+function isGuardState(state: unknown): boolean {
+  return !!state && typeof state === 'object' && (state as any)[GUARD_STATE_KEY] === true;
+}
+
 export default function NavigationGuardProvider({ children }: { children: React.ReactNode }) {
   const guardRef = useRef<GuardState>({
     enabled: false,
@@ -50,9 +70,16 @@ export default function NavigationGuardProvider({ children }: { children: React.
   });
 
   const pendingNavigateRef = useRef<null | (() => void)>(null);
+
+  const bypassRef = useRef(false);
+
   const [dirtyPing, setDirtyPing] = useState(0);
 
   const setGuard = useCallback((next: GuardState) => {
+    if (bypassRef.current) {
+      guardRef.current = { ...next, enabled: false };
+      return;
+    }
     guardRef.current = next;
   }, []);
 
@@ -64,11 +91,8 @@ export default function NavigationGuardProvider({ children }: { children: React.
       onCancelLeave: () => {},
       onOpenConfirm: () => {},
     };
-    pendingNavigateRef.current = null;
+    bypassRef.current = false;
   }, []);
-
-  const isDirty = useCallback(() => guardRef.current.enabled, []);
-  const getMessage = useCallback(() => guardRef.current.message, []);
 
   const setPendingNavigate = useCallback((fn: () => void) => {
     pendingNavigateRef.current = fn;
@@ -78,25 +102,56 @@ export default function NavigationGuardProvider({ children }: { children: React.
     pendingNavigateRef.current = null;
   }, []);
 
-  const consumePendingNavigate = useCallback(() => {
-    const fn = pendingNavigateRef.current;
-    pendingNavigateRef.current = null;
-    fn?.();
-  }, []);
+  const isDirty = useCallback(() => guardRef.current.enabled, []);
+  const getMessage = useCallback(() => guardRef.current.message, []);
 
   const pingOpenConfirm = useCallback(() => {
     setDirtyPing((x) => x + 1);
     guardRef.current.onOpenConfirm();
   }, []);
 
-  const confirmLeave = useCallback(() => {
-    guardRef.current.onConfirmLeave();
-    consumePendingNavigate();
-  }, [consumePendingNavigate]);
+  const confirmLeave = useCallback(async () => {
+    const pending = pendingNavigateRef.current;
+    pendingNavigateRef.current = null;
+
+    bypassRef.current = true;
+    guardRef.current.enabled = false;
+
+    try {
+      await guardRef.current.onConfirmLeave();
+    } catch (err) {
+      console.error('[NavigationGuard] onConfirmLeave failed:', err);
+    }
+
+    try {
+      await settleUi();
+    } catch (err) {
+      console.error('[NavigationGuard] settleUi failed:', err);
+    }
+
+    try {
+      pending?.();
+    } catch (err) {
+      console.error('[NavigationGuard] pending navigation failed:', err);
+    } finally {
+      try {
+        await nextFrame();
+      } finally {
+        bypassRef.current = false;
+      }
+    }
+  }, []);
 
   const cancelLeave = useCallback(() => {
-    guardRef.current.onCancelLeave();
-    clearPendingNavigate();
+    void (async () => {
+      try {
+        await guardRef.current.onCancelLeave();
+      } catch (err) {
+        console.error('[NavigationGuard] onCancelLeave failed:', err);
+      } finally {
+        clearPendingNavigate();
+      }
+    })();
   }, [clearPendingNavigate]);
 
   useEffect(() => {
@@ -115,14 +170,20 @@ export default function NavigationGuardProvider({ children }: { children: React.
 
   useEffect(() => {
     try {
-      window.history.replaceState({ __jp_guard: true }, '', window.location.href);
+      if (!isGuardState(window.history.state)) {
+        window.history.pushState({ [GUARD_STATE_KEY]: true }, '', window.location.href);
+      }
     } catch {}
 
     const onPopState = () => {
+      if (bypassRef.current) return;
+
       if (!guardRef.current.enabled) return;
 
       try {
-        window.history.pushState({ __jp_guard: true }, '', window.location.href);
+        if (!isGuardState(window.history.state)) {
+          window.history.pushState({ [GUARD_STATE_KEY]: true }, '', window.location.href);
+        }
       } catch {}
 
       setPendingNavigate(() => window.history.back());
@@ -172,11 +233,12 @@ export default function NavigationGuardProvider({ children }: { children: React.
       clearGuard,
       pingOpenConfirm,
       setPendingNavigate,
-      consumePendingNavigate,
       clearPendingNavigate,
       isDirty,
       getMessage,
-      confirmLeave,
+      confirmLeave: () => {
+        void confirmLeave();
+      },
       cancelLeave,
     };
   }, [
@@ -184,7 +246,6 @@ export default function NavigationGuardProvider({ children }: { children: React.
     clearGuard,
     pingOpenConfirm,
     setPendingNavigate,
-    consumePendingNavigate,
     clearPendingNavigate,
     isDirty,
     getMessage,

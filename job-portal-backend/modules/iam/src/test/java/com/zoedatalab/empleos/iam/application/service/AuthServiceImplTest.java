@@ -12,6 +12,7 @@ import com.zoedatalab.empleos.iam.application.exception.EmailAlreadyExistsExcept
 import com.zoedatalab.empleos.iam.application.exception.ResetTokenExpiredException;
 import com.zoedatalab.empleos.iam.application.exception.ResetTokenInvalidException;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
+import com.zoedatalab.empleos.iam.application.ports.out.EmployerStatusPort;
 import com.zoedatalab.empleos.iam.application.ports.out.NotificationsOutboxPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordEncoderPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordResetTokenRepositoryPort;
@@ -45,6 +46,9 @@ import static org.mockito.Mockito.when;
 
 class AuthServiceImplTest {
 
+    private static final long REFRESH_TTL_SECONDS = 2_592_000L;
+    private static final long RESET_TTL_SECONDS = 1_800L;
+    private static final long RESET_RATE_LIMIT_SECONDS = 300L;
     private final UserRepositoryPort userRepo = mock(UserRepositoryPort.class);
     private final RefreshTokenRepositoryPort refreshRepo = mock(RefreshTokenRepositoryPort.class);
     private final PasswordEncoderPort passwordEncoder = mock(PasswordEncoderPort.class);
@@ -54,11 +58,7 @@ class AuthServiceImplTest {
     private final CompanyProvisioningPort companyProvisioning = mock(CompanyProvisioningPort.class);
     private final PasswordResetTokenRepositoryPort resetTokenRepo = mock(PasswordResetTokenRepositoryPort.class);
     private final NotificationsOutboxPort outbox = mock(NotificationsOutboxPort.class);
-
-    private static final long REFRESH_TTL_SECONDS = 2_592_000L;      // 30 días
-    private static final long RESET_TTL_SECONDS = 1_800L;            // 30 min
-    private static final long RESET_RATE_LIMIT_SECONDS = 300L;       // 5 min
-
+    private final EmployerStatusPort employerStatusPort = mock(EmployerStatusPort.class);
     private AuthService service;
 
     @BeforeEach
@@ -77,7 +77,8 @@ class AuthServiceImplTest {
                 resetTokenRepo,
                 outbox,
                 RESET_TTL_SECONDS,
-                RESET_RATE_LIMIT_SECONDS
+                RESET_RATE_LIMIT_SECONDS,
+                employerStatusPort
         );
     }
 
@@ -115,7 +116,7 @@ class AuthServiceImplTest {
         assertEquals("jwt", out.getAccessToken());
         assertNotNull(out.getRefreshToken());
     }
-    
+
     @Test
     void forgotPassword_shouldGenerateToken_andEnqueueOutbox() {
         var user = User.builder()

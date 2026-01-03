@@ -4,11 +4,9 @@ export const routes = {
   public: {
     home: '/' as Route,
     jobs: '/jobs' as Route,
-    job: (id: string) => `/jobs/${id}` as Route,
-
+    job: (id: string): Route => `/jobs/${id}` as Route,
     login: '/auth/login' as Route,
     register: '/auth/register' as Route,
-
     help: '/ayuda' as Route,
     contact: '/contacto' as Route,
     about: '/acerca' as Route,
@@ -21,7 +19,6 @@ export const routes = {
 
     applicant: {
       home: '/applicant' as Route,
-
       jobs: '/applicant/jobs' as Route,
       messages: '/applicant/messages' as Route,
       notifications: '/applicant/notifications' as Route,
@@ -41,7 +38,8 @@ export const routes = {
       settings: '/me/company/settings' as Route,
       reviews: '/me/company/reviews' as Route,
 
-      jobApplications: (id: string) => `/company/jobs/${id}/applications` as Route,
+      jobApplications: (id: string): Route =>
+        `/company/jobs/${id}/applications` as Route,
     },
   },
 } as const;

@@ -2,6 +2,7 @@ package com.zoedatalab.empleos.api.config.jobs;
 
 import com.zoedatalab.empleos.jobs.application.ports.out.ApplicantLookupPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
+import com.zoedatalab.empleos.jobs.application.ports.out.IdentityStatusPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobApplicantStatePort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobCatalogValidationPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobLocationQueryPort;
@@ -21,7 +22,8 @@ public class JobsBeansConfig {
             ApplicantLookupPort applicantLookup,
             JobApplicantStatePort applicantState,
             JobLocationQueryPort jobLocationQueries,
-            JobCatalogValidationPort catalogValidation
+            JobCatalogValidationPort catalogValidation,
+            IdentityStatusPort identityStatus
     ) {
         return new JobServiceImpl(
                 repo,
@@ -29,7 +31,8 @@ public class JobsBeansConfig {
                 applicantLookup,
                 applicantState,
                 jobLocationQueries,
-                catalogValidation
+                catalogValidation,
+                identityStatus
         );
     }
 

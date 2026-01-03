@@ -15,6 +15,7 @@ import com.zoedatalab.empleos.jobs.application.ports.in.JobCommandService;
 import com.zoedatalab.empleos.jobs.application.ports.in.JobQueryService;
 import com.zoedatalab.empleos.jobs.application.ports.out.ApplicantLookupPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.CompanyOwnershipPort;
+import com.zoedatalab.empleos.jobs.application.ports.out.IdentityStatusPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobApplicantStatePort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobCatalogValidationPort;
 import com.zoedatalab.empleos.jobs.application.ports.out.JobLocationQueryPort;
@@ -43,8 +44,8 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
     private final ApplicantLookupPort applicantLookup;
     private final JobApplicantStatePort applicantState;
     private final JobLocationQueryPort jobLocationQueries;
-
     private final JobCatalogValidationPort catalogValidation;
+    private final IdentityStatusPort identityStatus;
 
     // -------------------------
     // Geo filter normalization
@@ -63,13 +64,16 @@ public class JobServiceImpl implements JobCommandService, JobQueryService {
             throw new CompanyIncompleteException();
         }
 
+        if (!identityStatus.isIdentityCompleted(companyUserId)) {
+            throw new com.zoedatalab.empleos.jobs.domain.exception.EmployerIdentityIncompleteException();
+        }
+
         return own;
     }
-    
+
     private CompanyOwnershipPort.CompanyOwnership requireCompany(UUID companyUserId) {
         var own = ownership.getForUser(companyUserId);
 
-        // Si no existe company asociada, no debería estar aquí (aunque tenga rol COMPANY)
         if (own.companyId() == null) {
             throw new ForbiddenJobAccessException();
         }

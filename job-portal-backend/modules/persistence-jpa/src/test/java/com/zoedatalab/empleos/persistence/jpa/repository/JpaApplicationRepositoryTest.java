@@ -35,10 +35,13 @@ class JpaApplicationRepositoryTest extends SpringTestBase {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+
     @Autowired
     private JpaApplicationRepository repo;
+
     @Autowired
     private JdbcTemplate jdbc;
+
     private TestDataSeeder seeder;
 
     @DynamicPropertySource
@@ -47,7 +50,6 @@ class JpaApplicationRepositoryTest extends SpringTestBase {
         reg.add("spring.datasource.username", postgres::getUsername);
         reg.add("spring.datasource.password", postgres::getPassword);
         reg.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-
         reg.add("spring.jpa.properties.hibernate.default_schema", () -> "job_portal");
     }
 
@@ -66,28 +68,29 @@ class JpaApplicationRepositoryTest extends SpringTestBase {
         UUID jobId1 = seeder.seedOpenJob(companyId);
         UUID jobId2 = seeder.seedOpenJob(companyId);
 
-        var now = Instant.now();
+        Instant olderAt = Instant.parse("2026-01-01T10:00:00Z");
+        Instant newerAt = Instant.parse("2026-01-01T11:00:00Z");
 
         var newer = ApplicationEntity.builder()
                 .id(UUID.randomUUID())
-                .jobId(jobId2) // distinto job
+                .jobId(jobId2)
                 .applicantId(applicantId)
                 .status(ApplicationEntity.Status.APPLIED)
-                .appliedAt(now)
-                .updatedAt(now)
+                .appliedAt(newerAt)
+                .updatedAt(newerAt)
                 .build();
 
         var older = ApplicationEntity.builder()
                 .id(UUID.randomUUID())
-                .jobId(jobId1) // distinto job
+                .jobId(jobId1)
                 .applicantId(applicantId)
                 .status(ApplicationEntity.Status.APPLIED)
-                .appliedAt(now.minusSeconds(3600))
-                .updatedAt(now.minusSeconds(3600))
+                .appliedAt(olderAt)
+                .updatedAt(olderAt)
                 .build();
 
-        repo.save(older);
-        repo.save(newer);
+        repo.saveAndFlush(older);
+        repo.saveAndFlush(newer);
 
         var page = repo.findByApplicantId(
                 applicantId,
@@ -107,23 +110,27 @@ class JpaApplicationRepositoryTest extends SpringTestBase {
         UUID companyId = seeder.seedCompany(u2);
         UUID jobId = seeder.seedOpenJob(companyId);
 
+        Instant t1 = Instant.parse("2026-01-01T12:00:00Z");
+        Instant t2 = Instant.parse("2026-01-01T12:05:00Z");
+
         var one = ApplicationEntity.builder()
                 .id(UUID.randomUUID())
                 .jobId(jobId)
                 .applicantId(applicantId)
                 .status(ApplicationEntity.Status.APPLIED)
-                .appliedAt(Instant.now())
-                .updatedAt(Instant.now())
+                .appliedAt(t1)
+                .updatedAt(t1)
                 .build();
-        repo.save(one);
+
+        repo.saveAndFlush(one);
 
         var dup = ApplicationEntity.builder()
                 .id(UUID.randomUUID())
                 .jobId(jobId)
                 .applicantId(applicantId)
                 .status(ApplicationEntity.Status.APPLIED)
-                .appliedAt(Instant.now())
-                .updatedAt(Instant.now())
+                .appliedAt(t2)
+                .updatedAt(t2)
                 .build();
 
         assertThrows(DataIntegrityViolationException.class, () -> repo.saveAndFlush(dup));

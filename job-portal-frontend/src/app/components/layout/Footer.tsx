@@ -50,10 +50,8 @@ export default function Footer({ variant = 'full' }: Props) {
           </div>
         )}
 
-        {/* Divider (solo en full) */}
         {!isMinimal && <div className="my-4 border-t border-slate-800/70" />}
 
-        {/* Copyright (siempre) */}
         <div className="flex items-center justify-center">
           <p className="text-center text-xs sm:text-sm text-slate-400">
             © 2025 EmpleosPeru. Todos los derechos reservados.

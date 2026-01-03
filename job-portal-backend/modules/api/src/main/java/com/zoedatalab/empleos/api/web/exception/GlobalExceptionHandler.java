@@ -20,7 +20,9 @@ import com.zoedatalab.empleos.iam.application.exception.ResetTokenInvalidExcepti
 import com.zoedatalab.empleos.iam.application.exception.TokenExpiredException;
 import com.zoedatalab.empleos.iam.application.exception.TokenInvalidException;
 import com.zoedatalab.empleos.iam.application.exception.UserSuspendedException;
+import com.zoedatalab.empleos.iam.domain.exception.IdentityDocumentAlreadyExistsException;
 import com.zoedatalab.empleos.jobs.domain.exception.CompanyIncompleteException;
+import com.zoedatalab.empleos.jobs.domain.exception.EmployerIdentityIncompleteException;
 import com.zoedatalab.empleos.jobs.domain.exception.ForbiddenJobAccessException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobClosedException;
 import com.zoedatalab.empleos.jobs.domain.exception.JobNotFoundException;
@@ -69,6 +71,9 @@ public class GlobalExceptionHandler {
         EX_MAP.put(ResetTokenInvalidException.class, ApiErrorCode.RESET_TOKEN_INVALID);
         EX_MAP.put(ResetTokenExpiredException.class, ApiErrorCode.RESET_TOKEN_EXPIRED);
 
+        // IAM Identity
+        EX_MAP.put(IdentityDocumentAlreadyExistsException.class, ApiErrorCode.IDENTITY_DOCUMENT_ALREADY_EXISTS);
+
         // Autorización
         EX_MAP.put(AccessDeniedException.class, ApiErrorCode.FORBIDDEN);
         EX_MAP.put(AuthorizationDeniedException.class, ApiErrorCode.FORBIDDEN);
@@ -79,6 +84,9 @@ public class GlobalExceptionHandler {
         EX_MAP.put(TaxIdAlreadyExistsException.class, ApiErrorCode.COMPANY_TAX_ID_ALREADY_EXISTS);
         EX_MAP.put(CompanyIncompleteException.class, ApiErrorCode.COMPANY_INCOMPLETE);
         EX_MAP.put(CompanyProfileLockedException.class, ApiErrorCode.COMPANY_PROFILE_LOCKED);
+
+        // Jobs
+        EX_MAP.put(EmployerIdentityIncompleteException.class, ApiErrorCode.EMPLOYER_IDENTITY_INCOMPLETE);
 
         // Catálogos
         EX_MAP.put(AreaNotFoundException.class, ApiErrorCode.AREA_NOT_FOUND);
@@ -114,24 +122,32 @@ public class GlobalExceptionHandler {
             AuthenticationCredentialsNotFoundException.class,
             ResetTokenInvalidException.class,
             ResetTokenExpiredException.class,
+
             AccessDeniedException.class,
             AuthorizationDeniedException.class,
             ForbiddenJobAccessException.class,
+
             CompanyNotFoundException.class,
             TaxIdAlreadyExistsException.class,
             CompanyIncompleteException.class,
             CompanyProfileLockedException.class,
+
+            IdentityDocumentAlreadyExistsException.class,
+            EmployerIdentityIncompleteException.class,
+
             AreaNotFoundException.class,
             SectorNotFoundException.class,
             DistrictNotFoundException.class,
             EmploymentTypeNotFoundException.class,
             WorkModeNotFoundException.class,
+
             ApplicantNotFoundException.class,
             JobNotFoundException.class,
             JobClosedException.class,
             DuplicateApplicationException.class,
             ApplicantProfileIncompleteException.class,
             ApplicationNotFoundException.class,
+
             AuthenticationException.class
     })
     public ResponseEntity<ApiErrorResponse> mapped(HttpServletRequest req, Throwable ex) {

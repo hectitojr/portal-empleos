@@ -44,7 +44,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void me_returns_authenticated_user_view() throws Exception {
+    void me_returns_authenticated_user_view_full_contract() throws Exception {
         AuthService auth = mock(AuthService.class);
         MessageSource messages = mock(MessageSource.class);
 
@@ -63,14 +63,31 @@ class AuthControllerTest {
         );
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
-        when(auth.me(userId))
-                .thenReturn(new AuthMeView(userId, "a@a.com", Role.APPLICANT, true, false));
+        when(auth.me(userId)).thenReturn(new AuthMeView(
+                userId,
+                "a@a.com",
+                Role.APPLICANT,
+                true,
+                false,
+                true,
+                null,
+                false,
+                false,
+                false
+        ));
 
         mvc.perform(get("/api/v1/auth/me").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(userId.toString()))
                 .andExpect(jsonPath("$.email").value("a@a.com"))
-                .andExpect(jsonPath("$.role").value("APPLICANT"));
+                .andExpect(jsonPath("$.role").value("APPLICANT"))
+                .andExpect(jsonPath("$.active").value(true))
+                .andExpect(jsonPath("$.suspended").value(false))
+                .andExpect(jsonPath("$.identityCompleted").value(true))
+                .andExpect(jsonPath("$.employerType").doesNotExist())
+                .andExpect(jsonPath("$.employerProfileCompleted").value(false))
+                .andExpect(jsonPath("$.employerActive").value(false))
+                .andExpect(jsonPath("$.employerSuspended").value(false));
 
         verify(auth).me(userId);
     }

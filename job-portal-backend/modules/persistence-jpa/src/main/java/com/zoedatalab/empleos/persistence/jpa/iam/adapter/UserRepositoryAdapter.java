@@ -1,12 +1,13 @@
 package com.zoedatalab.empleos.persistence.jpa.iam.adapter;
 
 import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
+import com.zoedatalab.empleos.iam.domain.DocumentType;
 import com.zoedatalab.empleos.iam.domain.User;
+import com.zoedatalab.empleos.persistence.jpa.iam.entity.UserEntity;
 import com.zoedatalab.empleos.persistence.jpa.iam.mapper.UserJpaMapper;
 import com.zoedatalab.empleos.persistence.jpa.iam.repository.JpaUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -29,18 +30,20 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
-    @Transactional
     public User save(User user) {
-        var entity = mapper.toEntity(user);
-
-        if (entity.getId() == null) {
-            entity.setId(user.getId());
-        }
-        entity.setEmail(user.getEmail());
-        entity.setPasswordHash(user.getPasswordHash());
-        entity.setRole(user.getRole());
-
-        var saved = repo.save(entity);
+        UserEntity entity = mapper.toEntity(user);
+        UserEntity saved = repo.save(entity);
         return mapper.toDomain(saved);
+    }
+
+    @Override
+    public boolean existsByDocumentTypeAndNumberForOtherUser(
+            DocumentType type,
+            String number,
+            UUID currentUserId
+    ) {
+        return repo.existsByDocumentTypeAndDocumentNumberIgnoreCaseAndIdNot(
+                type, number, currentUserId
+        );
     }
 }

@@ -17,6 +17,7 @@ import com.zoedatalab.empleos.iam.application.exception.TokenExpiredException;
 import com.zoedatalab.empleos.iam.application.exception.TokenInvalidException;
 import com.zoedatalab.empleos.iam.application.exception.UserSuspendedException;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
+import com.zoedatalab.empleos.iam.application.ports.out.EmployerStatusPort;
 import com.zoedatalab.empleos.iam.application.ports.out.NotificationsOutboxPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordEncoderPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordResetTokenRepositoryPort;
@@ -40,7 +41,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    // EXISTENTES
     private final UserRepositoryPort userRepo;
     private final RefreshTokenRepositoryPort refreshRepo;
     private final PasswordEncoderPort passwordEncoder;
@@ -49,12 +49,17 @@ public class AuthServiceImpl implements AuthService {
     private final ApplicantProvisioningPort applicantProvisioning;
     private final CompanyProvisioningPort companyProvisioning;
     private final long refreshTtlSeconds;
-
-    // NUEVOS
     private final PasswordResetTokenRepositoryPort resetTokenRepo;
     private final NotificationsOutboxPort outbox;
     private final long resetTtlSeconds;
-    private final long resetRateLimitSeconds; // (por ahora no usado explícitamente)
+    private final long resetRateLimitSeconds;
+    private final EmployerStatusPort employerStatusPort;
+
+    private static String randomUrlSafe(int bytes) {
+        byte[] buf = new byte[bytes];
+        new SecureRandom().nextBytes(buf);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
+    }
 
     // =========================================================
     // REGISTER
@@ -62,7 +67,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthTokens register(RegisterCommand cmd) {
         userRepo.findByEmail(cmd.getEmail().trim().toLowerCase())
-                .ifPresent(u -> { throw new EmailAlreadyExistsException(); });
+                .ifPresent(u -> {
+                    throw new EmailAlreadyExistsException();
+                });
 
         Instant now = clock.now();
 
@@ -82,7 +89,7 @@ public class AuthServiceImpl implements AuthService {
         User saved = userRepo.save(newUser);
 
         if (saved.getRole() == Role.APPLICANT) applicantProvisioning.provision(saved.getId());
-        if (saved.getRole() == Role.COMPANY)   companyProvisioning.provision(saved.getId());
+        if (saved.getRole() == Role.COMPANY) companyProvisioning.provision(saved.getId());
 
         return issueTokensFor(saved);
     }
@@ -97,7 +104,8 @@ public class AuthServiceImpl implements AuthService {
         User user = u.get();
 
         if (!user.isActive() || user.isSuspended()) throw new UserSuspendedException();
-        if (!passwordEncoder.matches(cmd.getPassword(), user.getPasswordHash())) throw new AuthBadCredentialsException();
+        if (!passwordEncoder.matches(cmd.getPassword(), user.getPasswordHash()))
+            throw new AuthBadCredentialsException();
 
         return issueTokensFor(user);
     }
@@ -116,7 +124,6 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepo.findById(rt.getUserId())
                 .orElseThrow(TokenInvalidException::new);
 
-        // no permitir refresh a usuarios inactivos/suspendidos
         if (!user.isActive() || user.isSuspended()) {
             throw new UserSuspendedException();
         }
@@ -126,7 +133,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // =========================================================
-    // FORGOT PASSWORD (idempotente: no filtra por existencia)
+    // FORGOT PASSWORD
     // =========================================================
     @Override
     public void forgotPassword(ForgotPasswordCommand cmd) {
@@ -135,7 +142,7 @@ public class AuthServiceImpl implements AuthService {
 
         String email = rawEmail.trim().toLowerCase();
         var userOpt = userRepo.findByEmail(email);
-        if (userOpt.isEmpty()) return; // no revelar existencia
+        if (userOpt.isEmpty()) return;
         User user = userOpt.get();
 
         if (!user.isActive() || user.isSuspended()) return;
@@ -144,7 +151,6 @@ public class AuthServiceImpl implements AuthService {
 
         resetTokenRepo.invalidateAllForUser(user.getId());
 
-        // Generar selector + token (verifier)
         String selector = randomUrlSafe(16);
         String token = randomUrlSafe(32);
         String verifierHash = passwordEncoder.encode(token);
@@ -162,7 +168,6 @@ public class AuthServiceImpl implements AuthService {
 
         resetTokenRepo.save(t);
 
-        // Outbox: enviar email con selector+token (verifier NO se persiste plano)
         outbox.enqueue(NotificationsOutboxPort.Type.PASSWORD_RESET_REQUESTED, Map.of(
                 "userId", user.getId().toString(),
                 "email", user.getEmail(),
@@ -173,7 +178,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // =========================================================
-    // RESET PASSWORD (valida selector + token/verifier)
+    // RESET PASSWORD
     // =========================================================
     @Override
     public void resetPassword(ResetPasswordCommand cmd) {
@@ -186,17 +191,12 @@ public class AuthServiceImpl implements AuthService {
 
         Instant now = clock.now();
 
-        if (prt.isExpired(now)) {
-            throw new ResetTokenExpiredException();
-        }
-        if (prt.isUsed()) {
-            throw new ResetTokenInvalidException();
-        }
+        if (prt.isExpired(now)) throw new ResetTokenExpiredException();
+        if (prt.isUsed()) throw new ResetTokenInvalidException();
         if (!passwordEncoder.matches(cmd.token(), prt.getVerifierHash())) {
             throw new ResetTokenInvalidException();
         }
 
-        // Rotar contraseña del usuario
         User user = userRepo.findById(prt.getUserId()).orElseThrow(ResetTokenInvalidException::new);
         user = User.builder()
                 .id(user.getId())
@@ -216,7 +216,6 @@ public class AuthServiceImpl implements AuthService {
 
         refreshRepo.revokeAllByUserId(user.getId());
 
-        // Outbox de confirmación
         outbox.enqueue(NotificationsOutboxPort.Type.PASSWORD_RESET_DONE, Map.of(
                 "userId", user.getId().toString(),
                 "email", user.getEmail()
@@ -231,12 +230,37 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepo.findById(userId)
                 .orElseThrow(TokenInvalidException::new);
 
+        boolean identityCompleted = user.isIdentityCompleted();
+
+        if (user.getRole() != Role.COMPANY) {
+            return new AuthMeView(
+                    user.getId(),
+                    user.getEmail(),
+                    user.getRole(),
+                    user.isActive(),
+                    user.isSuspended(),
+                    identityCompleted,
+                    null,
+                    false,
+                    false,
+                    false
+            );
+        }
+
+        EmployerStatusPort.EmployerStatus employer =
+                employerStatusPort.findByUserId(userId).orElse(null);
+
         return new AuthMeView(
                 user.getId(),
                 user.getEmail(),
                 user.getRole(),
                 user.isActive(),
-                user.isSuspended()
+                user.isSuspended(),
+                identityCompleted,
+                employer != null ? employer.employerType() : null,
+                employer != null && employer.profileComplete(),
+                employer != null && employer.active(),
+                employer != null && employer.suspended()
         );
     }
 
@@ -247,7 +271,6 @@ public class AuthServiceImpl implements AuthService {
         String access = tokenService.issueAccessToken(user);
         long ttl = tokenService.accessTokenTtlSeconds();
 
-        // refresh token aleatorio persistido
         String refresh = UUID.randomUUID().toString().replace("-", "")
                 + UUID.randomUUID().toString().replace("-", "");
         RefreshToken rt = RefreshToken.builder()
@@ -266,11 +289,5 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(ttl)
                 .refreshToken(refresh)
                 .build();
-    }
-
-    private static String randomUrlSafe(int bytes) {
-        byte[] buf = new byte[bytes];
-        new SecureRandom().nextBytes(buf);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
     }
 }

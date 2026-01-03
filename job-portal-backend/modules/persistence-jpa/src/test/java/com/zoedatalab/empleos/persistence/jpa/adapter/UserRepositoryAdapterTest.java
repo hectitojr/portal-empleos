@@ -7,14 +7,17 @@ import com.zoedatalab.empleos.persistence.jpa.iam.mapper.UserJpaMapper;
 import com.zoedatalab.empleos.persistence.jpa.iam.repository.JpaUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class UserRepositoryAdapterTest {
@@ -44,6 +47,10 @@ class UserRepositoryAdapterTest {
 
         assertTrue(out.isPresent());
         assertSame(domain, out.get());
+
+        verify(repo).findByEmail(email);
+        verify(mapper).toDomain(entity);
+        verifyNoMoreInteractions(repo, mapper);
     }
 
     @Test
@@ -60,35 +67,33 @@ class UserRepositoryAdapterTest {
 
         assertTrue(out.isPresent());
         assertSame(domain, out.get());
+
+        verify(repo).findById(id);
+        verify(mapper).toDomain(entity);
+        verifyNoMoreInteractions(repo, mapper);
     }
 
     @Test
-    void save_sets_fields_and_persists() {
+    void save_maps_persists_and_maps_back() {
         User user = mock(User.class);
-        UUID id = UUID.randomUUID();
-
-        when(user.getId()).thenReturn(id);
-        when(user.getEmail()).thenReturn("a@a.com");
-        when(user.getPasswordHash()).thenReturn("hash");
-        when(user.getRole()).thenReturn(null);
 
         UserEntity entity = mock(UserEntity.class);
         UserEntity savedEntity = mock(UserEntity.class);
         User savedDomain = mock(User.class);
 
         when(mapper.toEntity(user)).thenReturn(entity);
-        when(entity.getId()).thenReturn(null);
         when(repo.save(entity)).thenReturn(savedEntity);
         when(mapper.toDomain(savedEntity)).thenReturn(savedDomain);
 
         User out = sut.save(user);
 
-        verify(entity).setId(id);
-        verify(entity).setEmail("a@a.com");
-        verify(entity).setPasswordHash("hash");
-        verify(entity).setRole(null);
-
-        verify(repo).save(entity);
         assertSame(savedDomain, out);
+
+        InOrder inOrder = inOrder(mapper, repo);
+        inOrder.verify(mapper).toEntity(user);
+        inOrder.verify(repo).save(entity);
+        inOrder.verify(mapper).toDomain(savedEntity);
+
+        verifyNoMoreInteractions(repo, mapper);
     }
 }

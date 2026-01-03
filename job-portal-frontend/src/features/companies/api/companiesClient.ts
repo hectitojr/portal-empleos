@@ -1,9 +1,11 @@
 import { bffFetchOrThrow } from '@/lib/api/bffClient';
 
+export type EmployerType = 'COMPANY' | 'FREELANCE';
 export type UUID = string;
 
 export type CompanyMeResponse = {
   id: UUID;
+  employerType: EmployerType | null;
   legalName: string | null;
   taxId: string | null;
   contactEmail: string | null;
@@ -15,6 +17,7 @@ export type CompanyMeResponse = {
 };
 
 export type CompanyUpdateRequest = {
+  employerType: EmployerType;
   legalName: string | null;
   taxId: string | null;
   contactEmail: string | null;

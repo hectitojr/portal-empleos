@@ -51,8 +51,17 @@ public class TestDataSeeder {
     public UUID seedCompany(UUID userId) {
         UUID id = UUID.randomUUID();
         jdbc.update("""
-                insert into job_portal.companies(id, user_id, legal_name, profile_complete, active, suspended, created_by, updated_by)
-                values (?, ?, 'ACME INC', true, true, false, null, null)
+                insert into job_portal.companies(
+                    id,
+                    user_id,
+                    legal_name,
+                    profile_complete,
+                    active,
+                    suspended,
+                    created_by,
+                    updated_by
+                )
+                values (?, ?, 'ACME INC', false, true, false, null, null)
                 """, id, userId);
         return id;
     }

@@ -19,6 +19,8 @@ import { createCompanyJob } from '@/features/jobs/api/jobsClient';
 import { CompanyPublishGate } from '@/features/companies/components/CompanyPublishGate';
 import type { ApiErrorCode } from '@/lib/errors';
 
+import { bffFetchOrThrow } from '@/lib/api/bffClient';
+
 type UUID = string;
 
 type GeoItem = { id: UUID; name: string };
@@ -29,18 +31,6 @@ const PROVINCES_ENDPOINT = '/api/catalogs/provinces';
 const DISTRICTS_ENDPOINT = '/api/catalogs/districts';
 const EMPLOYMENT_TYPES_ENDPOINT = '/api/catalogs/employment-types';
 const WORK_MODES_ENDPOINT = '/api/catalogs/work-modes';
-
-async function apiJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, { method: 'GET' });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err: any = new Error('Error consultando catálogos.');
-    err.status = res.status;
-    err.body = text;
-    throw err;
-  }
-  return res.json();
-}
 
 type FormValues = {
   title: string;
@@ -157,14 +147,17 @@ export default function CompanyJobNewPage() {
 
   const departmentsQuery = useQuery<GeoItem[]>({
     queryKey: ['catalogs', 'geo', 'departments'],
-    queryFn: () => apiJson<GeoItem[]>(DEPARTMENTS_ENDPOINT),
+    queryFn: () => bffFetchOrThrow<GeoItem[]>(DEPARTMENTS_ENDPOINT, { method: 'GET' }),
     staleTime: 24 * 60 * 60 * 1000,
   });
 
   const provincesQuery = useQuery<GeoItem[]>({
     queryKey: ['catalogs', 'geo', 'provinces', departmentId],
     queryFn: () =>
-      apiJson<GeoItem[]>(`${PROVINCES_ENDPOINT}?departmentId=${encodeURIComponent(departmentId)}`),
+      bffFetchOrThrow<GeoItem[]>(
+        `${PROVINCES_ENDPOINT}?departmentId=${encodeURIComponent(departmentId)}`,
+        { method: 'GET' }
+      ),
     enabled: !!departmentId,
     staleTime: 24 * 60 * 60 * 1000,
   });
@@ -172,22 +165,34 @@ export default function CompanyJobNewPage() {
   const districtsQuery = useQuery<GeoItem[]>({
     queryKey: ['catalogs', 'geo', 'districts', provinceId],
     queryFn: () =>
-      apiJson<GeoItem[]>(`${DISTRICTS_ENDPOINT}?provinceId=${encodeURIComponent(provinceId)}`),
+      bffFetchOrThrow<GeoItem[]>(
+        `${DISTRICTS_ENDPOINT}?provinceId=${encodeURIComponent(provinceId)}`,
+        { method: 'GET' }
+      ),
     enabled: !!provinceId,
     staleTime: 24 * 60 * 60 * 1000,
   });
 
   const employmentTypesQuery = useQuery<CatalogItem[]>({
     queryKey: ['catalogs', 'employment-types'],
-    queryFn: () => apiJson<CatalogItem[]>(EMPLOYMENT_TYPES_ENDPOINT),
+    queryFn: () => bffFetchOrThrow<CatalogItem[]>(EMPLOYMENT_TYPES_ENDPOINT, { method: 'GET' }),
     staleTime: 24 * 60 * 60 * 1000,
   });
 
   const workModesQuery = useQuery<CatalogItem[]>({
     queryKey: ['catalogs', 'work-modes'],
-    queryFn: () => apiJson<CatalogItem[]>(WORK_MODES_ENDPOINT),
+    queryFn: () => bffFetchOrThrow<CatalogItem[]>(WORK_MODES_ENDPOINT, { method: 'GET' }),
     staleTime: 24 * 60 * 60 * 1000,
   });
+
+  const catalogsLoading =
+    departmentsQuery.isLoading || employmentTypesQuery.isLoading || workModesQuery.isLoading;
+
+  const catalogsError =
+    (departmentsQuery.error as any) ||
+    (employmentTypesQuery.error as any) ||
+    (workModesQuery.error as any) ||
+    null;
 
   const computed = useMemo(() => {
     const titleOk = watched.title.trim().length >= 4;
@@ -197,10 +202,7 @@ export default function CompanyJobNewPage() {
     const province = watched.provinceId.trim();
     const district = watched.districtId.trim();
 
-    const geoAllEmpty = department.length === 0 && province.length === 0 && district.length === 0;
     const geoAllComplete = department.length > 0 && province.length > 0 && district.length > 0;
-
-    const geoStateOk = geoAllComplete;
 
     const geoErrors = {
       province: department && !province ? 'Selecciona una provincia.' : undefined,
@@ -210,15 +212,13 @@ export default function CompanyJobNewPage() {
     return {
       titleOk,
       descOk,
-
-      geoAllEmpty,
       geoAllComplete,
-      geoStateOk,
       geoErrors,
     };
   }, [watched]);
 
-  const canSubmit = computed.titleOk && computed.descOk && computed.geoStateOk && !isSaving;
+  const canSubmit =
+    computed.titleOk && computed.descOk && computed.geoAllComplete && !isSaving && !catalogsLoading;
 
   useDismissOnDirty({
     isDirty: form.formState.isDirty,
@@ -238,7 +238,6 @@ export default function CompanyJobNewPage() {
 
   const showError = (msg: string) => {
     setShowCompleteProfileCta(false);
-
     redirectOnOkClearRef.current = false;
 
     setServerOk(null);
@@ -258,8 +257,7 @@ export default function CompanyJobNewPage() {
     setOkVisible(true);
   };
 
-  const onInvalid = (errors: any) => {
-    console.log('FORM INVALID', errors);
+  const onInvalid = () => {
     showError('Revisa los campos marcados antes de publicar.');
   };
 
@@ -331,18 +329,20 @@ export default function CompanyJobNewPage() {
     setIsSaving(true);
 
     try {
+      if (catalogsLoading) {
+        showError('Espera a que se carguen los catálogos antes de publicar.');
+        return;
+      }
+
       if (!computed.titleOk || !computed.descOk) {
         showError('Completa el título y la descripción antes de publicar.');
         return;
       }
 
       const geoOk = await form.trigger(['provinceId', 'districtId', 'departmentId']);
-      if (!geoOk || !computed.geoStateOk) {
+      if (!geoOk || !computed.geoAllComplete) {
         if (!values.departmentId.trim()) {
-          form.setError('departmentId', {
-            type: 'required',
-            message: 'Selecciona un departamento.',
-          });
+          form.setError('departmentId', { type: 'required', message: 'Selecciona un departamento.' });
         }
         showError('Revisa los campos marcados antes de publicar.');
         return;
@@ -352,18 +352,12 @@ export default function CompanyJobNewPage() {
       const max = toFiniteNumberOrNull(values.salaryMax);
 
       if (values.salaryMin && min === null) {
-        form.setError('salaryMin', {
-          type: 'validate',
-          message: 'Solo números, con hasta 2 decimales.',
-        });
+        form.setError('salaryMin', { type: 'validate', message: 'Solo números, con hasta 2 decimales.' });
         showError('Revisa los campos marcados antes de publicar.');
         return;
       }
       if (values.salaryMax && max === null) {
-        form.setError('salaryMax', {
-          type: 'validate',
-          message: 'Solo números, con hasta 2 decimales.',
-        });
+        form.setError('salaryMax', { type: 'validate', message: 'Solo números, con hasta 2 decimales.' });
         showError('Revisa los campos marcados antes de publicar.');
         return;
       }
@@ -373,36 +367,25 @@ export default function CompanyJobNewPage() {
         return;
       }
       if (min != null && min > SALARY_MAX) {
-        form.setError('salaryMin', {
-          type: 'validate',
-          message: 'El salario mínimo es demasiado alto.',
-        });
+        form.setError('salaryMin', { type: 'validate', message: 'El salario mínimo es demasiado alto.' });
         showError('Revisa los campos marcados antes de publicar.');
         return;
       }
       if (max != null && max > SALARY_MAX) {
-        form.setError('salaryMax', {
-          type: 'validate',
-          message: 'El salario máximo es demasiado alto.',
-        });
+        form.setError('salaryMax', { type: 'validate', message: 'El salario máximo es demasiado alto.' });
         showError('Revisa los campos marcados antes de publicar.');
         return;
       }
       if (min != null && max != null && max < min) {
-        form.setError('salaryMax', {
-          type: 'validate',
-          message: 'El máximo no puede ser menor que el mínimo.',
-        });
+        form.setError('salaryMax', { type: 'validate', message: 'El máximo no puede ser menor que el mínimo.' });
         showError('Revisa los campos marcados antes de publicar.');
         return;
       }
 
-      const districtIdToSend = values.districtId;
-
       const res = await createCompanyJob({
         title: values.title.trim(),
         description: values.description.trim(),
-        districtId: districtIdToSend,
+        districtId: values.districtId,
         disabilityFriendly: !!values.disabilityFriendly,
         employmentTypeId: values.employmentTypeId ? values.employmentTypeId : null,
         workModeId: values.workModeId ? values.workModeId : null,
@@ -417,7 +400,7 @@ export default function CompanyJobNewPage() {
 
         if (code === 'COMPANY_INCOMPLETE') {
           setShowCompleteProfileCta(true);
-          showError('Completa la ficha de empresa antes de publicar ofertas.');
+          showError('Completa los requisitos de tu cuenta de empresa antes de publicar ofertas.');
           return;
         }
 
@@ -460,6 +443,28 @@ export default function CompanyJobNewPage() {
             Completa la información clave para publicar tu vacante.
           </p>
         </header>
+        {catalogsError && (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-900 font-semibold">No se pudieron cargar los catálogos.</p>
+            <p className="mt-1 text-sm text-slate-700">
+              Puedes reintentar. Si persiste, revisa tu sesión o el BFF.
+            </p>
+
+            <div className="mt-3 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  departmentsQuery.refetch();
+                  employmentTypesQuery.refetch();
+                  workModesQuery.refetch();
+                }}
+                className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-slate-900 text-sm font-semibold border border-slate-200 hover:bg-slate-50 transition"
+              >
+                Reintentar catálogos
+              </button>
+            </div>
+          </div>
+        )}
 
         <FlashBanner
           message={errorVisible ? serverError : null}
@@ -505,16 +510,16 @@ export default function CompanyJobNewPage() {
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-900 font-semibold">Acción requerida</p>
             <p className="mt-1 text-sm text-slate-700">
-              Completa tu perfil de empresa para habilitar la publicación.
+              Completa tu identidad y/o perfil de empresa para habilitar la publicación.
             </p>
 
             <div className="mt-3 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
-                onClick={() => guardedNavigate('/me/company/profile/setup' as Route)}
+                onClick={() => guardedNavigate(routes.dashboard.company.profileSetup as Route)}
                 className="inline-flex items-center justify-center rounded-2xl bg-blue-700 px-4 py-2.5 text-white text-sm font-semibold hover:bg-blue-800 transition"
               >
-                Ir a completar perfil
+                Ir a completar requisitos
               </button>
 
               <button
@@ -530,12 +535,17 @@ export default function CompanyJobNewPage() {
 
         <CompanyPublishGate>
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+            {catalogsLoading && (
+              <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">Cargando catálogos…</p>
+              </div>
+            )}
+
             <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
               <section>
                 <h2 className="text-lg font-semibold text-slate-900">Información de la oferta</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Un título claro y una descripción detallada mejoran la calidad de las
-                  postulaciones.
+                  Un título claro y una descripción detallada mejoran la calidad de las postulaciones.
                 </p>
 
                 <div className="mt-4 grid gap-4">
@@ -550,9 +560,7 @@ export default function CompanyJobNewPage() {
                     }
                   >
                     <input
-                      className={inputClass(
-                        form.formState.touchedFields.title && !computed.titleOk
-                      )}
+                      className={inputClass(form.formState.touchedFields.title && !computed.titleOk)}
                       placeholder="Ej: Backend Java (Spring Boot) Senior — Remoto"
                       {...form.register('title')}
                     />
@@ -570,9 +578,7 @@ export default function CompanyJobNewPage() {
                   >
                     <textarea
                       rows={7}
-                      className={inputClass(
-                        form.formState.touchedFields.description && !computed.descOk
-                      )}
+                      className={inputClass(form.formState.touchedFields.description && !computed.descOk)}
                       placeholder="Responsabilidades, requisitos, beneficios, detalles del proceso, etc."
                       {...form.register('description')}
                     />
@@ -595,8 +601,7 @@ export default function CompanyJobNewPage() {
                       <div>
                         <h3 className="text-sm font-semibold text-slate-900">Salario</h3>
                         <p className="mt-1 text-xs text-slate-600">
-                          Opcional. Puedes indicar un monto (mínimo) o un rango (mínimo y máximo).
-                          Solo números.
+                          Opcional. Puedes indicar un monto (mínimo) o un rango (mínimo y máximo). Solo números.
                         </p>
                       </div>
                     </div>
@@ -705,8 +710,7 @@ export default function CompanyJobNewPage() {
               <section>
                 <h2 className="text-lg font-semibold text-slate-900">Ubicación</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Indicar la ubicación mejora la visibilidad de tu oferta y facilita que los
-                  postulantes encuentren tu vacante.
+                  Indicar la ubicación mejora la visibilidad de tu oferta y facilita que los postulantes encuentren tu vacante.
                 </p>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
@@ -857,9 +861,8 @@ export default function CompanyJobNewPage() {
 
               <section>
                 <h2 className="text-lg font-semibold text-slate-900">Tipo de empleo</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Opcional. Mejora la calidad de los filtros para postulantes.
-                </p>
+                <p className="mt-1 text-sm text-slate-600">Opcional. Mejora la calidad de los filtros para postulantes.</p>
+
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Field label="Tipo de empleo" hint="Ej: Tiempo completo, Part-time, Freelance.">
                     <select className={selectClass(false)} {...form.register('employmentTypeId')}>
@@ -887,7 +890,7 @@ export default function CompanyJobNewPage() {
 
               <div className="pt-2 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-slate-100">
                 <div className="text-sm text-slate-600">
-                  {isSaving ? 'Publicando…' : 'Revisa antes de publicar.'}
+                  {isSaving ? 'Publicando…' : catalogsLoading ? 'Cargando catálogos…' : 'Revisa antes de publicar.'}
                 </div>
 
                 <div className="flex gap-3">

@@ -8,31 +8,12 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UserJpaMapper {
 
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "email", source = "email")
-    @Mapping(target = "passwordHash", source = "passwordHash")
-    @Mapping(target = "role", source = "role")
-    @Mapping(target = "active", source = "active")
-    @Mapping(target = "suspended", source = "suspended")
-    @Mapping(target = "createdAt", source = "createdAt")
-    @Mapping(target = "updatedAt", source = "updatedAt")
-    @Mapping(target = "createdBy", source = "createdBy")
-    @Mapping(target = "updatedBy", source = "updatedBy")
-    @Mapping(target = "termsAcceptedAt", source = "termsAcceptedAt")
-    @Mapping(target = "privacyAcceptedAt", source = "privacyAcceptedAt")
+    @Mapping(target = "documentType", source = "documentType")
+    @Mapping(target = "documentNumber", source = "documentNumber")
     UserEntity toEntity(User domain);
 
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "email", source = "email")
-    @Mapping(target = "passwordHash", source = "passwordHash")
-    @Mapping(target = "role", source = "role")
-    @Mapping(target = "active", source = "active")
-    @Mapping(target = "suspended", source = "suspended")
-    @Mapping(target = "createdAt", source = "createdAt")
-    @Mapping(target = "updatedAt", source = "updatedAt")
-    @Mapping(target = "createdBy", source = "createdBy")
-    @Mapping(target = "updatedBy", source = "updatedBy")
-    @Mapping(target = "termsAcceptedAt", source = "termsAcceptedAt")
-    @Mapping(target = "privacyAcceptedAt", source = "privacyAcceptedAt")
+    @Mapping(target = "documentType", source = "documentType")
+    @Mapping(target = "documentNumber", source = "documentNumber")
     User toDomain(UserEntity entity);
 }
+

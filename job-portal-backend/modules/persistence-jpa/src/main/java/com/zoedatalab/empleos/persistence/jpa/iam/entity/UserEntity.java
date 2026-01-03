@@ -1,6 +1,7 @@
 package com.zoedatalab.empleos.persistence.jpa.iam.entity;
 
 import com.vladmihalcea.hibernate.type.basic.PostgreSQLCITextType;
+import com.zoedatalab.empleos.iam.domain.DocumentType;
 import com.zoedatalab.empleos.iam.domain.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -48,21 +49,22 @@ public class UserEntity {
     @Column(nullable = false)
     private boolean suspended;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type")
+    private DocumentType documentType;
+
+    @Column(name = "document_number")
+    private String documentNumber;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private Instant updatedAt;
 
-    @Column(name = "created_by")
     private UUID createdBy;
-
-    @Column(name = "updated_by")
     private UUID updatedBy;
 
-    @Column(name = "terms_accepted_at")
     private Instant termsAcceptedAt;
-
-    @Column(name = "privacy_accepted_at")
     private Instant privacyAcceptedAt;
 }

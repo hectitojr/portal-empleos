@@ -9,10 +9,15 @@ import lombok.ToString;
 import java.time.Instant;
 import java.util.UUID;
 
-@Getter @Builder @AllArgsConstructor @NoArgsConstructor @ToString
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 public class Company {
     private UUID id;
     private UUID userId;
+    private EmployerType employerType;
     private String legalName;
     private String taxId;
     private String contactEmail;

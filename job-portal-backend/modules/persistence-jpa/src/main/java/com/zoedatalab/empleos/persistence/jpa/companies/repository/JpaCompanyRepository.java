@@ -9,6 +9,5 @@ import java.util.UUID;
 public interface JpaCompanyRepository extends JpaRepository<CompanyEntity, UUID> {
     Optional<CompanyEntity> findByUserId(UUID userId);
 
-    // clave: detectar si el taxId está usado por otro usuario (no el actual)
     boolean existsByTaxIdIgnoreCaseAndUserIdNot(String taxId, UUID userId);
 }

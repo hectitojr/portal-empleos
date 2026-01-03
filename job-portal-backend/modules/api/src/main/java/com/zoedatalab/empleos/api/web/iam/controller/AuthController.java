@@ -74,15 +74,20 @@ public class AuthController {
     @GetMapping(value = "/me", produces = "application/json")
     public ResponseEntity<AuthMeResponse> me() {
         UUID userId = CurrentUser.idOrThrow();
-        var view = auth.me(userId);
+        var v = auth.me(userId);
 
-        return ResponseEntity.ok(
-                new AuthMeResponse(
-                        view.id().toString(),
-                        view.email(),
-                        view.role().name()
-                )
-        );
+        return ResponseEntity.ok(new AuthMeResponse(
+                v.id().toString(),
+                v.email(),
+                v.role().name(),
+                v.active(),
+                v.suspended(),
+                v.identityCompleted(),
+                v.employerType(),
+                v.employerProfileCompleted(),
+                v.employerActive(),
+                v.employerSuspended()
+        ));
     }
 
     @PostMapping(value = "/forgot-password", consumes = "application/json", produces = "application/json")

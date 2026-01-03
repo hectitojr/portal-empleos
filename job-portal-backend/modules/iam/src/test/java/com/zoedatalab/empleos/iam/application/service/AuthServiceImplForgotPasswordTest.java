@@ -4,6 +4,7 @@ import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.iam.application.dto.ForgotPasswordCommand;
+import com.zoedatalab.empleos.iam.application.ports.out.EmployerStatusPort;
 import com.zoedatalab.empleos.iam.application.ports.out.NotificationsOutboxPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordEncoderPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordResetTokenRepositoryPort;
@@ -37,30 +38,48 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplForgotPasswordTest {
 
-    @Mock private UserRepositoryPort userRepo;
-    @Mock private RefreshTokenRepositoryPort refreshRepo;
-    @Mock private PasswordEncoderPort passwordEncoder;
-    @Mock private TokenServicePort tokenService;
-    @Mock private ClockPort clock;
-    @Mock private ApplicantProvisioningPort applicantProvisioning;
-    @Mock private CompanyProvisioningPort companyProvisioning;
-    @Mock private PasswordResetTokenRepositoryPort resetTokenRepo;
-    @Mock private NotificationsOutboxPort outbox;
-
-    private AuthServiceImpl service;
-
-    private static final long REFRESH_TTL_SECONDS = 2_592_000L; // 30d
-    private static final long RESET_TTL_SECONDS   = 1_800L;     // 30m
-    private static final long RESET_RATE_LIMIT_SECONDS = 300L;  // 5m
-
+    private static final long REFRESH_TTL_SECONDS = 2_592_000L;
+    private static final long RESET_TTL_SECONDS = 1_800L;
+    private static final long RESET_RATE_LIMIT_SECONDS = 300L;
     private static final Instant NOW = Instant.parse("2025-11-11T15:00:00Z");
+    @Mock
+    private UserRepositoryPort userRepo;
+    @Mock
+    private RefreshTokenRepositoryPort refreshRepo;
+    @Mock
+    private PasswordEncoderPort passwordEncoder;
+    @Mock
+    private TokenServicePort tokenService;
+    @Mock
+    private ClockPort clock;
+    @Mock
+    private ApplicantProvisioningPort applicantProvisioning;
+    @Mock
+    private CompanyProvisioningPort companyProvisioning;
+    @Mock
+    private PasswordResetTokenRepositoryPort resetTokenRepo;
+    @Mock
+    private NotificationsOutboxPort outbox;
+    @Mock
+    private EmployerStatusPort employerStatusPort;
+    private AuthServiceImpl service;
 
     @BeforeEach
     void setup() {
         service = new AuthServiceImpl(
-                userRepo, refreshRepo, passwordEncoder, tokenService, clock,
-                applicantProvisioning, companyProvisioning, REFRESH_TTL_SECONDS,
-                resetTokenRepo, outbox, RESET_TTL_SECONDS, RESET_RATE_LIMIT_SECONDS
+                userRepo,
+                refreshRepo,
+                passwordEncoder,
+                tokenService,
+                clock,
+                applicantProvisioning,
+                companyProvisioning,
+                REFRESH_TTL_SECONDS,
+                resetTokenRepo,
+                outbox,
+                RESET_TTL_SECONDS,
+                RESET_RATE_LIMIT_SECONDS,
+                employerStatusPort
         );
     }
 
@@ -93,7 +112,6 @@ class AuthServiceImplForgotPasswordTest {
     @SuppressWarnings("unchecked")
     @Test
     void happyPath_generatesToken_andEnqueuesOutbox() {
-        // Stubs SÓLO aquí, porque este test sí los usa.
         when(clock.now()).thenReturn(NOW);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$12$hash");
 

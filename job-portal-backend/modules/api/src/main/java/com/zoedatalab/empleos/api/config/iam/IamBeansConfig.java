@@ -5,6 +5,8 @@ import com.zoedatalab.empleos.common.provisioning.ApplicantProvisioningPort;
 import com.zoedatalab.empleos.common.provisioning.CompanyProvisioningPort;
 import com.zoedatalab.empleos.common.time.ClockPort;
 import com.zoedatalab.empleos.iam.application.ports.in.AuthService;
+import com.zoedatalab.empleos.iam.application.ports.in.UserIdentityService;
+import com.zoedatalab.empleos.iam.application.ports.out.EmployerStatusPort;
 import com.zoedatalab.empleos.iam.application.ports.out.NotificationsOutboxPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordEncoderPort;
 import com.zoedatalab.empleos.iam.application.ports.out.PasswordResetTokenRepositoryPort;
@@ -12,6 +14,7 @@ import com.zoedatalab.empleos.iam.application.ports.out.RefreshTokenRepositoryPo
 import com.zoedatalab.empleos.iam.application.ports.out.TokenServicePort;
 import com.zoedatalab.empleos.iam.application.ports.out.UserRepositoryPort;
 import com.zoedatalab.empleos.iam.application.service.AuthServiceImpl;
+import com.zoedatalab.empleos.iam.application.service.UserIdentityServiceImpl;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -31,11 +34,11 @@ public class IamBeansConfig {
                                 CompanyProvisioningPort companyProvisioning,
                                 ApplicantProvisioningPort applicantProvisioning,
                                 @Value("${security.jwt.refresh-ttl-seconds:2592000}") long refreshTtlSeconds,
-                                // NUEVO:
                                 PasswordResetTokenRepositoryPort resetTokenRepo,
                                 NotificationsOutboxPort outbox,
-                                @Value("${security.reset.ttl-seconds:1800}") long resetTtlSeconds,           // 30 min
-                                @Value("${security.reset.rate-limit-seconds:300}") long resetRateLimitSeconds // 5 min
+                                @Value("${security.reset.ttl-seconds:1800}") long resetTtlSeconds,
+                                @Value("${security.reset.rate-limit-seconds:300}") long resetRateLimitSeconds,
+                                EmployerStatusPort employerStatusPort
     ) {
 
         return new AuthServiceImpl(
@@ -50,7 +53,8 @@ public class IamBeansConfig {
                 resetTokenRepo,
                 outbox,
                 resetTtlSeconds,
-                resetRateLimitSeconds
+                resetRateLimitSeconds,
+                employerStatusPort
         );
     }
 
@@ -58,5 +62,16 @@ public class IamBeansConfig {
     @Primary
     AuthService authService(@Qualifier("authServiceCore") AuthService core) {
         return new TransactionalAuthService(core);
+    }
+
+    @Bean(name = "userIdentityServiceCore")
+    UserIdentityService userIdentityServiceCore(UserRepositoryPort userRepo) {
+        return new UserIdentityServiceImpl(userRepo);
+    }
+
+    @Bean
+    @Primary
+    UserIdentityService userIdentityService(@Qualifier("userIdentityServiceCore") UserIdentityService core) {
+        return new TransactionalUserIdentityService(core);
     }
 }

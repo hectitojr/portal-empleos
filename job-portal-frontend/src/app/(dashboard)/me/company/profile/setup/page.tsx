@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SubmitHandler } from 'react-hook-form';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { Info } from 'lucide-react';
 import type { Route } from 'next';
 
@@ -15,45 +15,49 @@ import { useNavigationGuard } from '@/app/components/navigation/NavigationGuardP
 import FlashBanner from '@/app/components/ui/FlashBanner';
 import { useDismissOnDirty } from '@/app/components/ui/useDismissOnDirty';
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
+
 import { computeCompanyProfileProgress } from '@/features/companies/lib/profileProgress';
 import { routes } from '@/lib/routes';
 import { applyApiErrorToForm } from '@/lib/apiError';
 import { isValidPeruRuc, normalizeRuc } from '@/lib/ruc';
 import { bffFetchOrThrow } from '@/lib/api/bffClient';
 
+import {
+  getMyCompany,
+  updateMyCompany,
+  type CompanyUpdateRequest,
+  type EmployerType,
+} from '@/features/companies/api/companiesClient';
+
+import { useMe } from '@/features/iam/hooks/useMe';
+import { useUpdateMyIdentity } from '@/features/iam/hooks/useUpdateMyIdentity';
+import type { DocumentType } from '@/features/iam/api/iamClient';
+
 type UUID = string;
-
-type CompanyMeResponse = {
-  id: UUID;
-  legalName: string | null;
-  taxId: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  districtId: UUID | null;
-  profileComplete: boolean;
-  active: boolean;
-  suspended: boolean;
-};
-
-type CompanyUpdateRequest = {
-  legalName: string | null;
-  taxId: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  districtId: UUID | null;
-};
-
-const COMPANY_ME_ENDPOINT = '/api/companies/me';
 
 const DEPARTMENTS_ENDPOINT = '/api/catalogs/departments';
 const PROVINCES_ENDPOINT = '/api/catalogs/provinces';
 const DISTRICTS_ENDPOINT = '/api/catalogs/districts';
 const DISTRICT_RESOLVE_ENDPOINT = (id: string) => `/api/catalogs/districts/${id}`;
 
+const RUC_LENGTH = 11;
+const ALLOWED_RUC_PREFIXES = new Set(['10', '15', '16', '17', '20']);
+
+const PHONE_REGEX = /^(\d{7}|\d{9})$/;
+
 type GeoItem = { id: UUID; name: string };
 type DistrictResolveResponse = { id: UUID; name: string; provinceId: UUID; departmentId: UUID };
 
 type FormValues = {
+  employerType: EmployerType | '';
+
   legalName: string;
   taxId: string;
   contactEmail: string;
@@ -63,6 +67,48 @@ type FormValues = {
   provinceId: string;
   districtId: string;
 };
+
+type IdentityFormValues = {
+  documentType: DocumentType;
+  documentNumber: string;
+};
+
+function normalizeIdentity(docType: DocumentType, raw: string) {
+  const t = (raw ?? '').trim();
+  if (!t) return '';
+
+  if (docType === 'DNI' || docType === 'CE') {
+    const digits = t.replace(/\D+/g, '');
+    return digits;
+  }
+
+  return t.replace(/\s+/g, '').toUpperCase();
+}
+
+function validateIdentity(docType: DocumentType, normalized: string) {
+  if (!normalized) return 'El número de documento es requerido.';
+
+  if (docType === 'DNI') {
+    return /^\d{8}$/.test(normalized) ? null : 'DNI inválido. Debe tener 8 dígitos.';
+  }
+
+  if (docType === 'CE') {
+    return /^\d{9,12}$/.test(normalized) ? null : 'CE inválido. Debe tener entre 9 y 12 dígitos.';
+  }
+
+  return /^[A-Z0-9]{6,12}$/.test(normalized)
+    ? null
+    : 'Pasaporte inválido. Usa 6 a 12 caracteres alfanuméricos.';
+}
+
+function normalizeEmployerType(raw: unknown): EmployerType | '' {
+  const v = String(raw ?? '')
+    .trim()
+    .toUpperCase();
+  if (v === 'COMPANY') return 'COMPANY';
+  if (v === 'FREELANCE') return 'FREELANCE';
+  return '';
+}
 
 export default function CompanyProfileSetupPage() {
   const router = useRouter();
@@ -92,17 +138,20 @@ export default function CompanyProfileSetupPage() {
     guard.confirmLeave();
   }
 
+  const authMeQuery = useMe();
+
   const meQuery = useQuery({
     queryKey: ['company', 'me'],
-    queryFn: () => bffFetchOrThrow<CompanyMeResponse>(COMPANY_ME_ENDPOINT, { method: 'GET' }),
+    queryFn: getMyCompany,
     staleTime: 30_000,
   });
 
-  const me = meQuery.data;
+  const companyMe = meQuery.data;
 
   const form = useForm<FormValues>({
     mode: 'onChange',
     defaultValues: {
+      employerType: '',
       legalName: '',
       taxId: '',
       contactEmail: '',
@@ -120,9 +169,7 @@ export default function CompanyProfileSetupPage() {
     validate: (v, values) => {
       const dept = (values.departmentId ?? '').trim();
       const prov = (v ?? '').trim();
-
       if (!dept) return true;
-
       return prov ? true : 'Selecciona una provincia.';
     },
   });
@@ -132,11 +179,8 @@ export default function CompanyProfileSetupPage() {
       const dept = (values.departmentId ?? '').trim();
       const prov = (values.provinceId ?? '').trim();
       const dist = (v ?? '').trim();
-
       if (!dept) return true;
-
       if (!prov) return true;
-
       return dist ? true : 'Selecciona un distrito.';
     },
   });
@@ -175,34 +219,36 @@ export default function CompanyProfileSetupPage() {
   });
 
   const resolveQuery = useQuery<DistrictResolveResponse>({
-    queryKey: ['catalogs', 'geo', 'district-resolve', me?.districtId ?? null],
+    queryKey: ['catalogs', 'geo', 'district-resolve', companyMe?.districtId ?? null],
     queryFn: () =>
-      bffFetchOrThrow<DistrictResolveResponse>(DISTRICT_RESOLVE_ENDPOINT(me!.districtId!), {
+      bffFetchOrThrow<DistrictResolveResponse>(DISTRICT_RESOLVE_ENDPOINT(companyMe!.districtId!), {
         method: 'GET',
       }),
-    enabled: !!me?.districtId,
+    enabled: !!companyMe?.districtId,
     staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
-    if (!me) return;
+    if (!companyMe) return;
 
     const r = resolveQuery.data;
 
+    const nextEmployerType = normalizeEmployerType(companyMe.employerType);
+
     const nextValues: FormValues = {
-      legalName: me.legalName ?? '',
-      taxId: me.taxId ?? '',
-      contactEmail: me.contactEmail ?? '',
-      contactPhone: me.contactPhone ?? '',
+      employerType: nextEmployerType,
+      legalName: companyMe.legalName ?? '',
+      taxId: companyMe.taxId ? normalizeRuc(companyMe.taxId).slice(0, RUC_LENGTH) : '',
+      contactEmail: companyMe.contactEmail ?? '',
+      contactPhone: (companyMe.contactPhone ?? '').replace(/\D+/g, '').slice(0, 9),
       departmentId: r?.departmentId ?? '',
       provinceId: r?.provinceId ?? '',
-      districtId: me.districtId ?? '',
+      districtId: companyMe.districtId ?? '',
     };
 
     initialRef.current = nextValues;
-
     form.reset(nextValues, { keepTouched: false, keepDirty: false });
-  }, [me, resolveQuery.data, form]);
+  }, [companyMe, resolveQuery.data, form]);
 
   useEffect(() => {
     const r = resolveQuery.data;
@@ -221,12 +267,7 @@ export default function CompanyProfileSetupPage() {
   }, [resolveQuery.data, form]);
 
   const updateMutation = useMutation({
-    mutationFn: async (payload: CompanyUpdateRequest) =>
-      bffFetchOrThrow<CompanyMeResponse>(COMPANY_ME_ENDPOINT, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }),
+    mutationFn: async (payload: CompanyUpdateRequest) => updateMyCompany(payload),
     onMutate: () => {
       setServerError(null);
       setServerOk(null);
@@ -245,6 +286,7 @@ export default function CompanyProfileSetupPage() {
       setOkVisible(true);
 
       await qc.invalidateQueries({ queryKey: ['company', 'me'] });
+      await qc.invalidateQueries({ queryKey: ['auth', 'me'] });
     },
     onError: (err: unknown) => {
       const msg = applyApiErrorToForm<FormValues>({
@@ -257,6 +299,10 @@ export default function CompanyProfileSetupPage() {
   });
 
   const computed = useMemo(() => {
+    const employerType = watched.employerType;
+
+    const employerTypeSelected = employerType === 'COMPANY' || employerType === 'FREELANCE';
+
     const legalName = watched.legalName.trim();
     const taxId = watched.taxId.trim();
     const email = watched.contactEmail.trim();
@@ -277,18 +323,28 @@ export default function CompanyProfileSetupPage() {
     };
 
     const legalNameOkUx = legalName.length === 0 || legalName.length >= 2;
-    const taxIdOkUx = taxId.length === 0 || isValidPeruRuc(taxId);
+
+    const taxIdOkUx =
+      employerType === 'FREELANCE'
+        ? true
+        : employerType === 'COMPANY'
+          ? taxId.length === RUC_LENGTH && isValidPeruRuc(taxId)
+          : false;
+
     const emailOkUx = email.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const phoneOkUx = phone.length === 0 || /^[0-9+()\s-]{6,20}$/.test(phone);
+    const phoneOkUx = phone.length === 0 || PHONE_REGEX.test(phone);
 
     const progressState = computeCompanyProfileProgress({
-      legalName: watched.legalName,
-      taxId: watched.taxId,
-      contactEmail: watched.contactEmail,
-      districtId: watched.districtId,
+      employerType: employerTypeSelected ? (employerType as EmployerType) : null,
+      legalName: watched.legalName.trim() || null,
+      taxId: employerType === 'FREELANCE' ? null : watched.taxId.trim() || null,
+      contactEmail: watched.contactEmail.trim() || null,
+      districtId: watched.districtId.trim() || null,
     });
 
     return {
+      employerTypeSelected,
+
       legalNameOk: legalNameOkUx,
       taxIdOk: taxIdOkUx,
       emailOk: emailOkUx,
@@ -302,10 +358,12 @@ export default function CompanyProfileSetupPage() {
       missing: progressState.missing,
       progress: progressState.progress,
       recommendedComplete: progressState.profileComplete,
+      requiresTaxId: progressState.requiresTaxId,
     };
   }, [watched]);
 
   const canSubmit =
+    computed.employerTypeSelected &&
     computed.legalNameOk &&
     computed.taxIdOk &&
     computed.emailOk &&
@@ -339,12 +397,32 @@ export default function CompanyProfileSetupPage() {
       return;
     }
 
+    const type = values.employerType;
+    if (type !== 'COMPANY' && type !== 'FREELANCE') {
+      setServerError('Selecciona un tipo de empleador antes de guardar.');
+      return;
+    }
+
+    const rawPhone = values.contactPhone.trim();
+    const normalizedPhone = rawPhone.replace(/\D+/g, '').slice(0, 9);
+    if (normalizedPhone && !PHONE_REGEX.test(normalizedPhone)) {
+      setServerError('Ingresa un teléfono válido de 7 o 9 dígitos.');
+      form.setError('contactPhone', { type: 'validate', message: 'Ingresa 7 o 9 dígitos.' });
+      return;
+    }
+
     const payload: CompanyUpdateRequest = {
+      employerType: type,
       legalName: values.legalName.trim() ? values.legalName.trim() : null,
-      taxId: values.taxId.trim() ? normalizeRuc(values.taxId).slice(0, 11) : null,
+      taxId:
+        type === 'COMPANY'
+          ? values.taxId.trim()
+            ? normalizeRuc(values.taxId).slice(0, RUC_LENGTH)
+            : null
+          : null,
       contactEmail: values.contactEmail.trim() ? values.contactEmail.trim() : null,
-      contactPhone: values.contactPhone.trim() ? values.contactPhone.trim() : null,
-      districtId: geoAllComplete ? values.districtId : null,
+      contactPhone: normalizedPhone ? normalizedPhone : null,
+      districtId: geoAllComplete ? values.districtId : geoAllEmpty ? null : null,
     };
 
     await updateMutation.mutateAsync(payload);
@@ -354,7 +432,7 @@ export default function CompanyProfileSetupPage() {
   const loadError = meQuery.error as any;
 
   const depsLoading =
-    departmentsQuery.isLoading || (resolveQuery.isLoading && !!me?.districtId) || false;
+    departmentsQuery.isLoading || (resolveQuery.isLoading && !!companyMe?.districtId) || false;
 
   const geoError = (departmentsQuery.error as any) || (resolveQuery.error as any) || null;
 
@@ -364,8 +442,10 @@ export default function CompanyProfileSetupPage() {
     enabled: hasUnsavedChanges,
     message: 'Tienes cambios sin guardar.',
     onOpenConfirm: () => openConfirm(),
-    onConfirmLeave: () => {
+    onConfirmLeave: async () => {
       form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
+
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
     },
     onCancelLeave: () => {
       setConfirmOpen(false);
@@ -378,21 +458,84 @@ export default function CompanyProfileSetupPage() {
       return;
     }
 
-    guard.setGuard({
-      enabled: true,
-      message: 'Tienes cambios sin guardar.',
-      onOpenConfirm: openConfirm,
-      onConfirmLeave: () => {
-        form.reset(initialRef.current, { keepTouched: false, keepDirty: false });
-      },
-      onCancelLeave: () => {
-        setConfirmOpen(false);
-      },
-    });
-
     guard.setPendingNavigate(() => router.push(path));
     guard.pingOpenConfirm();
   }
+
+  const identityForm = useForm<IdentityFormValues>({
+    mode: 'onChange',
+    defaultValues: { documentType: 'DNI', documentNumber: '' },
+  });
+
+  const identityMutation = useUpdateMyIdentity();
+
+  const identityWatched = identityForm.watch();
+  const normalizedIdentity = useMemo(
+    () => normalizeIdentity(identityWatched.documentType, identityWatched.documentNumber),
+    [identityWatched.documentType, identityWatched.documentNumber]
+  );
+
+  const identityError = useMemo(() => {
+    if (!identityForm.formState.touchedFields.documentNumber) return null;
+    return validateIdentity(identityWatched.documentType, normalizedIdentity);
+  }, [
+    identityForm.formState.touchedFields.documentNumber,
+    identityWatched.documentType,
+    normalizedIdentity,
+  ]);
+
+  const identityCompleted = authMeQuery.me?.identityCompleted === true;
+  const employerProfileCompleted = authMeQuery.me?.employerProfileCompleted === true;
+
+  const composedReady =
+    authMeQuery.me?.role === 'COMPANY' &&
+    identityCompleted &&
+    employerProfileCompleted &&
+    authMeQuery.me?.employerActive === true &&
+    authMeQuery.me?.employerSuspended === false;
+
+  async function submitIdentity() {
+    setServerError(null);
+    setServerOk(null);
+    setOkVisible(false);
+
+    const n = normalizedIdentity;
+    const err = validateIdentity(identityWatched.documentType, n);
+
+    if (err) {
+      identityForm.setError('documentNumber', { type: 'validate', message: err });
+      return;
+    }
+
+    try {
+      await identityMutation.mutateAsync({
+        documentType: identityWatched.documentType,
+        documentNumber: n,
+      });
+
+      setServerOk('Identidad actualizada correctamente.');
+      setOkVisible(true);
+
+      identityForm.reset(
+        { documentType: identityWatched.documentType, documentNumber: '' },
+        { keepDirty: false, keepTouched: false }
+      );
+    } catch (e: any) {
+      setServerError(e?.message || 'No se pudo actualizar la identidad.');
+    }
+  }
+
+  const taxIdReg = form.register('taxId', {
+    onBlur: () => {
+      form.trigger('taxId');
+    },
+  });
+
+  const phoneReg = form.register('contactPhone', {
+    onBlur: () => {
+      form.trigger('contactPhone');
+    },
+  });
 
   return (
     <section className="flex-1 min-h-0 bg-slate-50 px-4 py-8">
@@ -409,10 +552,12 @@ export default function CompanyProfileSetupPage() {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-            Configura el perfil de tu empresa
+            Configura tu perfil de empleador
           </h1>
           <p className="mt-2 text-sm sm:text-base text-slate-600">
-            Completa los datos de tu empresa para publicar ofertas y gestionar postulaciones.
+            Para publicar ofertas debes completar tu{' '}
+            <span className="font-semibold">Identidad</span> y tu{' '}
+            <span className="font-semibold">Perfil de empleador</span>.
           </p>
         </header>
 
@@ -454,38 +599,55 @@ export default function CompanyProfileSetupPage() {
             <div className="mb-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Progreso del perfil</p>
-                  <p className="text-sm text-slate-600">
-                    Completa lo esencial para publicar sin inconvenientes.
-                  </p>
+                  <p className="text-sm font-semibold text-slate-900">Estado de publicación</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <StatusPill
-                    label={me?.profileComplete ? 'Perfil completo' : 'Perfil incompleto'}
-                    tone={me?.profileComplete ? 'ok' : 'warn'}
+                    label={identityCompleted ? 'Identidad completada' : 'Identidad pendiente'}
+                    tone={identityCompleted ? 'ok' : 'warn'}
                     help={
-                      me?.profileComplete
-                        ? 'Tu perfil cumple los requisitos mínimos para postular.'
-                        : 'Completa los datos requeridos para habilitar tus postulaciones.'
+                      identityCompleted
+                        ? 'Tu identidad fue registrada.'
+                        : 'Registra tu documento para habilitar acciones críticas.'
                     }
                   />
 
                   <StatusPill
-                    label={me?.active ? 'Activa' : 'Inactiva'}
-                    tone={me?.active ? 'ok' : 'neutral'}
+                    label={companyMe?.profileComplete ? 'Perfil completado' : 'Perfil pendiente'}
+                    tone={companyMe?.profileComplete ? 'ok' : 'warn'}
                     help={
-                      me?.active
-                        ? 'Tu empresa está habilitada para usar el portal y publicar ofertas.'
+                      companyMe?.profileComplete
+                        ? 'Tu perfil cumple los mínimos.'
+                        : 'Completa los datos mínimos del perfil.'
+                    }
+                  />
+
+                  <StatusPill
+                    label={composedReady ? 'Publicación habilitada' : 'Publicación bloqueada'}
+                    tone={composedReady ? 'ok' : 'danger'}
+                    help={
+                      composedReady
+                        ? 'Puedes publicar ofertas.'
+                        : 'Faltan requisitos o existe un bloqueo por estado.'
+                    }
+                  />
+
+                  <StatusPill
+                    label={companyMe?.active ? 'Activo' : 'Inactiva'}
+                    tone={companyMe?.active ? 'ok' : 'neutral'}
+                    help={
+                      companyMe?.active
+                        ? 'Tu empresa está habilitada para usar el portal.'
                         : 'Tu empresa está deshabilitada; contacta soporte si no reconoces este estado.'
                     }
                   />
 
                   <StatusPill
-                    label={me?.suspended ? 'Suspendida' : 'Sin suspensión'}
-                    tone={me?.suspended ? 'danger' : 'ok'}
+                    label={companyMe?.suspended ? 'Suspendida' : 'Sin suspensión'}
+                    tone={companyMe?.suspended ? 'danger' : 'ok'}
                     help={
-                      me?.suspended
+                      companyMe?.suspended
                         ? 'Tu empresa tiene un bloqueo por moderación o revisión.'
                         : 'Tu empresa no tiene bloqueos por moderación.'
                     }
@@ -496,7 +658,7 @@ export default function CompanyProfileSetupPage() {
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <span>{computed.progress}%</span>
-                  <span>Recomendado para publicar</span>
+                  <span>Progreso del perfil (companies)</span>
                 </div>
                 <div className="mt-2 h-2 rounded-full bg-slate-200 overflow-hidden">
                   <div
@@ -507,7 +669,7 @@ export default function CompanyProfileSetupPage() {
 
                 {computed.missing.length > 0 && (
                   <p className="mt-3 text-sm text-slate-600">
-                    Te falta completar datos clave para publicar empleos:{' '}
+                    Te falta completar:{' '}
                     <span className="font-semibold text-slate-900">
                       {computed.missing.join(', ')}.
                     </span>
@@ -558,7 +720,6 @@ export default function CompanyProfileSetupPage() {
               }}
             />
 
-            {/* ✅ BLOQUE 6 — RENDER DEL MODAL */}
             <ConfirmDialog
               open={confirmOpen}
               title="Tienes cambios sin guardar"
@@ -571,17 +732,161 @@ export default function CompanyProfileSetupPage() {
               onConfirm={confirmLeave}
             />
 
+            {/* ✅ Identidad: compacta si está completada, formulario solo si falta */}
+            <section className="mb-8 rounded-2xl border border-slate-100 bg-white p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Identidad</h2>
+
+                  {!identityCompleted && (
+                    <p className="mt-1 text-sm text-slate-600">
+                      Registra tu documento para habilitar la publicación de empleos y otras
+                      acciones críticas.
+                    </p>
+                  )}
+
+                  {identityCompleted && (
+                    <p className="mt-1 text-sm text-slate-600">Tu identidad ya está completada.</p>
+                  )}
+                </div>
+
+                {identityCompleted && (
+                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                    ✓ Completada
+                  </span>
+                )}
+              </div>
+
+              {!identityCompleted && (
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <Field label="Tipo de documento" required>
+                    <select
+                      className={selectClass(false, false)}
+                      {...identityForm.register('documentType')}
+                    >
+                      <option value="DNI">DNI</option>
+                      <option value="CE">CE</option>
+                      <option value="PASSPORT">Pasaporte</option>
+                    </select>
+                  </Field>
+
+                  <Field
+                    label="Número de documento"
+                    required
+                    error={
+                      (identityForm.formState.errors.documentNumber?.message as
+                        | string
+                        | undefined) ??
+                      identityError ??
+                      undefined
+                    }
+                  >
+                    <input
+                      className={inputClass(!!identityError)}
+                      placeholder={
+                        identityWatched.documentType === 'DNI'
+                          ? '8 dígitos'
+                          : identityWatched.documentType === 'CE'
+                            ? '9–12 dígitos'
+                            : '6–12 alfanuméricos'
+                      }
+                      {...identityForm.register('documentNumber', {
+                        onBlur: () => {
+                          const n = normalizeIdentity(
+                            identityWatched.documentType,
+                            identityWatched.documentNumber
+                          );
+                          const err = validateIdentity(identityWatched.documentType, n);
+                          if (err)
+                            identityForm.setError('documentNumber', {
+                              type: 'validate',
+                              message: err,
+                            });
+                          else identityForm.clearErrors('documentNumber');
+                        },
+                      })}
+                    />
+                  </Field>
+
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={submitIdentity}
+                      disabled={identityMutation.isPending}
+                      className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-700 px-4 py-2.5 text-white text-sm font-semibold hover:bg-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {identityMutation.isPending ? 'Guardando…' : 'Guardar identidad'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              {/* Datos legales */}
               <section>
-                <h2 className="text-lg font-semibold text-slate-900">Datos legales</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Perfil de empleador</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Estos datos ayudan a validar la autenticidad de la empresa.
+                  Estos datos ayudan a validar el perfil y mejorar la confianza de los postulantes.
                 </p>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Field
-                    label="Razón social / Nombre legal"
+                    label="Tipo de empleador"
+                    required
+                    error={form.formState.errors.employerType?.message as string | undefined}
+                    hint={
+                      watched.employerType === 'COMPANY'
+                        ? 'Requiere RUC para poder publicar ofertas.'
+                        : undefined
+                    }
+                  >
+                    <div className="max-w-sm">
+                      <Controller
+                        control={form.control}
+                        name="employerType"
+                        rules={{ required: 'Selecciona un tipo de empleador.' }}
+                        render={({ field }) => (
+                          <Select
+                            key={field.value ?? 'empty'}
+                            value={field.value ? String(field.value) : undefined}
+                            onValueChange={(val) => {
+                              const next = normalizeEmployerType(val) as EmployerType;
+                              field.onChange(next);
+
+                              form.setValue('employerType', next, {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                                shouldValidate: true,
+                              });
+
+                              if (next === 'FREELANCE') {
+                                form.setValue('taxId', '', {
+                                  shouldDirty: true,
+                                  shouldTouch: false,
+                                  shouldValidate: true,
+                                });
+                                form.clearErrors('taxId');
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona tipo de empleador…" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                              <SelectItem value="COMPANY">Empresa</SelectItem>
+                              <SelectItem value="FREELANCE">Reclutador independiente</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+                  </Field>
+
+                  <div className="hidden sm:block" />
+
+                  <Field
+                    label="Razón social / Nombre a mostrar"
                     required
                     error={
                       form.formState.touchedFields.legalName &&
@@ -597,41 +902,84 @@ export default function CompanyProfileSetupPage() {
                           watched.legalName.trim().length > 0 &&
                           !computed.legalNameOk
                       )}
-                      placeholder="Ej: ACME SAC"
+                      placeholder={
+                        watched.employerType === 'FREELANCE'
+                          ? 'Ej: Reclutador Juan Pérez'
+                          : 'Ej: ACME SAC'
+                      }
                       {...form.register('legalName')}
                     />
                   </Field>
 
-                  <Field
-                    label="RUC"
-                    required
-                    hint="11 dígitos. Solo números."
-                    error={
-                      form.formState.touchedFields.taxId &&
-                      watched.taxId.trim().length > 0 &&
-                      !computed.taxIdOk
-                        ? 'RUC inválido. Verifica que tenga 11 dígitos y sea válido.'
-                        : undefined
-                    }
-                  >
-                    <input
-                      className={inputClass(
-                        form.formState.touchedFields.taxId &&
-                          watched.taxId.trim().length > 0 &&
-                          !computed.taxIdOk
-                      )}
-                      placeholder="Ej: 20123456789"
-                      inputMode="numeric"
-                      maxLength={11}
-                      {...form.register('taxId', {
-                        setValueAs: (v) => normalizeRuc(String(v ?? '')).slice(0, 11),
-                      })}
-                    />
-                  </Field>
+                  {watched.employerType === 'COMPANY' && (
+                    <Field
+                      label="RUC"
+                      required
+                      hint="11 dígitos. Solo números."
+                      error={
+                        !form.formState.touchedFields.taxId
+                          ? undefined
+                          : watched.taxId.trim().length === 0
+                            ? 'El RUC es requerido.'
+                            : watched.taxId.trim().length < RUC_LENGTH
+                              ? 'Debe tener 11 dígitos.'
+                              : watched.taxId.trim().length === RUC_LENGTH &&
+                                  !ALLOWED_RUC_PREFIXES.has(watched.taxId.trim().slice(0, 2))
+                                ? 'Prefijo inválido. Debe comenzar con 10, 15, 16, 17 o 20.'
+                                : watched.taxId.trim().length === RUC_LENGTH &&
+                                    !isValidPeruRuc(watched.taxId.trim())
+                                  ? 'RUC inválido. Verifica el número.'
+                                  : undefined
+                      }
+                    >
+                      <input
+                        className={inputClass(
+                          !!(
+                            form.formState.touchedFields.taxId &&
+                            watched.taxId.trim().length > 0 &&
+                            watched.taxId.trim().length === RUC_LENGTH &&
+                            !computed.taxIdOk
+                          )
+                        )}
+                        placeholder="Ej: 20123456789"
+                        inputMode="numeric"
+                        maxLength={RUC_LENGTH}
+                        autoComplete="off"
+                        {...taxIdReg}
+                        onChange={(e) => {
+                          const raw = e.target.value ?? '';
+                          const next = raw.replace(/\D+/g, '').slice(0, RUC_LENGTH);
+
+                          taxIdReg.onChange({
+                            ...e,
+                            target: { ...e.target, value: next },
+                          } as any);
+
+                          form.setValue('taxId', next, {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          });
+                        }}
+                        onPaste={(e) => {
+                          e.preventDefault();
+                          const pasted = e.clipboardData.getData('text') ?? '';
+                          const next = pasted.replace(/\D+/g, '').slice(0, RUC_LENGTH);
+
+                          form.setValue('taxId', next, {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: true,
+                          });
+                        }}
+                      />
+                    </Field>
+                  )}
+
+                  {watched.employerType === 'FREELANCE' && <div className="hidden sm:block" />}
                 </div>
               </section>
 
-              {/* Contacto */}
               <section>
                 <h2 className="text-lg font-semibold text-slate-900">Contacto</h2>
                 <p className="mt-1 text-sm text-slate-600">
@@ -664,12 +1012,12 @@ export default function CompanyProfileSetupPage() {
 
                   <Field
                     label="Teléfono"
-                    hint="Opcional. Ej: +51 999 999 999"
+                    hint="Opcional. Solo 7 (fijo) o 9 (celular) dígitos."
                     error={
                       form.formState.touchedFields.contactPhone &&
                       watched.contactPhone.trim().length > 0 &&
                       !computed.phoneOk
-                        ? 'Teléfono inválido.'
+                        ? 'Ingresa un teléfono válido de 7 o 9 dígitos.'
                         : undefined
                     }
                   >
@@ -679,20 +1027,46 @@ export default function CompanyProfileSetupPage() {
                           watched.contactPhone.trim().length > 0 &&
                           !computed.phoneOk
                       )}
-                      placeholder="+51 999 999 999"
+                      placeholder="Ej: 987654321 o 2345678"
+                      inputMode="numeric"
+                      maxLength={9}
                       autoComplete="tel"
-                      {...form.register('contactPhone')}
+                      {...phoneReg}
+                      onChange={(e) => {
+                        const raw = e.target.value ?? '';
+                        const next = raw.replace(/\D+/g, '').slice(0, 9);
+
+                        phoneReg.onChange({
+                          ...e,
+                          target: { ...e.target, value: next },
+                        } as any);
+
+                        form.setValue('contactPhone', next, {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        });
+                      }}
+                      onPaste={(e) => {
+                        e.preventDefault();
+                        const pasted = e.clipboardData.getData('text') ?? '';
+                        const next = pasted.replace(/\D+/g, '').slice(0, 9);
+
+                        form.setValue('contactPhone', next, {
+                          shouldDirty: true,
+                          shouldTouch: true,
+                          shouldValidate: true,
+                        });
+                      }}
                     />
                   </Field>
                 </div>
               </section>
 
-              {/* Ubicación */}
               <section>
                 <h2 className="text-lg font-semibold text-slate-900">Ubicación</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Selecciona el distrito donde opera tu empresa. Esto se utiliza para tus
-                  publicaciones y visibilidad.
+                  Selecciona el distrito donde opera tu perfil de empleador.
                 </p>
 
                 {depsLoading && (
@@ -845,7 +1219,6 @@ export default function CompanyProfileSetupPage() {
                 </div>
               </section>
 
-              {/* Acciones */}
               <div className="pt-2 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-t border-slate-100">
                 <div className="text-sm text-slate-600">
                   {updateMutation.isPending

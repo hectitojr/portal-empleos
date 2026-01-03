@@ -109,9 +109,9 @@ export default function DashboardHeader() {
             aria-label="Ir al inicio"
             type="button"
           >
-            <Briefcase className="w-6 h-6 text-blue-600" aria-hidden="true" />
-            <span className="hidden sm:inline text-2xl font-bold text-blue-600">EmpleosPeru</span>
-            <span className="sm:hidden text-lg font-bold text-blue-600">EP</span>
+            <Briefcase className="w-6 h-6 text-brand-700" aria-hidden="true" />
+            <span className="hidden sm:inline text-2xl font-bold text-brand-700">EmpleosPeru</span>
+            <span className="sm:hidden text-lg font-bold text-brand-700">EP</span>
           </button>
 
           {isApplicant && (
