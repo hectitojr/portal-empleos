@@ -185,6 +185,28 @@ export default function ApplicantProfileSetupPage() {
     },
   });
 
+  form.register('departmentId');
+
+  form.register('provinceId', {
+    validate: (v, values) => {
+      const dept = (values.departmentId ?? '').trim();
+      const prov = (v ?? '').trim();
+      if (!dept) return true;
+      return prov ? true : 'Selecciona una provincia.';
+    },
+  });
+
+  form.register('districtId', {
+    validate: (v, values) => {
+      const dept = (values.departmentId ?? '').trim();
+      const prov = (values.provinceId ?? '').trim();
+      const dist = (v ?? '').trim();
+      if (!dept) return true;
+      if (!prov) return true;
+      return dist ? true : 'Selecciona un distrito.';
+    },
+  });
+
   const expFA = useFieldArray({ control: form.control, name: 'experiences' });
   const eduFA = useFieldArray({ control: form.control, name: 'educations' });
   const skillFA = useFieldArray({ control: form.control, name: 'skills' });
@@ -366,9 +388,19 @@ export default function ApplicantProfileSetupPage() {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const phoneOk = phone.length === 0 || /^[0-9+()\s-]{6,20}$/.test(phone);
 
-    const departmentOk = watched.departmentId.trim().length > 0;
-    const provinceOk = watched.provinceId.trim().length > 0;
-    const districtOk = watched.districtId.trim().length > 0;
+    const department = watched.departmentId.trim();
+    const province = watched.provinceId.trim();
+    const district = watched.districtId.trim();
+
+    const geoAllEmpty = department.length === 0 && province.length === 0 && district.length === 0;
+    const geoAllComplete = department.length > 0 && province.length > 0 && district.length > 0;
+
+    const geoStateOk = geoAllEmpty || geoAllComplete;
+
+    const geoErrors = {
+      province: department && !province ? 'Selecciona una provincia.' : undefined,
+      district: department && province && !district ? 'Selecciona un distrito.' : undefined,
+    };
 
     const experiencesCount =
       watched.experiences?.filter((e) => e.company.trim() && e.role.trim() && e.startDate)
@@ -389,9 +421,11 @@ export default function ApplicantProfileSetupPage() {
       fullNameOk,
       emailOk,
       phoneOk,
-      departmentOk,
-      provinceOk,
-      districtOk,
+
+      geoAllEmpty,
+      geoAllComplete,
+      geoStateOk,
+      geoErrors,
 
       experiencesCount,
       educationsCount,
@@ -406,9 +440,7 @@ export default function ApplicantProfileSetupPage() {
     computed.fullNameOk &&
     computed.emailOk &&
     computed.phoneOk &&
-    computed.departmentOk &&
-    computed.provinceOk &&
-    computed.districtOk &&
+    computed.geoStateOk &&
     !updateMutation.isPending;
 
   useDismissOnDirty({
@@ -424,8 +456,21 @@ export default function ApplicantProfileSetupPage() {
     setServerOk(null);
     setOkVisible(false);
 
-    if (!values.departmentId || !values.provinceId || !values.districtId) {
-      setServerError('Selecciona departamento, provincia y distrito.');
+    const dept = values.departmentId.trim();
+    const prov = values.provinceId.trim();
+    const dist = values.districtId.trim();
+
+    const geoAllEmpty = dept === '' && prov === '' && dist === '';
+    const geoAllComplete = dept !== '' && prov !== '' && dist !== '';
+
+    const geoOk = await form.trigger(['provinceId', 'districtId']);
+    if (!geoOk) {
+      setServerError('Completa la ubicación antes de guardar o déjala vacía.');
+      return;
+    }
+
+    if (!(geoAllEmpty || geoAllComplete)) {
+      setServerError('Completa la ubicación antes de guardar o déjala vacía.');
       return;
     }
 
@@ -478,7 +523,7 @@ export default function ApplicantProfileSetupPage() {
       fullName: values.fullName.trim(),
       contactEmail: values.contactEmail.trim(),
       contactPhone: values.contactPhone.trim() ? values.contactPhone.trim() : null,
-      districtId: values.districtId ? values.districtId : null,
+      districtId: geoAllComplete ? values.districtId : geoAllEmpty ? null : null,
       profileSummary: values.profileSummary.trim() ? values.profileSummary.trim() : null,
       experiences,
       educations,
@@ -756,20 +801,9 @@ export default function ApplicantProfileSetupPage() {
                 )}
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                  <Field
-                    label="Departamento"
-                    required
-                    error={
-                      form.formState.touchedFields.departmentId && !computed.departmentOk
-                        ? 'Selecciona un departamento.'
-                        : undefined
-                    }
-                  >
+                  <Field label="Departamento" required>
                     <select
-                      className={selectClass(
-                        false,
-                        form.formState.touchedFields.departmentId && !computed.departmentOk
-                      )}
+                      className={selectClass(false, false)}
                       value={departmentId}
                       onChange={(e) => {
                         const next = e.target.value;
@@ -778,16 +812,27 @@ export default function ApplicantProfileSetupPage() {
                           form.setValue('departmentId', next, {
                             shouldDirty: true,
                             shouldTouch: true,
+                            shouldValidate: true,
                           });
                           form.setValue('provinceId', '', {
                             shouldDirty: true,
                             shouldTouch: false,
+                            shouldValidate: true,
                           });
                           form.setValue('districtId', '', {
                             shouldDirty: true,
                             shouldTouch: false,
+                            shouldValidate: true,
                           });
+
                           form.clearErrors(['provinceId', 'districtId']);
+
+                          if (next) {
+                            form.setValue('provinceId', '', {
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            });
+                          }
                         }
                       }}
                       onBlur={() => form.trigger('departmentId')}
@@ -805,20 +850,13 @@ export default function ApplicantProfileSetupPage() {
                     label="Provincia"
                     required
                     error={
-                      !!departmentId &&
-                      form.formState.touchedFields.provinceId &&
-                      !computed.provinceOk
-                        ? 'Selecciona una provincia.'
-                        : undefined
+                      !computed.geoAllEmpty && computed.geoErrors.province
+                        ? computed.geoErrors.province
+                        : (form.formState.errors.provinceId?.message as string | undefined)
                     }
                   >
                     <select
-                      className={selectClass(
-                        !departmentId,
-                        !!departmentId &&
-                          form.formState.touchedFields.provinceId &&
-                          !computed.provinceOk
-                      )}
+                      className={selectClass(!departmentId, false)}
                       value={provinceId}
                       disabled={!departmentId || provincesQuery.isLoading}
                       onChange={(e) => {
@@ -827,12 +865,22 @@ export default function ApplicantProfileSetupPage() {
                           form.setValue('provinceId', next, {
                             shouldDirty: true,
                             shouldTouch: true,
+                            shouldValidate: true,
                           });
                           form.setValue('districtId', '', {
                             shouldDirty: true,
                             shouldTouch: false,
+                            shouldValidate: true,
                           });
+
                           form.clearErrors(['districtId']);
+
+                          if (next) {
+                            form.setValue('districtId', '', {
+                              shouldTouch: true,
+                              shouldValidate: true,
+                            });
+                          }
                         }
                       }}
                       onBlur={() => form.trigger('provinceId')}
@@ -857,26 +905,20 @@ export default function ApplicantProfileSetupPage() {
                     label="Distrito"
                     required
                     error={
-                      !!provinceId &&
-                      form.formState.touchedFields.districtId &&
-                      !computed.districtOk
-                        ? 'Selecciona un distrito.'
-                        : undefined
+                      !computed.geoAllEmpty && computed.geoErrors.district
+                        ? computed.geoErrors.district
+                        : (form.formState.errors.districtId?.message as string | undefined)
                     }
                   >
                     <select
-                      className={selectClass(
-                        !provinceId,
-                        !!provinceId &&
-                          form.formState.touchedFields.districtId &&
-                          !computed.districtOk
-                      )}
+                      className={selectClass(!provinceId, false)}
                       value={districtId}
                       disabled={!provinceId || districtsQuery.isLoading}
                       onChange={(e) =>
                         form.setValue('districtId', e.target.value, {
                           shouldDirty: true,
                           shouldTouch: true,
+                          shouldValidate: true,
                         })
                       }
                       onBlur={() => form.trigger('districtId')}

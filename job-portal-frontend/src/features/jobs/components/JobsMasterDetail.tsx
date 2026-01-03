@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
+import { useRouter } from 'next/navigation';
 import { getTimeAgo } from '@/lib/dateUtils';
 import type { Job } from '@/features/home/lib/types';
 import {
@@ -56,7 +57,10 @@ type JobDetailPaneProps = {
 
   applyPending: boolean;
   applyError: unknown;
+  appliedErrorCode?: string;
   appliedErrorLabel: string | null;
+
+  onGoCompleteProfile?: () => void;
 };
 
 function JobDetailPane({
@@ -69,9 +73,14 @@ function JobDetailPane({
   onApply,
   applyPending,
   applyError,
+  appliedErrorCode,
   appliedErrorLabel,
+  onGoCompleteProfile,
 }: JobDetailPaneProps) {
   const d = (detail ?? null) as DetailShape | null;
+
+  const isApplicantIncomplete =
+    variant === 'applicant' && appliedErrorCode === 'APPLICANT_INCOMPLETE';
 
   return (
     <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
@@ -212,9 +221,48 @@ function JobDetailPane({
       </div>
 
       {variant === 'applicant' && Boolean(applyError) && (
-        <p className="mt-3 text-xs text-red-600">
-          {appliedErrorLabel || 'No se pudo completar la postulación. Intenta nuevamente.'}
-        </p>
+        <div className="mt-4">
+          {isApplicantIncomplete ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="mt-0.5 h-5 w-5 flex-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v4m0 4h.01M10.29 3.86l-7.4 12.82A2 2 0 004.62 20h14.76a2 2 0 001.73-3.32l-7.4-12.82a2 2 0 00-3.46 0z"
+                  />
+                </svg>
+
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Necesitas completar tu perfil</p>
+                  <p className="text-sm mt-0.5">
+                    {appliedErrorLabel || 'Completa tu perfil de postulante para poder postular.'}
+                  </p>
+
+                  {onGoCompleteProfile && (
+                    <button
+                      type="button"
+                      onClick={onGoCompleteProfile}
+                      className="mt-2 inline-flex items-center rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-950 transition"
+                    >
+                      Completar perfil
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-red-600">
+              {appliedErrorLabel || 'No se pudo completar la postulación. Intenta nuevamente.'}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -229,6 +277,8 @@ export default function JobsMasterDetail({
   totalPages = 1,
   initialSelectedId = null,
 }: Props) {
+  const router = useRouter();
+
   const firstId = jobs[0]?.id ?? null;
   const [selectedJobId, setSelectedJobId] = useState<string | null>(initialSelectedId ?? firstId);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
@@ -274,7 +324,7 @@ export default function JobsMasterDetail({
     applyMutation.mutate({ jobId });
   };
 
-  const appliedErrorCode = getErrorCode(applyMutation.error);
+  const appliedErrorCode = getErrorCode(applyMutation.error) as string | undefined;
 
   const detailLoc = (detail ?? null) as {
     departmentName?: string;
@@ -285,6 +335,12 @@ export default function JobsMasterDetail({
   const fullLocation = detailLoc
     ? joinLocation([detailLoc.departmentName, detailLoc.provinceName, detailLoc.districtName])
     : '';
+
+  const handleGoCompleteProfile = () => {
+    router.push('/me/applicant/profile/setup' as Route);
+  };
+
+  const appliedErrorLabel = humanize(appliedErrorCode) || null;
 
   return (
     <section id="empleos" className="flex-1 bg-slate-50 py-8 flex flex-col min-h-0">
@@ -500,7 +556,9 @@ export default function JobsMasterDetail({
                 onApply={handleApply}
                 applyPending={applyMutation.isPending}
                 applyError={applyMutation.error}
+                appliedErrorCode={appliedErrorCode}
                 appliedErrorLabel={humanize(appliedErrorCode) || null}
+                onGoCompleteProfile={handleGoCompleteProfile}
               />
             ) : (
               <div className="flex-1 overflow-y-auto p-8 sm:p-10 text-[15px] leading-relaxed">
@@ -539,7 +597,9 @@ export default function JobsMasterDetail({
                 onApply={handleApply}
                 applyPending={applyMutation.isPending}
                 applyError={applyMutation.error}
+                appliedErrorCode={appliedErrorCode}
                 appliedErrorLabel={humanize(appliedErrorCode) || null}
+                onGoCompleteProfile={handleGoCompleteProfile}
               />
             </div>
           </div>

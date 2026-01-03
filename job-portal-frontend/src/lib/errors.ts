@@ -29,7 +29,9 @@ export type ApiErrorCode =
   | 'INTERNAL_ERROR';
 
 export function humanize(code?: ApiErrorCode | string): string {
-  switch (code) {
+  const c = (code ?? '').toString().trim();
+
+  switch (c) {
     case 'BAD_CREDENTIALS':
       return 'Credenciales inválidas.';
     case 'EMAIL_EXISTS':
@@ -80,12 +82,15 @@ export function humanize(code?: ApiErrorCode | string): string {
 }
 
 export function getErrorCode(err: unknown): ApiErrorCode | string | undefined {
-  const e = err as any;
+  const e: any = err;
 
-  return (
-    e?.error ??      
-    e?.error?.error ?? 
-    e?.code ??         
-    e?.error           
-  );
+  const data =
+    e?.response?.data ??
+    e?.data ??
+    e?.error?.response?.data ??
+    e?.error?.data ??
+    e?.error ??
+    null;
+
+  return data?.error ?? data?.code ?? data?.error?.error ?? e?.code ?? undefined;
 }

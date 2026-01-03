@@ -1,12 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Route } from 'next';
 
 import { loginReq, registerReq } from '@/features/iam/api/authClient';
-import { routes } from '@/lib/routes';
 import { getErrorCode, humanize } from '@/lib/errors';
 
 type Mode = 'login' | 'register' | 'select-role';
@@ -16,24 +14,6 @@ function normalizeUserType(v: string | null): UserType {
   if (!v) return null;
   const up = v.trim().toUpperCase();
   return up === 'APPLICANT' || up === 'COMPANY' ? up : null;
-}
-
-function toSafePublicNext(next: string | null): Route {
-  if (!next || !next.startsWith('/')) return routes.public.home;
-
-  const isAllowed =
-    next === routes.public.home ||
-    next === routes.public.login ||
-    next === routes.public.register ||
-    next.startsWith('/auth') ||
-    next.startsWith('/jobs') ||
-    next === routes.public.help ||
-    next === routes.public.contact ||
-    next === routes.public.about ||
-    next === routes.public.accessibility ||
-    next === routes.public.terms;
-
-  return (isAllowed ? next : routes.public.home) as Route;
 }
 
 function applyBackendFieldErrors(data: any): Record<string, string> {
@@ -50,13 +30,11 @@ function applyBackendFieldErrors(data: any): Record<string, string> {
 }
 
 export function useAuthState() {
-  const router = useRouter();
   const search = useSearchParams();
   const qc = useQueryClient();
 
   const modeParam = search.get('mode');
   const roleParam = search.get('role');
-  const nextParam = search.get('next');
 
   const initialUserType = normalizeUserType(roleParam);
 
@@ -66,8 +44,6 @@ export function useAuthState() {
         ? 'register'
         : 'select-role'
       : 'login';
-
-  const safeNext = useMemo(() => toSafePublicNext(nextParam), [nextParam]);
 
   const [authMode, setAuthMode] = useState<Mode>(initialAuthMode);
   const [userType, setUserType] = useState<UserType>(initialUserType);
@@ -158,7 +134,8 @@ export function useAuthState() {
 
         setSuccess(true);
         await qc.invalidateQueries({ queryKey: ['auth', 'me'] });
-        router.push(safeNext ?? routes.dashboard.me);
+
+        window.location.assign('/me');
         return;
       }
 
@@ -193,22 +170,8 @@ export function useAuthState() {
       setSuccess(true);
       await qc.invalidateQueries({ queryKey: ['auth', 'me'] });
 
-      if (
-        safeNext &&
-        safeNext !== routes.public.home &&
-        safeNext !== routes.public.login &&
-        safeNext !== routes.public.register
-      ) {
-        router.push(safeNext);
-        return;
-      }
-
-      const fallback =
-        userType === 'APPLICANT'
-          ? routes.dashboard.applicant.home
-          : routes.dashboard.company.home;
-
-      router.push(fallback);
+      window.location.assign('/me');
+      return;
     } finally {
       setLoading(false);
     }
